@@ -1,0 +1,58 @@
+body, html {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column; /* Указываем, что основная ось выравнивания - вертикальная */
+    justify-content: center;
+    align-items: center;
+    background-color: #000;
+    color: #fff;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+.header, .logo-container, main, footer {
+    text-align: center;
+    width: 100%;
+    max-width: 42%;
+    margin: 0 auto; /* Убедитесь, что центрирование применяется */
+}
+
+.logo-container {
+    margin-bottom: 20px; /* Добавляем немного пространства между логотипом и заголовком */
+}
+
+#logo {
+    max-width: 100%; /* Убедитесь, что логотип не выходит за пределы своего контейнера */
+    height: auto; /* Сохраняем пропорции изображения */
+}
+
+nav ul {
+    padding: 0;
+    list-style-type: none;
+}
+
+nav ul li {
+    display: inline;
+    margin: 0 10px;
+}
+
+nav ul li a {
+    color: white;
+    text-decoration: none;
+}
+
+section {
+    margin: 20px 0;
+}
+
+footer {
+    font-size: 0.8em;
+    position: static;
+}
+
+@media (max-width: 600px) {
+    header, main, footer {
+        width: 100%;
+    }
+}
