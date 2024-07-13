@@ -22,4 +22,5 @@ function drawFractal(x, y, radius, depth) {
     drawFractal(x, y - newRadius, newRadius, depth - 1);
 }
 
+ctx.clearRect(0, 0, canvas.width, canvas.height);
 drawFractal(canvas.width / 2, canvas.height / 2, canvas.width / 4, 5);
