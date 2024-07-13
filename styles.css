@@ -11,6 +11,10 @@ body, html {
     font-family: 'Courier New', Courier, monospace;
 }
 
+canvas {
+    border: 1px solid black;
+}
+
 .header, .logo-container, main, footer {
     text-align: center;
     width: 100%;

@@ -11,7 +11,7 @@ function drawCircle(x, y, radius) {
 }
 
 function drawFractal(x, y, radius, depth) {
-    if (depth === 0) return;
+    if (depth === 0 || radius < 1) return; // Добавлено условие, чтобы остановить рекурсию при очень маленьком радиусе
 
     drawCircle(x, y, radius);
 
