@@ -31,13 +31,14 @@ void main() {
     c.x *= u_resolution.x / u_resolution.y;
 
     vec2 z = vec2(0.0);
-    float iterations = 100.0;
-    for (float i = 0.0; i < iterations; i++) {
+    const float maxIterations = 100.0;
+    float i;
+    for (i = 0.0; i < maxIterations; i++) {
         if (length(z) > 2.0) break;
         z = complexMultiply(z, z) + c;
     }
 
-    float color = length(z) / 2.0;
+    float color = i / maxIterations;
     gl_FragColor = vec4(vec3(color), 1.0);
 }
 `;
@@ -57,6 +58,10 @@ function createShader(gl, type, source) {
 
 const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
 const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+
+if (!vertexShader || !fragmentShader) {
+    console.error('Could not create shaders');
+}
 
 const program = gl.createProgram();
 gl.attachShader(program, vertexShader);
