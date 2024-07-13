@@ -158,7 +158,7 @@ function drawAnimatedFractal(time) {
     reverseAngle -= 0.01;
 
     // Если прошел полный цикл (6 секунд), сбрасываем таймеры и начнем заново
-    if (elapsedTime > 6000) {
+    if (elapsedTime > 5950) {
         startTime = time;
         showFirst = false;
         showSecond = false;
