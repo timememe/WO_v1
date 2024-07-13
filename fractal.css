@@ -29,8 +29,8 @@ canvas {
 }
 
 .circle {
-    width: 200px;
-    height: 200px;
+    width: 42px;
+    height: 42px;
     border-radius: 50%;
     border: 2px solid white;
     background-color: black;
@@ -48,7 +48,7 @@ canvas {
 }
 
 .emoji:nth-child(1) {
-    top: 0;
+    top: 50%;
     left: 50%;
     transform: translate(-50%, -50%) rotate(90deg);
 }
