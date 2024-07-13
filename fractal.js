@@ -2,20 +2,24 @@ const canvas = document.getElementById('fractalCanvas');
 const ctx = canvas.getContext('2d');
 const textElement = document.querySelector('.text');
 
-const serverUrl = 'https://wo-server-v1.onrender.com'; // 
+const serverUrl = 'https://wo-server-v1.onrender.com';
 
 async function fetchDailyText() {
     try {
         const response = await fetch(`${serverUrl}/get-news`);
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
         const data = await response.json();
         textElement.textContent = data.text;
     } catch (error) {
         console.error('Failed to fetch daily text:', error);
+        textElement.textContent = 'Failed to load text. Please try again later.';
     }
 }
 
+// Загружаем текст при загрузке страницы
 fetchDailyText();
-setInterval(fetchDailyText, 24 * 60 * 60 * 1000); // Обновление текста раз в сутки
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
