@@ -17,20 +17,22 @@ function drawCircle(x, y, radius) {
     ctx.stroke();
 }
 
-function drawFractal(x, y, radius, depth) {
+function drawFractal(x, y, radius, depth, time) {
     if (depth === 0 || radius < 1) return;
 
-    drawCircle(x, y, radius);
+    const animatedRadius = radius * Math.abs(Math.sin(time * 0.001));
+
+    drawCircle(x, y, animatedRadius);
 
     const newRadius = radius / 2;
-    drawFractal(x + newRadius, y, newRadius, depth - 1);
-    drawFractal(x - newRadius, y, newRadius, depth - 1);
-    drawFractal(x, y + newRadius, newRadius, depth - 1);
-    drawFractal(x, y - newRadius, newRadius, depth - 1);
+    drawFractal(x + newRadius, y, newRadius, depth - 1, time);
+    drawFractal(x - newRadius, y, newRadius, depth - 1, time);
+    drawFractal(x, y + newRadius, newRadius, depth - 1, time);
+    drawFractal(x, y - newRadius, newRadius, depth - 1, time);
 }
 
 let angle = 0;
-function drawAnimatedFractal() {
+function drawAnimatedFractal(time) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     ctx.save();
@@ -38,7 +40,7 @@ function drawAnimatedFractal() {
     ctx.rotate(angle);
     ctx.translate(-canvas.width / 2, -canvas.height / 2);
 
-    drawFractal(canvas.width / 2, canvas.height / 2, canvas.width / 4, 5);
+    drawFractal(canvas.width / 2, canvas.height / 2, canvas.width / 4, 5, time);
 
     ctx.restore();
 
@@ -46,4 +48,4 @@ function drawAnimatedFractal() {
     requestAnimationFrame(drawAnimatedFractal);
 }
 
-drawAnimatedFractal(); // Initial call to start the animation
+requestAnimationFrame(drawAnimatedFractal); // Initial call to start the animation
