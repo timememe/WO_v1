@@ -1,5 +1,21 @@
 const canvas = document.getElementById('fractalCanvas');
 const ctx = canvas.getContext('2d');
+const textElement = document.querySelector('.text');
+
+const serverUrl = 'https://wo-server-v1.onrender.com'; // 
+
+async function fetchDailyText() {
+    try {
+        const response = await fetch(`${serverUrl}/get-news`);
+        const data = await response.json();
+        textElement.textContent = data.text;
+    } catch (error) {
+        console.error('Failed to fetch daily text:', error);
+    }
+}
+
+fetchDailyText();
+setInterval(fetchDailyText, 24 * 60 * 60 * 1000); // Обновление текста раз в сутки
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
@@ -35,7 +51,7 @@ function drawFractal(x, y, radius, depth, time, isLargest) {
     let animatedRadius;
 
     if (isLargest) {
-        animatedRadius = radius * t * 3; // Постоянное увеличение самого большого круга в течение цикла
+        animatedRadius = radius * t; // Постоянное увеличение самого большого круга в течение цикла
     } else {
         animatedRadius = radius * Math.abs(Math.sin(t * Math.PI));
     }
@@ -59,7 +75,7 @@ function drawSecondFractal(x, y, radius, depth, time, isLargest) {
     let animatedRadius;
 
     if (isLargest) {
-        animatedRadius = radius * t * 3; // Постоянное увеличение самого большого круга в течение цикла
+        animatedRadius = radius * t; // Постоянное увеличение самого большого круга в течение цикла
     } else {
         animatedRadius = radius * Math.abs(Math.sin(t * Math.PI));
     }
@@ -83,7 +99,7 @@ function drawThirdFractal(x, y, radius, depth, time, isLargest) {
     let animatedRadius;
 
     if (isLargest) {
-        animatedRadius = radius * t * 3; // Постоянное увеличение самого большого круга в течение цикла
+        animatedRadius = radius * t; // Постоянное увеличение самого большого круга в течение цикла
     } else {
         animatedRadius = radius * Math.abs(Math.sin(t * Math.PI));
     }
@@ -158,7 +174,7 @@ function drawAnimatedFractal(time) {
     reverseAngle -= 0.01;
 
     // Если прошел полный цикл (6 секунд), сбрасываем таймеры и начнем заново
-    if (elapsedTime > 5950) {
+    if (elapsedTime > 6000) {
         startTime = time;
         showFirst = false;
         showSecond = false;

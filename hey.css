@@ -28,43 +28,10 @@ canvas {
     align-items: center;
 }
 
-.circle {
-    width: 300px;
-    height: 300px;
-    border-radius: 50%;
-    border: 2px solid white;
-    background-color: black;
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.emoji {
-    position: absolute;
-    font-size: 24px;
+.text {
+    font-family: 'Futura', sans-serif;
+    font-size: 48px;
+    font-weight: bold;
     color: white;
-}
-
-.emoji:nth-child(1) {
-    top: 50%;
-    left: 25%;
-}
-
-.emoji:nth-child(2) {
-    right: 0;
-    top: 50%;
-    transform: translate(50%, -50%) rotate(180deg);
-}
-
-.emoji:nth-child(3) {
-    bottom: 0;
-    left: 50%;
-    transform: translate(-50%, 50%) rotate(270deg);
-}
-
-.emoji:nth-child(4) {
-    left: 0;
-    top: 50%;
-    transform: translate(-50%, -50%) rotate(0deg);
+    text-shadow: 2px 2px 4px black;
 }
