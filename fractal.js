@@ -54,7 +54,7 @@ function drawFractal(x, y, radius, depth, time, isLargest) {
 function drawSecondFractal(x, y, radius, depth, time, isLargest) {
     if (depth === 0 || radius < 1) return;
 
-    const cycleTime = 4000; // Время одного цикла в миллисекундах
+    const cycleTime = 2000; // Время одного цикла в миллисекундах
     const t = (time % cycleTime) / cycleTime;
     let animatedRadius;
 
@@ -101,41 +101,70 @@ function drawThirdFractal(x, y, radius, depth, time, isLargest) {
 
 let angle = 0;
 let reverseAngle = 0;
+let startTime = null;
+let showFirst = false;
+let showSecond = false;
+let showThird = false;
+
 function drawAnimatedFractal(time) {
+    if (!startTime) startTime = time;
+    const elapsedTime = time - startTime;
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Определяем, когда показывать каждый набор кругов
+    if (elapsedTime > 0) showFirst = true;
+    if (elapsedTime > 2000) showSecond = true;
+    if (elapsedTime > 4000) showThird = true;
+
     // Рисуем первый набор кругов
-    ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2);
-    ctx.rotate(angle);
-    ctx.translate(-canvas.width / 2, -canvas.height / 2);
+    if (showFirst) {
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(angle);
+        ctx.translate(-canvas.width / 2, -canvas.height / 2);
 
-    drawFractal(canvas.width / 2, canvas.height / 2, canvas.width / 4, 5, time, true);
+        drawFractal(canvas.width / 2, canvas.height / 2, canvas.width / 4, 5, time, true);
 
-    ctx.restore();
+        ctx.restore();
+    }
 
     // Рисуем второй набор кругов
-    ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2);
-    ctx.rotate(reverseAngle);
-    ctx.translate(-canvas.width / 2, -canvas.height / 2);
+    if (showSecond) {
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(reverseAngle);
+        ctx.translate(-canvas.width / 2, -canvas.height / 2);
 
-    drawSecondFractal(canvas.width / 2, canvas.height / 2, canvas.width / 2, 5, time, true);
+        drawSecondFractal(canvas.width / 2, canvas.height / 2, canvas.width / 2, 5, time, true);
 
-    ctx.restore();
+        ctx.restore();
+    }
 
     // Рисуем третий набор кругов
-    ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2);
-    ctx.rotate(angle);
-    ctx.translate(-canvas.width / 2, -canvas.height / 2);
+    if (showThird) {
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(angle);
+        ctx.translate(-canvas.width / 2, -canvas.height / 2);
 
-    drawThirdFractal(canvas.width / 2, canvas.height / 2, canvas.width / 1.5, 5, time, true);
+        drawThirdFractal(canvas.width / 2, canvas.height / 2, canvas.width / 1.5, 5, time, true);
 
-    ctx.restore();
+        ctx.restore();
+    }
 
+    // Обновляем углы вращения
     angle += 0.01;
     reverseAngle -= 0.01;
+
+    // Если прошел полный цикл (6 секунд), сбрасываем таймеры и начнем заново
+    if (elapsedTime > 6000) {
+        startTime = time;
+        showFirst = false;
+        showSecond = false;
+        showThird = false;
+    }
+
     requestAnimationFrame(drawAnimatedFractal);
 }
 
