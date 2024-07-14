@@ -35,7 +35,7 @@ function drawFractal(x, y, radius, depth, time, isLargest) {
     let animatedRadius;
 
     if (isLargest) {
-        animatedRadius = radius * t; // Постоянное увеличение самого большого круга в течение цикла
+        animatedRadius = radius * t * 3; // Постоянное увеличение самого большого круга в течение цикла
     } else {
         animatedRadius = radius * Math.abs(Math.sin(t * Math.PI));
     }
@@ -59,7 +59,7 @@ function drawSecondFractal(x, y, radius, depth, time, isLargest) {
     let animatedRadius;
 
     if (isLargest) {
-        animatedRadius = radius * t; // Постоянное увеличение самого большого круга в течение цикла
+        animatedRadius = radius * t * 3; // Постоянное увеличение самого большого круга в течение цикла
     } else {
         animatedRadius = radius * Math.abs(Math.sin(t * Math.PI));
     }
@@ -83,7 +83,7 @@ function drawThirdFractal(x, y, radius, depth, time, isLargest) {
     let animatedRadius;
 
     if (isLargest) {
-        animatedRadius = radius * t; // Постоянное увеличение самого большого круга в течение цикла
+        animatedRadius = radius * t * 3; // Постоянное увеличение самого большого круга в течение цикла
     } else {
         animatedRadius = radius * Math.abs(Math.sin(t * Math.PI));
     }
