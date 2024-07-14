@@ -14,7 +14,7 @@ function drawCircle(x, y, radius, lineWidth, isLargest) {
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.lineWidth = lineWidth;
-    ctx.strokeStyle = '#00008B';
+    ctx.strokeStyle = '#f4a1be';
 
     if (isLargest) {
         ctx.shadowColor = '#f4a1be';
