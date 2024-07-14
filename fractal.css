@@ -30,8 +30,9 @@ canvas {
 
 .text {
     font-family: 'Futura', sans-serif;
-    font-size: 48px;
+    font-size: 24px;
     font-weight: bold;
     color: white;
+    text-align: center;
     text-shadow: 2px 2px 4px black;
 }
