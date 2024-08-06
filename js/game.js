@@ -40,7 +40,7 @@ let eventAreas = [];
 let eventLog = [];
 
 let career = 0;
-let careerMax = 10;
+let careerMax = 5;
 let level = 1;
 let enemyDamageMultiplier = 1;
 
@@ -66,6 +66,8 @@ function adjustLogAreaForMobile() {
             logArea.style.zIndex = '1000'; // Убедимся, что лог отображается поверх игры
             logArea.style.transition = 'transform 0.3s ease-in-out';
             logArea.style.transform = 'translateY(100%)'; // Изначально скрыт
+            logArea.style.wordWrap = 'break-word'; // Добавляем перенос слов
+            logArea.style.whiteSpace = 'pre-wrap'; // Сохраняем пробелы и переносы строк
 
             // Добавляем кнопку для открытия/закрытия лога
             const toggleButton = document.createElement('button');
@@ -98,7 +100,7 @@ function adjustLogAreaForMobile() {
         const eventLog = document.getElementById('event-log');
         if (eventLog) {
             eventLog.style.display = 'none';
-        }
+        } 
     }
 }
 
@@ -109,19 +111,6 @@ function init() {
     canvas.width = GRID_SIZE * CELL_SIZE;
     canvas.height = GRID_SIZE * CELL_SIZE;
     canvas.style.boxShadow = '0 0 10px white';
-
-    // Create event log area (оставляем это, так как оно может быть нужно для десктопной версии)
-    const logArea = document.createElement('div');
-    logArea.id = 'event-log';
-    logArea.style.position = 'absolute';
-    logArea.style.top = '10px';
-    logArea.style.right = '10px';
-    logArea.style.width = '200px';
-    logArea.style.height = '150px';
-    logArea.style.overflow = 'auto';
-    logArea.style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
-    logArea.style.padding = '10px';
-    document.body.appendChild(logArea);
 
     resetGame();
 
@@ -320,7 +309,7 @@ function updateEventLogDisplay() {
     const desktopLogElement = document.getElementById('event-log');
     const mobileLogArea = document.getElementById('log-area');
     
-    const logContent = eventLog.map(event => `<p>${event}</p>`).join('');
+    const logContent = eventLog.map(event => `<p style="margin: 5px 0; word-wrap: break-word;">${event}</p>`).join('');
     
     if (desktopLogElement) {
         desktopLogElement.innerHTML = logContent;
