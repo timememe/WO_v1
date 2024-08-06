@@ -102,7 +102,7 @@ const EVENTS = [
         options: [
             {
                 text: "Активно участвовать",
-                color: "yellow",
+                color: "red",
                 effect: () => {
                     sanity = Math.min(MAX_SANITY, sanity + 15);
                     health = Math.max(0, health - 10);
@@ -112,7 +112,7 @@ const EVENTS = [
             },
             {
                 text: "Тихо сидеть в углу",
-                color: "blue",
+                color: "green",
                 effect: () => {
                     sanity = Math.max(0, sanity - 10);
                     hunger = Math.min(MAX_HUNGER, hunger + 15);

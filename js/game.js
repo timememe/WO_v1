@@ -44,7 +44,64 @@ let careerMax = 10;
 let level = 1;
 let enemyDamageMultiplier = 1;
 
-// Initialize the game
+function adjustLogAreaForMobile() {
+    if (isMobile()) {
+        const logArea = document.getElementById('log-area');
+        
+        if (logArea) {
+            // Удаляем logArea из его текущего положения
+            logArea.parentNode.removeChild(logArea);
+            
+            // Стилизуем logArea для мобильной версии
+            logArea.style.position = 'fixed';
+            logArea.style.bottom = '0';
+            logArea.style.left = '0';
+            logArea.style.width = '100%';
+            logArea.style.maxHeight = '30%'; // Занимает не более 30% высоты экрана
+            logArea.style.overflowY = 'auto';
+            logArea.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            logArea.style.color = 'white';
+            logArea.style.padding = '10px';
+            logArea.style.boxSizing = 'border-box';
+            logArea.style.zIndex = '1000'; // Убедимся, что лог отображается поверх игры
+            logArea.style.transition = 'transform 0.3s ease-in-out';
+            logArea.style.transform = 'translateY(100%)'; // Изначально скрыт
+
+            // Добавляем кнопку для открытия/закрытия лога
+            const toggleButton = document.createElement('button');
+            toggleButton.textContent = 'Log';
+            toggleButton.style.position = 'fixed';
+            toggleButton.style.bottom = '0';
+            toggleButton.style.right = '10px';
+            toggleButton.style.zIndex = '1001';
+            toggleButton.style.padding = '5px 10px';
+            toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            toggleButton.style.color = 'white';
+            toggleButton.style.border = 'none';
+            toggleButton.style.borderTopLeftRadius = '5px';
+            toggleButton.style.borderTopRightRadius = '5px';
+
+            toggleButton.addEventListener('click', () => {
+                if (logArea.style.transform === 'translateY(100%)') {
+                    logArea.style.transform = 'translateY(0)';
+                } else {
+                    logArea.style.transform = 'translateY(100%)';
+                }
+            });
+
+            // Добавляем элементы обратно в body
+            document.body.appendChild(logArea);
+            document.body.appendChild(toggleButton);
+        }
+
+        // Скрываем event-log, созданный скриптом, если он есть
+        const eventLog = document.getElementById('event-log');
+        if (eventLog) {
+            eventLog.style.display = 'none';
+        }
+    }
+}
+
 function init() {
     canvas = document.getElementById('game-board');
     ctx = canvas.getContext('2d');
@@ -53,7 +110,7 @@ function init() {
     canvas.height = GRID_SIZE * CELL_SIZE;
     canvas.style.boxShadow = '0 0 10px white';
 
-    // Create event log area
+    // Create event log area (оставляем это, так как оно может быть нужно для десктопной версии)
     const logArea = document.createElement('div');
     logArea.id = 'event-log';
     logArea.style.position = 'absolute';
@@ -67,13 +124,25 @@ function init() {
     document.body.appendChild(logArea);
 
     resetGame();
-    document.addEventListener('keydown', changeDirection);
-    gameLoop = setInterval(update, 100);
 
     // Remove event button listeners
     document.getElementById('button-left').removeEventListener('click', () => handleEvent('left'));
     document.getElementById('button-right').removeEventListener('click', () => handleEvent('right'));
+
+    if (isMobile()) {
+        setupTouchControls();
+        adjustLogAreaForMobile(); // Вызываем функцию здесь
+    } else {
+        document.addEventListener('keydown', changeDirection);
+    }
+
+    showTutorial();
     updateEventLogDisplay();
+    gameLoop = setInterval(update, 100);
+}
+
+function isMobile() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
 // Reset the game state
@@ -248,8 +317,18 @@ function addToEventLog(event) {
 }
 
 function updateEventLogDisplay() {
-    const logElement = document.getElementById('log-text');
-    logElement.innerHTML = eventLog.map(event => `<p>${event}</p>`).join('');
+    const desktopLogElement = document.getElementById('event-log');
+    const mobileLogArea = document.getElementById('log-area');
+    
+    const logContent = eventLog.map(event => `<p>${event}</p>`).join('');
+    
+    if (desktopLogElement) {
+        desktopLogElement.innerHTML = logContent;
+    }
+    
+    if (mobileLogArea) {
+        mobileLogArea.innerHTML = logContent;
+    }
 }
 
 function updateEventButtons(event) {
@@ -394,10 +473,10 @@ function update() {
 function moveSnake() {
     const head = { x: snake[0].x, y: snake[0].y };
     switch (direction) {
-        case 'up': head.y--; break;
-        case 'down': head.y++; break;
-        case 'left': head.x--; break;
-        case 'right': head.x++; break;
+        case 'up': head.y = (head.y - 1 + GRID_SIZE) % GRID_SIZE; break;
+        case 'down': head.y = (head.y + 1) % GRID_SIZE; break;
+        case 'left': head.x = (head.x - 1 + GRID_SIZE) % GRID_SIZE; break;
+        case 'right': head.x = (head.x + 1) % GRID_SIZE; break;
     }
     snake.unshift(head);
 }
@@ -405,10 +484,6 @@ function moveSnake() {
 // Check for collisions
 function checkCollision() {
     const head = snake[0];
-    if (head.x < 0 || head.x >= GRID_SIZE || head.y < 0 || head.y >= GRID_SIZE) {
-        gameOverCause = 'Змейка врезалась в стену!';
-        return true;
-    }
     for (let i = 1; i < snake.length; i++) {
         if (head.x === snake[i].x && head.y === snake[i].y) {
             gameOverCause = 'Змейка врезалась в себя!';
@@ -463,6 +538,21 @@ function createPopup(id, content) {
     document.body.appendChild(popup);
 
     return popup;
+}
+
+function showTutorial() {
+    const content = isMobile() ?
+        "<h2>Как играть</h2><p>Свайпай змейкой</p>" :
+        "<h2>Как играть</h2><p>Двигай стрелками</p>";
+    
+    const popup = createPopup('tutorial-popup', content);
+    const closeButton = document.createElement('button');
+    closeButton.textContent = "Понятно";
+    closeButton.onclick = () => {
+        document.getElementById('tutorial-popup').remove();
+        document.getElementById('popup-overlay').remove();
+    };
+    popup.appendChild(closeButton);
 }
 
 function showLevelUpPopup() {
@@ -642,6 +732,7 @@ function draw() {
     ctx.textAlign = 'left';
     ctx.fillText(`Уровень: ${level}`, 10, 30);
 
+    /*
     // Draw career progress
     ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';  // Полупрозрачный синий
     const progressWidth = (career / careerMax) * (canvas.width - 20);
@@ -651,6 +742,7 @@ function draw() {
     ctx.strokeStyle = 'white';
     ctx.lineWidth = 2;
     ctx.strokeRect(10, canvas.height - 30, canvas.width - 20, 20);
+    */
 
     // Draw career progress text
     ctx.fillStyle = 'white';
@@ -660,6 +752,36 @@ function draw() {
 
     // Update status bars
     updateStatusBars();
+}
+
+function setupTouchControls() {
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    document.addEventListener('touchstart', function(e) {
+        touchStartX = e.changedTouches[0].screenX;
+        touchStartY = e.changedTouches[0].screenY;
+    }, false);
+
+    document.addEventListener('touchend', function(e) {
+        let touchEndX = e.changedTouches[0].screenX;
+        let touchEndY = e.changedTouches[0].screenY;
+
+        handleSwipe(touchStartX, touchStartY, touchEndX, touchEndY);
+    }, false);
+}
+
+function handleSwipe(startX, startY, endX, endY) {
+    const dx = endX - startX;
+    const dy = endY - startY;
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+        if (dx > 0 && direction !== 'left') direction = 'right';
+        else if (dx < 0 && direction !== 'right') direction = 'left';
+    } else {
+        if (dy > 0 && direction !== 'up') direction = 'down';
+        else if (dy < 0 && direction !== 'down') direction = 'up';
+    }
 }
 
 function distortText(text, sanityLevel) {
