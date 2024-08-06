@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Survivor</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="game-area">
+            <canvas id="game-board"></canvas>
+        </div>
+        <div id="event-area">
+            <p id="event-text">Events will appear here...</p>
+            <div id="event-buttons">
+                <button id="button-left">Left</button>
+                <button id="button-right">Right</button>
+            </div>
+        </div>
+        <div id="status-area">
+            <div class="status-bar" id="hunger-bar">Hunger: <span id="hunger-value">100</span></div>
+            <div class="status-bar" id="health-bar">Health: <span id="health-value">100</span></div>
+            <div class="status-bar" id="sanity-bar">Sanity: <span id="sanity-value">100</span></div>
+            <div class="status-bar" id="career-bar">Career: <span id="career-value">0/10</span></div>
+            <div id="score"><span id="score-value">0</span></div>
+        </div>
+    </div>
+    <div id="log-area">
+        <p id="log-text">Event log will appear here...</p>
+    </div>
+    <script src="js/events.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
