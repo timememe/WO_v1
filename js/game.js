@@ -44,6 +44,8 @@ let careerMax = 5;
 let level = 1;
 let enemyDamageMultiplier = 1;
 
+let isScrollLocked = false;
+
 function adjustLogAreaForMobile() {
     if (isMobile()) {
         const logArea = document.getElementById('log-area');
@@ -104,6 +106,54 @@ function adjustLogAreaForMobile() {
     }
 }
 
+function lockScroll() {
+    if (!isScrollLocked) {
+        isScrollLocked = true;
+        document.body.style.overflow = 'hidden';
+        document.body.style.position = 'fixed';
+        document.body.style.width = '100%';
+        document.body.style.height = '100%';
+    }
+}
+
+function unlockScroll() {
+    if (isScrollLocked) {
+        isScrollLocked = false;
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        document.body.style.height = '';
+    }
+}
+
+function preventDefaultForScrollKeys(e) {
+    const keys = {37: 1, 38: 1, 39: 1, 40: 1};
+    if (keys[e.keyCode]) {
+        e.preventDefault();
+        return false;
+    }
+}
+
+function disableScroll() {
+    window.addEventListener('touchmove', preventDefault, { passive: false });
+    window.addEventListener('touchforcechange', preventDefault, { passive: false });
+    document.addEventListener('touchmove', preventDefault, { passive: false });
+    document.addEventListener('scroll', preventDefault);
+    document.addEventListener('keydown', preventDefaultForScrollKeys);
+}
+
+function enableScroll() {
+    window.removeEventListener('touchmove', preventDefault, { passive: false });
+    window.removeEventListener('touchforcechange', preventDefault, { passive: false });
+    document.removeEventListener('touchmove', preventDefault, { passive: false });
+    document.removeEventListener('scroll', preventDefault);
+    document.removeEventListener('keydown', preventDefaultForScrollKeys);
+}
+
+function preventDefault(e) {
+    e.preventDefault();
+}
+
 function init() {
     canvas = document.getElementById('game-board');
     ctx = canvas.getContext('2d');
@@ -120,7 +170,9 @@ function init() {
 
     if (isMobile()) {
         setupTouchControls();
-        adjustLogAreaForMobile(); // Вызываем функцию здесь
+        adjustLogAreaForMobile();
+        lockScroll();
+        disableScroll();
     } else {
         document.addEventListener('keydown', changeDirection);
     }
@@ -661,6 +713,11 @@ function gameOver() {
     
     addToEventLog(`Игра окончена: ${gameOverCause}`);
     
+    if (isMobile()) {
+        unlockScroll();
+        enableScroll();
+    }
+    
     showGameOverPopup();
 }
 
@@ -750,14 +807,14 @@ function setupTouchControls() {
     document.addEventListener('touchstart', function(e) {
         touchStartX = e.changedTouches[0].screenX;
         touchStartY = e.changedTouches[0].screenY;
-    }, false);
+    }, { passive: false });
 
     document.addEventListener('touchend', function(e) {
         let touchEndX = e.changedTouches[0].screenX;
         let touchEndY = e.changedTouches[0].screenY;
 
         handleSwipe(touchStartX, touchStartY, touchEndX, touchEndY);
-    }, false);
+    }, { passive: false });
 }
 
 function handleSwipe(startX, startY, endX, endY) {
