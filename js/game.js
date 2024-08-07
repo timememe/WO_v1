@@ -7,6 +7,7 @@ const INITIAL_SNAKE_LENGTH = 3;
 let MAX_HUNGER = 100;
 let MAX_HEALTH = 100;
 let MAX_SANITY = 100;
+let INITIAL_CAREER_MAX = 2;
 let CAREER_MULTIPLIER = 1.1;
 
 const SNAKE_GLOW = 'rgba(0, 255, 0, 0.8)';
@@ -16,9 +17,9 @@ const FOOD_GLOW = 'rgba(0, 255, 255, 0.8)';
 
 // Colors
 const ENEMY_COLORS = {
-    hunger: 'orange',
-    health: 'red',
-    sanity: 'purple'
+    hunger: '#8B4513',  // Коричневый
+    health: '#800000',  // Темно-красный
+    sanity: '#4B0082'   // Индиго
 };
 const FOOD_COLORS = {
     normal: 'green',
@@ -40,7 +41,7 @@ let eventAreas = [];
 let eventLog = [];
 
 let career = 0;
-let careerMax = 5;
+let careerMax = INITIAL_CAREER_MAX;
 let level = 1;
 let enemyDamageMultiplier = 1;
 
@@ -204,7 +205,8 @@ function resetGame() {
     currentEvent = null;
     eventAreas = [];
     career = 0;
-    careerMax = 10;
+    INITIAL_CAREER_MAX = 2;
+    careerMax = INITIAL_CAREER_MAX;
     level = 1;
     enemyDamageMultiplier = 1;
     eventLog = []; // Очищаем лог событий
@@ -649,8 +651,9 @@ function upgradeCharacteristic(characteristic) {
     document.getElementById('popup-overlay').remove();
     
     career = 0;
-    careerMax = Math.floor(careerMax * (level <= 5 ? CAREER_MULTIPLIER : 2));
-    enemyDamageMultiplier += 0.05;
+    careerMax = Math.floor(careerMax * (level <= 2 ? CAREER_MULTIPLIER : 1.5));
+    INITIAL_CAREER_MAX = careerMax;  // Обновляем начальное значение для следующих уровней
+    enemyDamageMultiplier += 0.1;
     spawnAdditionalEnemy();
     
     addToEventLog(`Уровень повышен до ${level}! ${characteristic} улучшен.`);
