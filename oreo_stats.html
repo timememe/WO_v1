@@ -31,6 +31,7 @@
             color: white;
             border: none;
             cursor: pointer;
+            margin-right: 10px;
         }
         button:hover {
             background-color: #45a049;
@@ -47,20 +48,27 @@
         </tr>
     </table>
     <button onclick="downloadExcel()">Download Excel</button>
+    <button onclick="refreshStats()">Refresh Stats</button>
 
     <script>
         let gameStats;
 
-        fetch('https://wo-server-v1.onrender.com/oreo-stats')
-            .then(response => response.json())
-            .then(data => {
-                gameStats = data;
-                updateTable();
-            })
-            .catch(error => console.error('Error fetching stats:', error));
+        function fetchStats() {
+            fetch('https://wo-server-v1.onrender.com/oreo-stats')
+                .then(response => response.json())
+                .then(data => {
+                    gameStats = data;
+                    updateTable();
+                })
+                .catch(error => console.error('Error fetching stats:', error));
+        }
 
         function updateTable() {
             const table = document.getElementById('statsTable');
+            // Clear existing rows
+            while (table.rows.length > 1) {
+                table.deleteRow(1);
+            }
             for (const [game, stats] of Object.entries(gameStats)) {
                 const row = table.insertRow();
                 row.insertCell(0).textContent = game;
@@ -71,16 +79,25 @@
 
         function downloadExcel() {
             const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.json_to_sheet(
-                Object.entries(gameStats).map(([game, stats]) => ({
-                    Game: game,
-                    Wins: stats.wins,
-                    Losses: stats.losses
-                }))
-            );
+            const wsData = Object.entries(gameStats).map(([game, stats]) => ({
+                Game: game,
+                Wins: stats.wins,
+                Losses: stats.losses
+            }));
+            const ws = XLSX.utils.json_to_sheet(wsData);
             XLSX.utils.book_append_sheet(wb, ws, "Game Stats");
             XLSX.writeFile(wb, "oreo_game_stats.xlsx");
         }
+
+        function refreshStats() {
+            fetchStats();
+        }
+
+        // Initial fetch
+        fetchStats();
+
+        // Refresh stats every 5 minutes
+        setInterval(fetchStats, 5 * 60 * 1000);
     </script>
 </body>
 </html>
