@@ -70,20 +70,24 @@
                 table.deleteRow(1);
             }
             for (const [game, stats] of Object.entries(gameStats)) {
-                const row = table.insertRow();
-                row.insertCell(0).textContent = game;
-                row.insertCell(1).textContent = stats.wins;
-                row.insertCell(2).textContent = stats.losses;
+                if (game !== '_id') { // Игнорируем поле _id
+                    const row = table.insertRow();
+                    row.insertCell(0).textContent = game;
+                    row.insertCell(1).textContent = stats.wins || 0;
+                    row.insertCell(2).textContent = stats.losses || stats.losss || 0; // Обрабатываем оба варианта
+                }
             }
         }
 
         function downloadExcel() {
             const wb = XLSX.utils.book_new();
-            const wsData = Object.entries(gameStats).map(([game, stats]) => ({
-                Game: game,
-                Wins: stats.wins,
-                Losses: stats.losses
-            }));
+            const wsData = Object.entries(gameStats)
+                .filter(([game, _]) => game !== '_id') // Исключаем _id
+                .map(([game, stats]) => ({
+                    Game: game,
+                    Wins: stats.wins || 0,
+                    Losses: stats.losses || stats.losss || 0
+                }));
             const ws = XLSX.utils.json_to_sheet(wsData);
             XLSX.utils.book_append_sheet(wb, ws, "Game Stats");
             XLSX.writeFile(wb, "oreo_game_stats.xlsx");
