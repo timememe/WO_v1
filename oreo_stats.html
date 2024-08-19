@@ -78,6 +78,7 @@
             fetch('https://wo-server-v1.onrender.com/oreo-stats')
                 .then(response => response.json())
                 .then(data => {
+                    console.log('Received data:', data);  // Добавим логирование полученных данных
                     updateOverallStats(data);
                     updateDailyStats(data.dailyStats, data.dailyLanguageStats);
                 })
@@ -85,25 +86,36 @@
         }
 
         function updateOverallStats(stats) {
-            document.getElementById('game1Wins').textContent = stats.game1.wins;
-            document.getElementById('game1Losses').textContent = stats.game1.losses;
-            document.getElementById('game2Wins').textContent = stats.game2.wins;
-            document.getElementById('game2Losses').textContent = stats.game2.losses;
+            if (stats && stats.game1 && stats.game2) {
+                document.getElementById('game1Wins').textContent = stats.game1.wins || 0;
+                document.getElementById('game1Losses').textContent = stats.game1.losses || 0;
+                document.getElementById('game2Wins').textContent = stats.game2.wins || 0;
+                document.getElementById('game2Losses').textContent = stats.game2.losses || 0;
+            } else {
+                console.error('Invalid overall stats data:', stats);
+            }
         }
 
         function updateDailyStats(dailyStats, dailyLanguageStats) {
             const tbody = document.querySelector('#dailyStats tbody');
             tbody.innerHTML = '';
 
+            if (!dailyStats || !dailyLanguageStats) {
+                console.error('Invalid daily stats data:', { dailyStats, dailyLanguageStats });
+                return;
+            }
+
             for (const [date, stats] of Object.entries(dailyStats)) {
                 // Add overall stats
                 for (const game of ['game1', 'game2']) {
-                    const row = tbody.insertRow();
-                    row.insertCell().textContent = date;
-                    row.insertCell().textContent = 'All Languages';
-                    row.insertCell().textContent = game;
-                    row.insertCell().textContent = stats[game].wins;
-                    row.insertCell().textContent = stats[game].losses;
+                    if (stats[game]) {
+                        const row = tbody.insertRow();
+                        row.insertCell().textContent = date;
+                        row.insertCell().textContent = 'All Languages';
+                        row.insertCell().textContent = game;
+                        row.insertCell().textContent = stats[game].wins || 0;
+                        row.insertCell().textContent = stats[game].losses || 0;
+                    }
                 }
 
                 // Add language-specific stats
@@ -111,12 +123,14 @@
                 for (const lang of ['ru', 'kz', 'ge', 'az']) {
                     if (langStats[lang]) {
                         for (const game of ['game1', 'game2']) {
-                            const row = tbody.insertRow();
-                            row.insertCell().textContent = date;
-                            row.insertCell().textContent = lang.toUpperCase();
-                            row.insertCell().textContent = game;
-                            row.insertCell().textContent = langStats[lang][game].wins;
-                            row.insertCell().textContent = langStats[lang][game].losses;
+                            if (langStats[lang][game]) {
+                                const row = tbody.insertRow();
+                                row.insertCell().textContent = date;
+                                row.insertCell().textContent = lang.toUpperCase();
+                                row.insertCell().textContent = game;
+                                row.insertCell().textContent = langStats[lang][game].wins || 0;
+                                row.insertCell().textContent = langStats[lang][game].losses || 0;
+                            }
                         }
                     }
                 }
