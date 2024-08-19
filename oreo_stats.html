@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Oreo Game Statistics</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -26,82 +25,106 @@
             background-color: #f2f2f2;
         }
         button {
-            padding: 10px 20px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
             margin-right: 10px;
-        }
-        button:hover {
-            background-color: #45a049;
+            padding: 10px;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
     <h1>Oreo Game Statistics</h1>
-    <table id="statsTable">
+
+    <h2>Overall Statistics</h2>
+    <table id="overallStats">
         <tr>
             <th>Game</th>
             <th>Wins</th>
             <th>Losses</th>
         </tr>
+        <tr>
+            <td>Game 1</td>
+            <td id="game1Wins">-</td>
+            <td id="game1Losses">-</td>
+        </tr>
+        <tr>
+            <td>Game 2</td>
+            <td id="game2Wins">-</td>
+            <td id="game2Losses">-</td>
+        </tr>
     </table>
+
+    <h2>Daily Statistics by Language</h2>
+    <table id="dailyStats">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Language</th>
+                <th>Game</th>
+                <th>Wins</th>
+                <th>Losses</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- This will be filled dynamically -->
+        </tbody>
+    </table>
+
     <button onclick="downloadExcel()">Download Excel</button>
     <button onclick="refreshStats()">Refresh Stats</button>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
     <script>
-        let gameStats;
-
-        function fetchStats() {
-            fetch('https://wo-server-v1.onrender.com/oreo-stats')
+        function refreshStats() {
+            fetch('https://wo-server-v1.onrender.com/game-stats')
                 .then(response => response.json())
                 .then(data => {
-                    gameStats = data;
-                    updateTable();
+                    updateOverallStats(data.gameStats);
+                    updateDailyStats(data.gameStats.dailyStats, data.languageStats);
                 })
                 .catch(error => console.error('Error fetching stats:', error));
         }
 
-        function updateTable() {
-            const table = document.getElementById('statsTable');
-            // Clear existing rows
-            while (table.rows.length > 1) {
-                table.deleteRow(1);
-            }
-            for (const [game, stats] of Object.entries(gameStats)) {
-                if (game !== '_id') { // Игнорируем поле _id
-                    const row = table.insertRow();
-                    row.insertCell(0).textContent = game;
-                    row.insertCell(1).textContent = stats.wins || 0;
-                    row.insertCell(2).textContent = stats.losses || stats.losss || 0; // Обрабатываем оба варианта
+        function updateOverallStats(stats) {
+            document.getElementById('game1Wins').textContent = stats.game1.wins;
+            document.getElementById('game1Losses').textContent = stats.game1.losses;
+            document.getElementById('game2Wins').textContent = stats.game2.wins;
+            document.getElementById('game2Losses').textContent = stats.game2.losses;
+        }
+
+        function updateDailyStats(dailyStats, languageStats) {
+            const tbody = document.querySelector('#dailyStats tbody');
+            tbody.innerHTML = '';
+
+            for (const [date, games] of Object.entries(dailyStats)) {
+                for (const [language, langStats] of Object.entries(languageStats)) {
+                    for (const [game, stats] of Object.entries(games)) {
+                        const row = tbody.insertRow();
+                        row.insertCell().textContent = date;
+                        row.insertCell().textContent = language;
+                        row.insertCell().textContent = game;
+                        row.insertCell().textContent = stats.wins;
+                        row.insertCell().textContent = stats.losses;
+                    }
                 }
             }
         }
 
         function downloadExcel() {
+            const overallTable = document.getElementById('overallStats');
+            const dailyTable = document.getElementById('dailyStats');
+            
             const wb = XLSX.utils.book_new();
-            const wsData = Object.entries(gameStats)
-                .filter(([game, _]) => game !== '_id') // Исключаем _id
-                .map(([game, stats]) => ({
-                    Game: game,
-                    Wins: stats.wins || 0,
-                    Losses: stats.losses || stats.losss || 0
-                }));
-            const ws = XLSX.utils.json_to_sheet(wsData);
-            XLSX.utils.book_append_sheet(wb, ws, "Game Stats");
+            const wsOverall = XLSX.utils.table_to_sheet(overallTable);
+            const wsDaily = XLSX.utils.table_to_sheet(dailyTable);
+            
+            XLSX.utils.book_append_sheet(wb, wsOverall, "Overall Stats");
+            XLSX.utils.book_append_sheet(wb, wsDaily, "Daily Stats");
+            
             XLSX.writeFile(wb, "oreo_game_stats.xlsx");
         }
 
-        function refreshStats() {
-            fetchStats();
-        }
-
-        // Initial fetch
-        fetchStats();
-
-        // Refresh stats every 5 minutes
-        setInterval(fetchStats, 5 * 60 * 1000);
+        // Initial load of stats
+        refreshStats();
     </script>
 </body>
 </html>
