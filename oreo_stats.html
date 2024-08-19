@@ -75,11 +75,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
     <script>
         function refreshStats() {
-            fetch('https://wo-server-v1.onrender.com/game-stats')
+            fetch('https://wo-server-v1.onrender.com/oreo-stats')
                 .then(response => response.json())
                 .then(data => {
-                    updateOverallStats(data.gameStats);
-                    updateDailyStats(data.gameStats.dailyStats, data.languageStats);
+                    updateOverallStats(data);
+                    updateDailyStats(data.dailyStats, data.dailyLanguageStats);
                 })
                 .catch(error => console.error('Error fetching stats:', error));
         }
@@ -91,19 +91,33 @@
             document.getElementById('game2Losses').textContent = stats.game2.losses;
         }
 
-        function updateDailyStats(dailyStats, languageStats) {
+        function updateDailyStats(dailyStats, dailyLanguageStats) {
             const tbody = document.querySelector('#dailyStats tbody');
             tbody.innerHTML = '';
 
-            for (const [date, games] of Object.entries(dailyStats)) {
-                for (const [language, langStats] of Object.entries(languageStats)) {
-                    for (const [game, stats] of Object.entries(games)) {
-                        const row = tbody.insertRow();
-                        row.insertCell().textContent = date;
-                        row.insertCell().textContent = language;
-                        row.insertCell().textContent = game;
-                        row.insertCell().textContent = stats.wins;
-                        row.insertCell().textContent = stats.losses;
+            for (const [date, stats] of Object.entries(dailyStats)) {
+                // Add overall stats
+                for (const game of ['game1', 'game2']) {
+                    const row = tbody.insertRow();
+                    row.insertCell().textContent = date;
+                    row.insertCell().textContent = 'All Languages';
+                    row.insertCell().textContent = game;
+                    row.insertCell().textContent = stats[game].wins;
+                    row.insertCell().textContent = stats[game].losses;
+                }
+
+                // Add language-specific stats
+                const langStats = dailyLanguageStats[date] || {};
+                for (const lang of ['ru', 'kz', 'ge', 'az']) {
+                    if (langStats[lang]) {
+                        for (const game of ['game1', 'game2']) {
+                            const row = tbody.insertRow();
+                            row.insertCell().textContent = date;
+                            row.insertCell().textContent = lang.toUpperCase();
+                            row.insertCell().textContent = game;
+                            row.insertCell().textContent = langStats[lang][game].wins;
+                            row.insertCell().textContent = langStats[lang][game].losses;
+                        }
                     }
                 }
             }
