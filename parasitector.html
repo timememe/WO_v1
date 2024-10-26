@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Parasitector 3000</title>
+    <!-- Подключение Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap" rel="stylesheet">
+    <style>
+        /* Стили для всего тела */
+        body {
+            margin: 0;
+            background-color: #121212; /* Темный фон */
+            color: #ffffff; /* Светлый текст */
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center; /* Горизонтальное центрирование */
+            align-items: center; /* Вертикальное центрирование */
+            min-height: 100vh; /* Высота экрана */
+        }
+        /* Контейнер для содержимого */
+        .container {
+            text-align: center;
+        }
+        /* Стили для заголовка */
+        h1 {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+        /* Счетчик */
+        #counter {
+            font-size: 48px;
+            margin: 20px 0;
+        }
+        /* Кнопки */
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #555555; /* Серый цвет в обычном состоянии */
+            color: #ffffff;
+            border: none;
+            border-radius: 5px;
+            margin: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s, box-shadow 0.2s;
+        }
+        button:hover:not(:disabled) {
+            background-color: #777777;
+        }
+        button:active:not(:disabled) {
+            background-color: #999999;
+            box-shadow: inset 0 0 5px #000000;
+        }
+        button:disabled {
+            background-color: #333333;
+            cursor: not-allowed;
+        }
+        /* Зеленая кнопка "Начать" при активном состоянии */
+        .active-button {
+            background-color: #28a745 !important; /* Зеленый цвет */
+        }
+        /* Список слов-паразитов */
+        #filler-words-list {
+            margin-top: 30px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            text-align: left;
+        }
+        #filler-words-list h2 {
+            text-align: center;
+            font-family: 'Montserrat', sans-serif;
+        }
+        #filler-words-list ul {
+            list-style-type: none;
+            padding: 0;
+            max-height: 200px;
+            overflow-y: auto; /* Прокрутка по вертикали */
+        }
+        #filler-words-list li {
+            background-color: #1f1f1f;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PARASITECTOR 3000</h1>
+        <div id="counter-label">Количество слов-паразитов:</div>
+        <div id="counter">0</div>
+        <button id="start-btn">Начать</button>
+        <button id="stop-btn" disabled>Остановить</button>
+
+        <div id="filler-words-list">
+            <h2 id="filler-words-title">Зафиксированные слова-паразиты:</h2>
+            <ul id="words-list"></ul>
+        </div>
+    </div>
+
+    <script>
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const counterDisplay = document.getElementById('counter');
+        const wordsList = document.getElementById('words-list');
+        const counterLabel = document.getElementById('counter-label');
+        const fillerWordsTitle = document.getElementById('filler-words-title');
+        let counter = 0;
+
+        // Определяем язык пользователя
+        const userLang = navigator.language || navigator.userLanguage;
+        let recognitionLang = 'en-US'; // По умолчанию английский
+        let fillerWords = []; // Массив слов-паразитов
+
+        if (userLang.startsWith('ru')) {
+            recognitionLang = 'ru-RU';
+            fillerWords = ['э', 'э-э', 'ну', 'как бы', 'то есть', 'в общем', 'типа', 'короче', 'вот', 'значит',
+                'так сказать', 'собственно говоря', 'как его', 'это самое', 'как сказать', 'понимаешь'];
+            startBtn.textContent = 'Начать';
+            stopBtn.textContent = 'Остановить';
+            counterLabel.textContent = 'Количество слов-паразитов:';
+            fillerWordsTitle.textContent = 'Зафиксированные слова-паразиты:';
+        } else {
+            recognitionLang = 'en-US';
+            fillerWords = ['um', 'uh', 'like', 'you know', 'so', 'actually', 'basically', 'literally', 'well',
+                'I mean', 'kind of', 'sort of', 'you see', 'right', 'okay'];
+            startBtn.textContent = 'Start';
+            stopBtn.textContent = 'Stop';
+            counterLabel.textContent = 'Number of filler words:';
+            fillerWordsTitle.textContent = 'Detected filler words:';
+        }
+
+        // Проверяем поддержку Web Speech API
+        window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if ('SpeechRecognition' in window) {
+            const recognition = new SpeechRecognition();
+            recognition.lang = recognitionLang;
+            recognition.continuous = true;
+            recognition.interimResults = false;
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+                console.log('Распознанный текст:', transcript);
+
+                fillerWords.forEach(word => {
+                    // Используем обновленное регулярное выражение
+                    const regex = new RegExp(`(^|\\s)${word}($|\\s)`, 'gi');
+                    const matches = transcript.match(regex);
+                    if (matches) {
+                        counter += matches.length;
+                        counterDisplay.textContent = counter;
+                        // Добавляем слова-паразиты в список
+                        matches.forEach(match => {
+                            const listItem = document.createElement('li');
+                            listItem.textContent = match.trim();
+                            wordsList.appendChild(listItem);
+                        });
+                    }
+                });
+            };
+
+            recognition.onstart = () => {
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                startBtn.classList.add('active-button'); // Делаем кнопку зеленой
+            };
+
+            recognition.onend = () => {
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                startBtn.classList.remove('active-button'); // Возвращаем кнопку в обычное состояние
+            };
+
+            startBtn.onclick = () => recognition.start();
+            stopBtn.onclick = () => recognition.stop();
+
+        } else {
+            alert('Ваш браузер не поддерживает Web Speech API');
+        }
+    </script>
+</body>
+</html>
