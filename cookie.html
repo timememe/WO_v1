@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gyroscope Cookie</title>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fflate@0.7.3/umd/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/ldrs/dist/auto/lineSpinner.js"></script>
+    <style>
+        #sensor-data {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 16px;
+        }
+
+        #cookie-container {
+            position: relative;
+            width: 150px;
+            height: 150px;
+        }
+
+        #back-image, #front-cookie-wrapper {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            transition: transform 0.1s ease-in-out;
+        }
+
+        #front-cookie-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #front-cookie {
+            width: 100%;
+            height: 100%;
+            transform-origin: center;
+        }
+
+        #buttons-container {
+            position: absolute;
+            top: 70%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+        }
+
+        .buttonG {
+            background-color: white;
+            color: #0029a3;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        .buttonG:hover {
+            background-color: #f0f0f0;
+        }
+
+        #instruction-text {
+            position: absolute;
+            top: 30%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            color: white;
+            font-size: 18px;
+            text-align: center;
+            width: 80%;
+        }
+
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #0029a3;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            font-size: 24px;
+        }
+
+        #text-inputs {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+        }
+
+        .text-input {
+            padding: 8px;
+            border: 2px solid white;
+            border-radius: 5px;
+            background: transparent;
+            color: white;
+        }
+
+        .text-input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-screen">
+        <l-line-spinner
+          size="40"
+          stroke="3"
+          speed="1"
+          color="white" 
+        ></l-line-spinner></div>
+    <div id="3d-container" style="width: 100%; height: 800px; position: relative;">
+        <div id="instruction-text"></div>
+        <div id="buttons-container">
+            <button id="start_demo" class="buttonG">Крутить телефоном</button>
+            <button id="rotate_random" class="buttonG">Просто крутить</button>
+        </div>
+        <div id="text-inputs">
+            <input type="text" class="text-input" id="text1" placeholder="Текст для левой стороны">
+            <input type="text" class="text-input" id="text2" placeholder="Текст для правой стороны">
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const container = document.getElementById('3d-container');
+            let scene, camera, renderer, model, imageMesh1, imageMesh2;
+            let leftPart, rightPart, creamPart;
+            let mixer, clipAction;
+            const planA = ['Game1', 'Game2'];
+            let totalFrames = 135;
+            let currentFrame = 0;
+            let textMesh1, textMesh2;
+
+            // Настройки текста
+            const textSettings = {
+                size: 0.015,  // Размер шрифта
+                height: 0.001, // Высота текста (глубина выдавливания)
+                color: 0x000000 // Черный цвет
+            };
+        
+            const THRESHOLD_HIGH_POS = 4;
+            const THRESHOLD_HIGH_NEG = -4;
+        
+            let isPlayingClip = false;
+            let isAnimationTriggered = false;
+            let selectedGame = '';
+        
+            let imageMeshControls = {
+                mesh1: { x: 0.001, y: 0.00, z: -0.06, rotX: 6.3, rotY: Math.PI, rotZ: -0.5 },
+                mesh2: { x: 0.00, y: -0.001, z: -0.05, rotX: -0.1, rotY: Math.PI, rotZ: -0.75 }
+            };
+        
+            let interactiveLight;
+            let interactiveLightControls = {
+                x: 8,
+                y: 6,
+                z: 6
+            };
+        
+            async function initThree() {
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x0029a3);
+        
+                camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(container.clientWidth, container.clientHeight);
+                container.appendChild(renderer.domElement);
+        
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+                scene.add(ambientLight);
+        
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+                directionalLight.position.set(0, 1, 0);
+                scene.add(directionalLight);
+        
+                interactiveLight = new THREE.PointLight(0xffffff, 1, 100);
+                updateInteractiveLightPosition();
+                scene.add(interactiveLight);
+        
+                camera.position.set(0, 0, 5);
+                camera.lookAt(0, 0, 0);
+        
+                await loadModel();
+        
+                animate();
+            }
+        
+            function updateInteractiveLightPosition() {
+                interactiveLight.position.set(
+                    interactiveLightControls.x,
+                    interactiveLightControls.y,
+                    interactiveLightControls.z
+                );
+            }
+        
+            async function loadModel() {
+                const loader = new THREE.GLTFLoader();
+        
+                try {
+                    const gltf = await new Promise((resolve, reject) => {
+                        loader.load(
+                            'https://cdn.jsdelivr.net/gh/timememe/o_files@719efb0dc18f04d14586f9adbb6c61a48c2c8d9f/oreo.glb',
+                            resolve,
+                            (xhr) => {
+                                console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+                            },
+                            reject
+                        );
+                    });
+        
+                    model = gltf.scene;
+                    model.scale.set(3, 3, 3);
+                    model.position.set(0, 0, 0);
+                    model.rotation.set(0, -1.55, 0);
+                    model.userData.fixedRotation = new THREE.Euler(0, -1.55, 0);
+        
+                    leftPart = findObjectByNamePattern(model, /left/i);
+                    rightPart = findObjectByNamePattern(model, /right/i);
+                    creamPart = findObjectByNamePattern(model, /cream/i);
+        
+                    const cookieMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x4a3624,
+                        roughness: 1,
+                        metalness: 0
+                    });
+        
+                    const creamMaterial = new THREE.MeshStandardMaterial({
+                        color: 0xffffff,
+                        roughness: 1,
+                        metalness: 0
+                    });
+        
+                    if (leftPart) leftPart.material = cookieMaterial;
+                    if (rightPart) rightPart.material = cookieMaterial;
+                    if (creamPart) creamPart.material = creamMaterial;
+        
+                    scene.add(model);
+        
+                    if (gltf.animations && gltf.animations.length > 0) {
+                        mixer = new THREE.AnimationMixer(model);
+                        const clip = gltf.animations[0];
+                        clipAction = mixer.clipAction(clip);
+                        clipAction.setLoop(THREE.LoopOnce);
+                        clipAction.clampWhenFinished = true;
+                    }
+        
+                    createTextMeshes();
+                } catch (error) {
+                    console.error('Произошла ошибка при загрузке:', error);
+                }
+            }
+        
+            function findObjectByNamePattern(object, pattern) {
+                let result = null;
+                object.traverse((child) => {
+                    if (pattern.test(child.name) && !result) {
+                        result = child;
+                    }
+                });
+                return result;
+            }
+        
+            function createTextMeshes() {
+                const loader = new THREE.FontLoader();
+                
+                loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function(font) {
+                    function createTextMesh(text, position, rotation) {
+                        const geometry = new THREE.TextGeometry(text, {
+                            font: font,
+                            size: textSettings.size,
+                            height: textSettings.height
+                        });
+                        
+                        const material = new THREE.MeshBasicMaterial({ color: textSettings.color });
+                        const mesh = new THREE.Mesh(geometry, material);
+                        
+                        mesh.position.set(position.x, position.y, position.z);
+                        mesh.rotation.set(rotation.x, rotation.y, rotation.z);
+                        
+                        return mesh;
+                    }
+                    
+                    textMesh1 = createTextMesh('', 
+                        { x: imageMeshControls.mesh1.x, y: imageMeshControls.mesh1.y, z: imageMeshControls.mesh1.z },
+                        { x: imageMeshControls.mesh1.rotX, y: imageMeshControls.mesh1.rotY, z: imageMeshControls.mesh1.rotZ }
+                    );
+                    leftPart.add(textMesh1);
+                    
+                    textMesh2 = createTextMesh('',
+                        { x: imageMeshControls.mesh2.x, y: imageMeshControls.mesh2.y, z: imageMeshControls.mesh2.z },
+                        { x: imageMeshControls.mesh2.rotX, y: imageMeshControls.mesh2.rotY, z: imageMeshControls.mesh2.rotZ }
+                    );
+                    rightPart.add(textMesh2);
+                    
+                    document.getElementById('text1').addEventListener('input', function(e) {
+                        updateText(textMesh1, e.target.value, leftPart);
+                    });
+                    
+                    document.getElementById('text2').addEventListener('input', function(e) {
+                        updateText(textMesh2, e.target.value, rightPart);
+                    });
+                });
+            }
+
+            function updateText(textMesh, newText, parent) {
+                if (textMesh) {
+                    parent.remove(textMesh);
+                    
+                    const loader = new THREE.FontLoader();
+                    loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function(font) {
+                        const geometry = new THREE.TextGeometry(newText, {
+                            font: font,
+                            size: textSettings.size,
+                            height: textSettings.height
+                        });
+                        
+                        textMesh.geometry.dispose();
+                        textMesh.geometry = geometry;
+                        textMesh.material.color.setHex(textSettings.color);
+                        parent.add(textMesh);
+                    });
+                }
+            }
+        
+            function getRandomPhrase(array) {
+                return array[Math.floor(Math.random() * array.length)];
+            }
+        
+            function animate() {
+                requestAnimationFrame(animate);
+                if (scene && camera && renderer) {
+                    if (mixer && clipAction && !clipAction.paused) {
+                        // Проверяем, не вышли ли мы за пределы нужного времени
+                        const currentTime = clipAction.time;
+                        const duration = clipAction.getClip().duration;
+                        
+                        if (currentTime >= duration) {
+                            clipAction.paused = true;
+                            onAnimationFinished();
+                        } else {
+                            mixer.update(0.016);
+                        }
+                    }
+                    renderer.render(scene, camera);
+                }
+            }
+        
+            function handleMotion(event) {
+                if (isAnimationTriggered) return;
+        
+                if (model && clipAction) {
+                    if (event.rotationRate.alpha) {
+                        model.rotation.x = model.userData.fixedRotation.x + THREE.MathUtils.degToRad(event.rotationRate.alpha);
+                    }
+        
+                    let accelerationX = event.accelerationIncludingGravity.x;
+                    updateAnimationFromAcceleration(accelerationX);
+                }
+            }
+        
+            function updateAnimationFromAcceleration(accelerationX) {
+                if (isAnimationTriggered) return;
+        
+                if (accelerationX >= THRESHOLD_HIGH_POS || accelerationX <= THRESHOLD_HIGH_NEG) {
+                    triggerRandomAnimation();
+                }
+            }
+        
+            function triggerRandomAnimation() {
+                if (Math.random() < 0.5) {
+                    triggerAnimation(1, 50);
+                    selectedGame = 'Game1';
+                    if (imageMesh1) imageMesh1.visible = true;
+                    if (imageMesh2) imageMesh2.visible = false;
+                } else {
+                    triggerAnimation(70, 120);
+                    selectedGame = 'Game2';
+                    if (imageMesh1) imageMesh1.visible = false;
+                    if (imageMesh2) imageMesh2.visible = true;
+                }
+            }
+        
+            function triggerAnimation(startFrame, endFrame) {
+                isAnimationTriggered = true;
+                
+                if (mixer) {
+                    mixer.stopAllAction();
+                }
+                
+                if (clipAction) {
+                    // Сбрасываем состояние анимации
+                    clipAction.reset();
+                    clipAction.setLoop(THREE.LoopOnce);
+                    clipAction.clampWhenFinished = true;
+                    
+                    // Устанавливаем диапазон воспроизведения
+                    const clip = clipAction.getClip();
+                    clip.duration = (endFrame / totalFrames) * clip.duration; // Ограничиваем длительность
+                    
+                    // Устанавливаем начальное время
+                    clipAction.time = (startFrame / totalFrames) * clip.duration;
+                    
+                    // Добавляем обработчик окончания анимации
+                    mixer.addEventListener('finished', function onFinished() {
+                        mixer.removeEventListener('finished', onFinished);
+                        clipAction.paused = true;
+                        onAnimationFinished();
+                    });
+                    
+                    // Запускаем анимацию
+                    clipAction.play();
+                }
+            }
+        
+            function playClip(startFrame, endFrame) {
+                if (clipAction && !isPlayingClip) {
+                    setClipState(true);
+                    
+                    const clip = clipAction.getClip();
+                    const duration = clip.duration;
+                    
+                    // Вычисляем точное время для каждого фрейма
+                    const startTime = (startFrame / totalFrames) * duration;
+                    const endTime = (endFrame / totalFrames) * duration;
+                    
+                    // Останавливаем все текущие анимации
+                    mixer.stopAllAction();
+                    
+                    // Сбрасываем анимацию
+                    clipAction.reset();
+                    
+                    // Настраиваем параметры анимации
+                    clipAction.setLoop(THREE.LoopOnce);
+                    clipAction.clampWhenFinished = true;
+                    
+                    // Устанавливаем время начала
+                    clipAction.time = startTime;
+                    
+                    // Запускаем анимацию
+                    clipAction.play();
+                    
+                    // Вычисляем точную продолжительность
+                    const animationDuration = (endTime - startTime) * 1000;
+                    
+                    // Останавливаем на последнем фрейме
+                    setTimeout(() => {
+                        // Устанавливаем точное время конечного фрейма
+                        clipAction.time = endTime;
+                        clipAction.paused = true;
+                        
+                        onAnimationFinished();
+                    }, animationDuration);
+                }
+            }
+        
+            function onAnimationFinished() {
+                if (!isPlayingClip) return; // Избегаем повторного вызова
+                
+                setClipState(false);
+                isAnimationTriggered = false;
+
+                if (selectedGame === 'Game1') {
+                    instruction_text.textContent = "Выпал план А! Найди пару начнется через 3, 2, 1...";
+                } else if (selectedGame === 'Game2') {
+                    instruction_text.textContent = "Выпал план Б! Три-в-ряд начнется через 3, 2, 1...";
+                }
+                
+                setTimeout(() => {
+                    if (selectedGame === 'Game1') {
+                        //window.location.assign('https://oreo-promo.com/find2');
+                    } else if (selectedGame === 'Game2') {
+                        //window.location.assign('https://oreo-promo.com/match3');
+                    }
+                }, 4000); 
+            }
+
+            function resetAnimation() {
+                if (mixer) {
+                    mixer.stopAllAction();
+                }
+                
+                if (clipAction) {
+                    clipAction.reset();
+                    clipAction.paused = false;
+                    
+                    // Восстанавливаем исходную длительность клипа
+                    const clip = clipAction.getClip();
+                    clip.duration = (totalFrames / totalFrames) * clip.duration;
+                }
+                
+                isAnimationTriggered = false;
+                isPlayingClip = false;
+                selectedGame = '';
+                
+                if (model) {
+                    model.rotation.set(
+                        model.userData.fixedRotation.x,
+                        model.userData.fixedRotation.y,
+                        model.userData.fixedRotation.z
+                    );
+                }
+                
+                instruction_text.textContent = "Крути Oreo!";
+            }
+                    
+            function setClipState(playing) {
+                isPlayingClip = playing;
+            }
+        
+            let is_running = false;
+            let demo_button = document.querySelector("#buttons-container .buttonG:first-child");
+            let instruction_text = document.getElementById("instruction-text");
+
+            instruction_text.textContent = "Крути Oreo!";
+            
+            demo_button.onclick = function(e) {
+                e.preventDefault();
+        
+                if (DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission === "function") {
+                    DeviceMotionEvent.requestPermission();
+                }
+        
+                if (is_running) {
+                    window.removeEventListener("devicemotion", handleMotion);
+                    demo_button.innerHTML = "Крути сам";
+                    is_running = false;
+                    
+                    if (model) {
+                        model.rotation.set(model.userData.fixedRotation.x, model.userData.fixedRotation.y, model.userData.fixedRotation.z);
+                    }
+                    currentFrame = 1;
+                    setClipState(false);
+                    if (imageMesh1) imageMesh1.visible = false;
+                    if (imageMesh2) imageMesh2.visible = false;
+                    instruction_text.textContent = "";
+                } else {
+                    window.addEventListener("devicemotion", handleMotion);
+                    demo_button.innerHTML = "Остановить";
+                    is_running = true;
+                    instruction_text.textContent = "Поверни телефон влево или вправо!";
+                }
+            };
+        
+            let random_animation_button = document.querySelector("#buttons-container .buttonG:last-child");
+            random_animation_button.onclick = function(e) {
+                e.preventDefault();
+                instruction_text.textContent = "Сейчас печенька выберет твою игру!";
+                triggerRandomAnimation();
+            };
+        
+            async function init() {
+                await initThree();
+                document.getElementById('loading-screen').style.display = 'none';
+            }
+        
+            // Ждем полной загрузки всех ресурсов
+            window.addEventListener('load', () => {
+                setTimeout(init, 100);
+            });
+        });
+    </script>
+</body>
+</html>
