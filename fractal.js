@@ -27,7 +27,7 @@ function drawCircle(x, y, radius, lineWidth, isLargest) {
 
     ctx.stroke();
     ctx.shadowBlur = 0; // Сбросим значение, чтобы не повлияло на последующие элементы
-}
+} 
 
 function drawFractal(x, y, radius, depth, time, isLargest) {
     if (depth === 0 || radius < 1) return;
