@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Диалоговая битва: Кофе — вред или польза?</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background-color: #1a1a1a;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px #000;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .visual-screen {
+            position: relative;
+            width: 700px;
+            height: 400px;
+            background-color: #000;
+            margin: 0 auto 20px;
+            overflow: hidden;
+            border: 4px solid #333;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        .visual-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+        .visual-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 2;
+        }
+        .speech-bubble {
+            position: absolute;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 10px;
+            border-radius: 8px;
+            border: 2px solid #fff;
+            font-size: 12px;
+            max-width: 80%;
+            text-align: center;
+            z-index: 3;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .speech-bubble.visible {
+            opacity: 1;
+        }
+        .stats-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            z-index: 4;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .stats-overlay.visible {
+            opacity: 1;
+        }
+        .stats-overlay div {
+            background-color: rgba(42, 42, 42, 0.8);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 10px;
+            border: 2px solid #444;
+            max-width: 45%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .points-overlay {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            z-index: 4;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .points-overlay.visible {
+            opacity: 1;
+        }
+        .points-overlay div {
+            display: flex;
+            gap: 10px;
+        }
+        .dot {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background-color: #555;
+            transition: background-color 0.3s;
+            border: 2px solid #333;
+        }
+        .dot.active.player {
+            background-color: #2317a6;
+        }
+        .dot.active.enemy {
+            background-color: #ff0000;
+        }
+        #dialog {
+            background-color: #2a2a2a;
+            padding: 20px;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            border: 2px solid #444;
+            flex-grow: 1;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            max-width: 70%;
+            font-size: 12px;
+        }
+        .player {
+            background-color: #2317a6;
+            margin-left: auto;
+            text-align: right;
+        }
+        .enemy {
+            background-color: #4d0000;
+            margin-right: auto;
+            text-align: left;
+        }
+        .turn {
+            font-size: 10px;
+            color: #888;
+            margin-bottom: 5px;
+        }
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .card {
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            transition: background-color 0.2s;
+            border: 2px solid #333;
+            font-size: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100px;
+            color: #fff;
+        }
+        .card.Тезис {
+            background-color: #0066cc;
+        }
+        .card.Тезис:hover {
+            background-color: #004d99;
+        }
+        .card.Контраргумент {
+            background-color: #cc6600;
+        }
+        .card.Контраргумент:hover {
+            background-color: #994d00;
+        }
+        .card.Размышление {
+            background-color: #009900;
+        }
+        .card.Размышление:hover {
+            background-color: #007300;
+        }
+        .card.Замечание {
+            background-color: #660066;
+        }
+        .card.Замечание:hover {
+            background-color: #4d004d;
+        }
+        .card.Укол {
+            background-color: #cc0000;
+        }
+        .card.Укол:hover {
+            background-color: #990000;
+        }
+        .card.used, .card:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+        .card-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .card-desc {
+            font-size: 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+        .card-stats {
+            font-size: 10px;
+            margin-top: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #discardButton {
+            padding: 10px 20px;
+            background-color: #ff6600;
+            color: #fff;
+            border: 2px solid #333;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            font-size: 12px;
+        }
+        #discardButton:hover {
+            background-color: #cc5200;
+        }
+        #discardButton:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Диалоговая битва: Кофе — вред или польза?</h1>
+        <div class="visual-screen" id="visualScreen">
+            <img id="visualBackground" class="visual-background" src="" alt="Фон">
+            <img id="visualImage" class="visual-image" src="" alt="Сцена">
+            <div id="speechBubble" class="speech-bubble"></div>
+            <div id="statsOverlay" class="stats-overlay">
+                <div id="playerStatsOverlay">Ты: Логика: 3 | Эмоции: 5</div>
+                <div id="enemyStatsOverlay">Скептик: Логика: 4 | Эмоции: 4</div>
+            </div>
+            <div id="pointsOverlay" class="points-overlay">
+                <div id="playerPointsOverlay">
+                    <div class="dot" data-index="0"></div>
+                    <div class="dot" data-index="1"></div>
+                    <div class="dot" data-index="2"></div>
+                </div>
+                <div id="enemyPointsOverlay">
+                    <div class="dot" data-index="0"></div>
+                    <div class="dot" data-index="1"></div>
+                    <div class="dot" data-index="2"></div>
+                </div>
+            </div>
+        </div>
+        <div id="dialog"></div>
+        <button id="discardButton" onclick="gameEngine.drawFromDiscard()">Взять из колоды</button>
+        <div class="cards-grid" id="cardDeck"></div>
+    </div>
+
+    <script>
+        // Класс для управления визуализацией
+        class VisualManager {
+            constructor() {
+                this.visualImage = document.getElementById('visualImage');
+                this.visualBackground = document.getElementById('visualBackground');
+                this.speechBubble = document.getElementById('speechBubble');
+                this.statsOverlay = document.getElementById('statsOverlay');
+                this.pointsOverlay = document.getElementById('pointsOverlay');
+                this.assets = {
+                    idle: { image: './img/main.png', background: './img/anim/exp_bg.gif' },
+                    player: { image: './img/anim/talk_blue.gif', background: './img/anim/exp_bg.gif' },
+                    enemy: { image: './img/anim/talk_red.gif', background: './img/anim/exp_bg.gif' }
+                };
+            }
+
+            setVisual(state, text = '') {
+                this.visualImage.src = this.assets[state].image;
+                this.visualBackground.src = this.assets[state].background;
+                this.showSpeechBubble(text);
+                if (state === 'idle') {
+                    this.statsOverlay.classList.add('visible');
+                    this.pointsOverlay.classList.add('visible');
+                } else {
+                    this.statsOverlay.classList.remove('visible');
+                    this.pointsOverlay.classList.remove('visible');
+                }
+            }
+
+            showSpeechBubble(text) {
+                this.speechBubble.textContent = '';
+                this.speechBubble.classList.remove('visible');
+                if (text) {
+                    let index = 0;
+                    this.speechBubble.classList.add('visible');
+                    const typeText = () => {
+                        if (index < text.length) {
+                            this.speechBubble.textContent += text[index];
+                            index++;
+                            setTimeout(typeText, 50);
+                        }
+                    };
+                    typeText();
+                }
+            }
+        }
+
+        // Класс для управления картами
+        class CardManager {
+            constructor() {
+                this.basePlayerCards = [
+                    { category: 'Тезис', name: "Кофе для мозга", effect: 'logic', damage: 2, text: "Кофе улучшает концентрацию, это доказано наукой!", desc: "Утверждение про пользу.", usesLeft: 3, used: false, fromDiscard: false },
+                    { category: 'Тезис', name: "Кофе для души", effect: 'emotion', damage: 2, text: "Кофе поднимает настроение, это факт!", desc: "Утверждение про чувства.", usesLeft: 3, used: false, fromDiscard: false }
+                ];
+                this.baseEnemyCards = [
+                    { category: 'Тезис', name: "Кофе как яд", effect: 'logic', damage: 2, text: "Кофе вреден для сердца, исследования это подтверждают!", desc: "Утверждение про вред.", usesLeft: 3, used: false, fromDiscard: false },
+                    { category: 'Тезис', name: "Кофе как цепи", effect: 'emotion', damage: 2, text: "Кофе вызывает зависимость, как любой наркотик!", desc: "Утверждение про чувства.", usesLeft: 3, used: false, fromDiscard: false }
+                ];
+                this.repeatCard = { category: 'Замечание', name: "Повторение", effect: 'none', damage: 0, text: "Ты уже это говорил!", desc: "Обнуляет ход.", used: false, fromDiscard: false };
+                this.reflectionCards = {
+                    logic: { category: 'Размышление', name: "Переосмысление", effect: 'logic', heal: 3, text: "Хотя, если подумать, есть исследования за кофе…", desc: "Восстанавливает логику.", used: false, fromDiscard: false },
+                    emotion: { category: 'Размышление', name: "Спокойствие", effect: 'emotion', heal: 3, text: "Я всё же спокоен, кофе помогает.", desc: "Восстанавливает эмоции.", used: false, fromDiscard: false }
+                };
+                this.observationCard = { category: 'Замечание', name: "Растерянность", effect: 'random', damage: 2, text: "Ты совсем растерялся, да?", desc: "Усугубляет слабость.", used: false, fromDiscard: false };
+                this.critiqueCard = { category: 'Укол', name: "Противоречие", effect: 'random', damage: 3, text: "Твои слова не сходятся!", desc: "Атака с риском (-2 тебе при неудаче).", used: false, fromDiscard: false, risk: 0.3 };
+                this.rareAttackCards = [
+                    { category: 'Тезис', name: "Упрямство", effect: 'emotion', damage: 3, text: "Ты просто упрям, кофе — это жизнь!", desc: "Сильное утверждение про чувства.", used: false, fromDiscard: false },
+                    { category: 'Тезис', name: "Бзик", effect: 'logic', damage: 3, text: "Твой страх кофе — это бзик!", desc: "Сильное утверждение про логику.", used: false, fromDiscard: false }
+                ];
+                this.counterCards = [
+                    { category: 'Контраргумент', name: "Спорные данные", effect: 'logic', damage: 2, text: "Да, но исследования про кофе спорные!", desc: "Оспаривает логику.", used: false, fromDiscard: false },
+                    { category: 'Контраргумент', name: "Преувеличение", effect: 'emotion', damage: 2, text: "Ты преувеличиваешь, это не так страшно!", desc: "Оспаривает эмоции.", used: false, fromDiscard: false }
+                ];
+            }
+
+            getInitialPlayerCards(player) {
+                const total = Math.max(1, player.logic + player.emotion);
+                const logicWeight = player.logic / total;
+                let cards = [];
+                while (cards.length < 2) {
+                    if (Math.random() < logicWeight && cards.every(c => c.name !== this.basePlayerCards[0].name)) {
+                        cards.push({ ...this.basePlayerCards[0] });
+                    } else if (cards.every(c => c.name !== this.basePlayerCards[1].name)) {
+                        cards.push({ ...this.basePlayerCards[1] });
+                    }
+                }
+                return cards;
+            }
+
+            getInitialEnemyCards(enemy) {
+                const total = Math.max(1, enemy.logic + enemy.emotion);
+                const logicWeight = enemy.logic / total;
+                let cards = [];
+                while (cards.length < 2) {
+                    if (Math.random() < logicWeight && cards.every(c => c.name !== this.baseEnemyCards[0].name)) {
+                        cards.push({ ...this.baseEnemyCards[0] });
+                    } else if (cards.every(c => c.name !== this.baseEnemyCards[1].name)) {
+                        cards.push({ ...this.baseEnemyCards[1] });
+                    }
+                }
+                return cards;
+            }
+
+            generateDerivativeCard(baseCard) {
+                const derivatives = [
+                    { category: 'Тезис', name: `${baseCard.name} + Факты`, effect: baseCard.effect, damage: baseCard.damage, heal: 1, text: `${baseCard.text} И это факт!`, desc: "Утверждение с защитой.", used: false, fromDiscard: false },
+                    { category: 'Тезис', name: `${baseCard.name} + Жар`, effect: baseCard.effect, damage: baseCard.damage + 1, text: `${baseCard.text} Сказано с жаром!`, desc: "Усиленное утверждение.", used: false, fromDiscard: false }
+                ];
+                return { ...derivatives[Math.floor(Math.random() * derivatives.length)] };
+            }
+
+            generateCounterCards(lastCard) {
+                let counters = [];
+                if (Math.random() < 0.3) {
+                    if (lastCard.effect === 'logic' && lastCard.damage) {
+                        counters.push({ ...this.counterCards[0] });
+                    } else if (lastCard.effect === 'emotion' && lastCard.damage) {
+                        counters.push({ ...this.counterCards[1] });
+                    }
+                }
+                return counters;
+            }
+
+            getReflectionCard(type) {
+                return { ...this.reflectionCards[type] };
+            }
+
+            getObservationCard() {
+                return { ...this.observationCard };
+            }
+
+            getRepeatCard() {
+                return { ...this.repeatCard };
+            }
+
+            getCritiqueCard() {
+                return { ...this.critiqueCard };
+            }
+
+            getRareAttackCard(character) {
+                const total = Math.max(1, character.logic + character.emotion);
+                const logicWeight = character.logic / total;
+                return Math.random() < logicWeight ? { ...this.rareAttackCards[1] } : { ...this.rareAttackCards[0] };
+            }
+
+            getWeightedCard(character) {
+                const total = Math.max(1, character.logic + character.emotion);
+                const logicWeight = character.logic / total;
+                const roll = Math.random();
+                if (roll < logicWeight * 0.5) return { ...this.basePlayerCards[0] };
+                if (roll < logicWeight) return this.generateDerivativeCard(this.basePlayerCards[0]);
+                if (roll < logicWeight + (1 - logicWeight) * 0.5) return { ...this.basePlayerCards[1] };
+                return this.generateDerivativeCard(this.basePlayerCards[1]);
+            }
+        }
+
+        // Класс для управления игровой механикой
+        class GameEngine {
+            constructor(cardManager, uiManager, visualManager) {
+                this.cardManager = cardManager;
+                this.uiManager = uiManager;
+                this.visualManager = visualManager;
+                this.player = { logic: 3, emotion: 5, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], discardPile: [], lastCard: null };
+                this.enemy = { logic: 4, emotion: 4, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], discardPile: [], lastCard: null };
+                this.turn = 1;
+                this.playerTurn = true;
+                this.gameActive = true;
+                this.playerHasPlayedCard = false;
+                this.enemyHasPlayedCard = false;
+                this.dialogueHistory = []; // История тезисов
+                this.playerStyle = { emotionalTurns: 0, logicalTurns: 0 }; // Стиль игрока
+                this.enemyStyle = { emotionalTurns: 0, logicalTurns: 0 }; // Стиль скептика
+                this.player.cards = cardManager.getInitialPlayerCards(this.player);
+                this.enemy.cards = cardManager.getInitialEnemyCards(this.enemy);
+            }
+
+            applyCard(card, source, target) {
+                let message = card.text;
+                let damageBonus = 0;
+                let wasCancelled = false;
+
+                // Проверка "Замечания" на повторение
+                let repeatCardIndex = target.cards.findIndex(c => c.name === "Повторение" && !c.used);
+                if (repeatCardIndex !== -1 && card.fromDiscard && (source === this.enemy ? Math.random() > 0.5 : true)) {
+                    message += ` (Обнулено: "Ты уже это говорил!")`;
+                    wasCancelled = true;
+                    target.cards[repeatCardIndex].used = true;
+                } else if (card.fromDiscard) {
+                    this.addCardsToHand(this.cardManager.getRepeatCard(), target.cards, target.discardPile);
+                }
+
+                if (!wasCancelled) {
+                    if (card.category === 'Тезис') {
+                        this.dialogueHistory.push({ id: card.name, turn: this.turn, source: source === this.player ? 'player' : 'enemy' });
+                        if (card.effect === 'emotion') source === this.player ? this.playerStyle.emotionalTurns++ : this.enemyStyle.emotionalTurns++;
+                        if (card.effect === 'logic') source === this.player ? this.playerStyle.logicalTurns++ : this.enemyStyle.logicalTurns++;
+                    }
+
+                    if (card.category === 'Контраргумент') {
+                        const lastThesis = this.dialogueHistory.filter(t => t.source !== (source === this.player ? 'player' : 'enemy')).slice(-1)[0];
+                        if (lastThesis && this.turn - lastThesis.turn <= 2) {
+                            damageBonus += 1;
+                            message += ` (Усилено: свежий тезис!)`;
+                        }
+                    }
+
+                    if (card.category === 'Замечание' && card.name !== "Повторение") {
+                        const style = source === this.player ? this.enemyStyle : this.playerStyle;
+                        if (style.emotionalTurns >= 3) {
+                            damageBonus += 2;
+                            message += ` (Усилено: слишком эмоционально!)`;
+                        } else if (style.logicalTurns >= 3) {
+                            damageBonus += 2;
+                            message += ` (Усилено: слишком логично!)`;
+                        }
+                    }
+
+                    if (card.category === 'Укол') {
+                        const targetTheses = this.dialogueHistory.filter(t => t.source === (target === this.player ? 'player' : 'enemy'));
+                        if (targetTheses.length >= 2 && targetTheses.some(t => t.id !== targetTheses[0].id)) {
+                            damageBonus += 2;
+                            message += ` (Усилено: противоречие!)`;
+                        }
+                        if (card.risk && Math.random() < card.risk) {
+                            source[card.effect === 'random' ? (Math.random() > 0.5 ? 'logic' : 'emotion') : card.effect] -= 2;
+                            message += ` (Обратный урон: -2)`;
+                        }
+                    }
+
+                    if (card.effect === 'random') {
+                        let targetStat = Math.random() > 0.5 ? 'logic' : 'emotion';
+                        target[targetStat] -= (card.damage + damageBonus);
+                        message += ` (-${card.damage + damageBonus} ${targetStat})`;
+                    } else if (card.damage) {
+                        target[card.effect] -= (card.damage + damageBonus);
+                        message += ` (-${card.damage + damageBonus} ${card.effect})`;
+                    } else if (card.heal) {
+                        source[card.effect] += card.heal;
+                        message += ` (+${card.heal} ${card.effect})`;
+                    }
+                    if (card.heal && card.damage) {
+                        source[card.effect] += card.heal;
+                        message += ` (+${card.heal} ${card.effect})`;
+                    }
+                }
+
+                source.lastCard = card;
+                return message;
+            }
+
+            addCardsToHand(card, targetCards, discardPile) {
+                if (targetCards.length < 5) {
+                    targetCards.push(card);
+                } else {
+                    discardPile.push(targetCards.shift());
+                    targetCards.push(card);
+                }
+            }
+
+            addCounterCards(lastCard, targetCards, discardPile) {
+                let newCards = this.cardManager.generateCounterCards(lastCard);
+                newCards.forEach(card => this.addCardsToHand(card, targetCards, discardPile));
+            }
+
+            checkPoints(winner, loser) {
+                if (loser.logic <= 0 && !loser.logicDepleted) {
+                    winner.points += 1;
+                    loser.logicDepleted = true;
+                    this.uiManager.addMessage(`${winner === this.player ? "Ты" : "Скептик"} зажигает точку! Логика исчерпана.`, winner === this.player ? 'player' : 'enemy');
+                }
+                if (loser.emotion <= 0 && !loser.emotionDepleted) {
+                    winner.points += 1;
+                    loser.emotionDepleted = true;
+                    this.uiManager.addMessage(`${winner === this.player ? "Ты" : "Скептик"} зажигает точку! Эмоции исчерпаны.`, winner === this.player ? 'player' : 'enemy');
+                }
+
+                if (loser.logic < 0 && loser.emotion < 0) {
+                    loser.negativeTurns += 1;
+                    if (loser.negativeTurns >= 3) {
+                        winner.points += 1;
+                        this.uiManager.addMessage(`${winner === this.player ? "Ты" : "Скептик"} зажигает точку! ${loser === this.player ? "Ты" : "Скептик"} слишком долго в смятении!`, winner === this.player ? 'player' : 'enemy');
+                        loser.negativeTurns = 0;
+                    }
+                } else {
+                    loser.negativeTurns = 0;
+                }
+
+                if (loser.logic > 0) loser.logicDepleted = false;
+                if (loser.emotion > 0) loser.emotionDepleted = false;
+            }
+
+            addReflectionAndObservation(character, opponent) {
+                if (character.logic < 0 && !character.logicNegative) {
+                    this.addCardsToHand(this.cardManager.getReflectionCard('logic'), character.cards, character.discardPile);
+                    if (Math.random() < 0.3) this.addCardsToHand(this.cardManager.getObservationCard(), opponent.cards, opponent.discardPile);
+                    character.logicNegative = true;
+                }
+                if (character.emotion < 0 && !character.emotionNegative) {
+                    this.addCardsToHand(this.cardManager.getReflectionCard('emotion'), character.cards, character.discardPile);
+                    if (Math.random() < 0.3) this.addCardsToHand(this.cardManager.getObservationCard(), opponent.cards, opponent.discardPile);
+                    character.emotionNegative = true;
+                }
+                if (character.logic >= 0) character.logicNegative = false;
+                if (character.emotion >= 0) character.emotionNegative = false;
+
+                if (character.lastCard && opponent.lastCard && character.lastCard.effect !== opponent.lastCard.effect && Math.random() < 0.5) {
+                    this.addCardsToHand(this.cardManager.getCritiqueCard(), character.cards, character.discardPile);
+                }
+            }
+
+            checkVictory() {
+                if (this.player.points >= 3) {
+                    this.uiManager.addMessage("Ты победил! Все 3 твои точки зажжены!", 'player');
+                    this.visualManager.setVisual('player', "Победа!");
+                    return true;
+                } else if (this.enemy.points >= 3) {
+                    this.uiManager.addMessage("Скептик победил! Ты проиграл!", 'enemy');
+                    this.visualManager.setVisual('enemy', "Поражение!");
+                    return true;
+                }
+                return false;
+            }
+
+            drawFromDiscard() {
+                if (!this.playerTurn || this.playerHasPlayedCard || this.player.discardPile.length === 0 || this.player.cards.length >= 5) return;
+                let randomIndex = Math.floor(Math.random() * this.player.discardPile.length);
+                let drawnCard = this.player.discardPile.splice(randomIndex, 1)[0];
+                drawnCard.used = false;
+                drawnCard.fromDiscard = true;
+
+                if (Math.random() < 0.2) {
+                    drawnCard = this.cardManager.getRareAttackCard(this.player);
+                } else if (Math.random() < 0.5 && drawnCard.usesLeft > 0) {
+                    drawnCard = this.cardManager.generateDerivativeCard(drawnCard);
+                } else {
+                    drawnCard = this.cardManager.getWeightedCard(this.player);
+                }
+
+                this.player.cards.push(drawnCard);
+                this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
+            }
+
+            playCard(card) {
+                if (!this.playerTurn || card.used || this.playerHasPlayedCard || !this.gameActive) return;
+                this.turn++;
+                this.playerHasPlayedCard = true;
+
+                if (card.usesLeft !== undefined) {
+                    card.usesLeft--;
+                    if (card.usesLeft <= 0) card.used = true;
+                } else {
+                    card.used = true;
+                }
+
+                let message = this.applyCard(card, this.player, this.enemy);
+                this.visualManager.setVisual('player', message);
+                this.uiManager.addMessage(message, 'player', this.turn);
+
+                if (card.used) {
+                    this.player.discardPile.push(card);
+                    this.player.cards = this.player.cards.filter(c => !c.used);
+                }
+
+                this.checkPoints(this.player, this.enemy);
+                this.addReflectionAndObservation(this.enemy, this.player);
+                if (!card.used && Math.random() < 0.5) {
+                    this.addCardsToHand(this.cardManager.generateDerivativeCard(card), this.player.cards, this.player.discardPile);
+                }
+                this.addCounterCards(card, this.enemy.cards, this.enemy.discardPile);
+
+                this.uiManager.updateStats(this.player, this.enemy);
+                if (this.checkVictory()) {
+                    this.gameActive = false;
+                    this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
+                    return;
+                }
+
+                this.playerTurn = false;
+                this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
+                setTimeout(() => {
+                    this.visualManager.setVisual('enemy');
+                    setTimeout(() => this.enemyTurn(), 2000);
+                }, 2000);
+            }
+
+            enemyTurn() {
+                if (!this.gameActive) return;
+                this.turn++;
+                this.enemyHasPlayedCard = true;
+                let availableCards = this.enemy.cards.filter(card => !card.used);
+                let message = '';
+
+                if (!this.enemyHasPlayedCard && this.enemy.discardPile.length > 0 && availableCards.length < 5 && Math.random() > 0.5) {
+                    let randomIndex = Math.floor(Math.random() * this.enemy.discardPile.length);
+                    let drawnCard = this.enemy.discardPile.splice(randomIndex, 1)[0];
+                    drawnCard.used = false;
+                    drawnCard.fromDiscard = true;
+
+                    if (Math.random() < 0.2) {
+                        drawnCard = this.cardManager.getRareAttackCard(this.enemy);
+                    } else if (Math.random() < 0.5 && drawnCard.usesLeft > 0) {
+                        drawnCard = this.cardManager.generateDerivativeCard(drawnCard);
+                    } else {
+                        drawnCard = this.cardManager.getWeightedCard(this.enemy);
+                    }
+
+                    this.enemy.cards.push(drawnCard);
+                    availableCards = this.enemy.cards.filter(card => !card.used);
+                }
+
+                let repeatCardIndex = availableCards.findIndex(card => card.name === "Повторение");
+                if (repeatCardIndex !== -1 && availableCards.length > 0) {
+                    if (Math.random() > 0.5) {
+                        let cancelledCard = availableCards[repeatCardIndex];
+                        cancelledCard.used = true;
+                        message = `${this.cardManager.repeatCard.text} (Отменяет предыдущий ход)`;
+                        this.enemy.cards = this.enemy.cards.filter(c => !c.used);
+                        this.enemy.discardPile.push(cancelledCard);
+                    } else {
+                        availableCards.splice(repeatCardIndex, 1);
+                        this.enemy.cards = availableCards;
+                    }
+                } else if (availableCards.length > 0) {
+                    let randomCard = availableCards[Math.floor(Math.random() * availableCards.length)];
+
+                    if (randomCard.usesLeft !== undefined) {
+                        randomCard.usesLeft--;
+                        if (randomCard.usesLeft <= 0) randomCard.used = true;
+                    } else {
+                        randomCard.used = true;
+                    }
+
+                    message = this.applyCard(randomCard, this.enemy, this.player);
+
+                    if (randomCard.used) {
+                        this.enemy.discardPile.push(randomCard);
+                        this.enemy.cards = this.enemy.cards.filter(c => !c.used);
+                    }
+
+                    if (!randomCard.used && Math.random() < 0.5) {
+                        this.addCardsToHand(this.cardManager.generateDerivativeCard(randomCard), this.enemy.cards, this.enemy.discardPile);
+                    }
+
+                    this.addCounterCards(randomCard, this.player.cards, this.player.discardPile);
+                } else {
+                    message = "Скептик: \"Мне нечего сказать...\"";
+                }
+
+                this.visualManager.setVisual('enemy', message);
+                this.uiManager.addMessage(message, 'enemy', this.turn);
+                this.checkPoints(this.enemy, this.player);
+                this.addReflectionAndObservation(this.player, this.enemy);
+
+                this.uiManager.updateStats(this.player, this.enemy);
+                if (this.checkVictory()) {
+                    this.gameActive = false;
+                    this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
+                    return;
+                }
+
+                this.playerTurn = true;
+                this.playerHasPlayedCard = false;
+                this.enemyHasPlayedCard = false;
+                this.uiManager.updateStats(this.player, this.enemy);
+                this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
+                setTimeout(() => this.visualManager.setVisual('idle'), 2000);
+            }
+        }
+
+        // Класс для управления интерфейсом
+        class UIManager {
+            constructor() {
+                this.dialog = document.getElementById('dialog');
+                this.cardDeck = document.getElementById('cardDeck');
+            }
+
+            addMessage(text, sender, turn = null) {
+                let messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}`;
+                if (turn) messageDiv.innerHTML = `<div class="turn">Ход ${turn}</div>${text}`;
+                else messageDiv.innerHTML = text;
+                this.dialog.appendChild(messageDiv);
+                this.dialog.scrollTop = this.dialog.scrollHeight;
+            }
+
+            updateStats(player, enemy) {
+                const playerStatsText = `Ты: Логика: ${player.logic} | Эмоции: ${player.emotion}`;
+                const enemyStatsText = `Скептик: Логика: ${enemy.logic} | Эмоции: ${enemy.emotion}`;
+                document.getElementById('playerStatsOverlay').innerText = playerStatsText;
+                document.getElementById('enemyStatsOverlay').innerText = enemyStatsText;
+
+                const playerDotsOverlay = document.getElementById('playerPointsOverlay').getElementsByClassName('dot');
+                const enemyDotsOverlay = document.getElementById('enemyPointsOverlay').getElementsByClassName('dot');
+                for (let i = 0; i < 3; i++) {
+                    playerDotsOverlay[i].className = 'dot' + (i < player.points ? ' active player' : '');
+                    enemyDotsOverlay[i].className = 'dot' + (i < enemy.points ? ' active enemy' : '');
+                }
+
+                switch (true) {
+                    case (!gameEngine.playerTurn):
+                    case (gameEngine.playerHasPlayedCard):
+                        document.getElementById('discardButton').disabled = true;
+                        break;
+                    default:
+                        document.getElementById('discardButton').disabled = false;
+                }
+            }
+
+            renderCards(cards, isPlayerTurn, hasPlayedCard, playCardCallback) {
+                this.cardDeck.innerHTML = '';
+                cards.forEach(card => {
+                    let div = document.createElement('div');
+                    div.className = `card ${card.category}` + (card.used ? ' used' : '');
+                    div.innerHTML = `
+                        <div class="card-title">${card.name}</div>
+                        <div class="card-desc">${card.desc}</div>
+                        <div class="card-stats">${card.damage ? `-${card.damage} ${card.effect === 'random' ? 'логика/эмоции' : card.effect}` : (card.heal ? `+${card.heal} ${card.effect}` : 'Обнуляет')}${card.usesLeft !== undefined ? ` (${card.usesLeft} исп.)` : ''}</div>
+                    `;
+                    if (!card.used && isPlayerTurn && !hasPlayedCard) {
+                        div.onclick = () => playCardCallback(card);
+                    }
+                    this.cardDeck.appendChild(div);
+                });
+            }
+        }
+
+        // Инициализация игры
+        const cardManager = new CardManager();
+        const uiManager = new UIManager();
+        const visualManager = new VisualManager();
+        const gameEngine = new GameEngine(cardManager, uiManager, visualManager);
+
+        // Начальная визуализация
+        const firstEnemyCard = gameEngine.enemy.cards[0];
+        firstEnemyCard.usesLeft--;
+        if (firstEnemyCard.usesLeft <= 0) firstEnemyCard.used = true;
+        if (firstEnemyCard.used) {
+            gameEngine.enemy.discardPile.push(firstEnemyCard);
+            gameEngine.enemy.cards = gameEngine.enemy.cards.filter(c => !c.used);
+        }
+        gameEngine.player.logic -= firstEnemyCard.damage;
+        gameEngine.visualManager.setVisual('enemy', firstEnemyCard.text + ` (-${firstEnemyCard.damage} logic)`);
+        gameEngine.uiManager.addMessage(firstEnemyCard.text + ` (-${firstEnemyCard.damage} logic)`, 'enemy', 1);
+        gameEngine.dialogueHistory.push({ id: firstEnemyCard.name, turn: 1, source: 'enemy' });
+        gameEngine.enemyStyle.logicalTurns++;
+        gameEngine.addCounterCards(firstEnemyCard, gameEngine.player.cards, gameEngine.player.discardPile);
+        gameEngine.checkPoints(gameEngine.enemy, gameEngine.player);
+        gameEngine.addReflectionAndObservation(gameEngine.player, gameEngine.enemy);
+        gameEngine.uiManager.updateStats(gameEngine.player, gameEngine.enemy);
+        gameEngine.uiManager.renderCards(gameEngine.player.cards, gameEngine.playerTurn, gameEngine.playerHasPlayedCard, gameEngine.playCard.bind(gameEngine));
+        setTimeout(() => visualManager.setVisual('idle'), 2000);
+    </script>
+</body>
+</html>
