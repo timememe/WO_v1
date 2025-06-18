@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Портфолио</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #fff;
+            background-color: #000;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Responsive breakpoints */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 0 10px;
+            }
+        }
+
+        @media (min-width: 1400px) {
+            .container {
+                max-width: 1400px;
+            }
+        }
+
+        /* Utility classes for quick styling */
+        .text-center { text-align: center; }
+        .text-left { text-align: left; }
+        .text-right { text-align: right; }
+        
+        .hidden { display: none; }
+        .block { display: block; }
+        .flex { display: flex; }
+        .grid { display: grid; }
+        
+        .w-full { width: 100%; }
+        .h-full { height: 100%; }
+        .min-h-screen { min-height: 100vh; }
+        
+        .p-1 { padding: 1rem; }
+        .p-2 { padding: 2rem; }
+        .p-3 { padding: 3rem; }
+        
+        .m-1 { margin: 1rem; }
+        .m-2 { margin: 2rem; }
+        .m-3 { margin: 3rem; }
+
+        /* Water ripple effect */
+        .ripple {
+            position: fixed;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.2) 40%, transparent 70%);
+            pointer-events: none;
+            transform: scale(0);
+            animation: ripple-animation 1.2s ease-out forwards;
+            z-index: 9999;
+        }
+
+        @keyframes ripple-animation {
+            0% {
+                transform: scale(0);
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+
+        /* Cursor trail effect */
+        .trail {
+            position: fixed;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.7);
+            pointer-events: none;
+            transition: all 0.8s ease;
+            z-index: 9998;
+        }
+
+        /* Mobile-specific adjustments */
+        @media (pointer: coarse) {
+            .trail {
+                display: none;
+            }
+            .ripple {
+                animation-duration: 1.5s;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Твой контент здесь -->
+        
+    </div>
+
+    <script>
+        // Water ripple and cursor trail effects
+        let trails = [];
+        const maxTrails = 64;
+        let lastTrailTime = 0;
+        const trailDelay = 25; // Delay between trails in ms
+
+        // Create ripple effect
+        function createRipple(x, y) {
+            const ripple = document.createElement('div');
+            ripple.className = 'ripple';
+            
+            // Random size variation
+            const size = Math.random() * 60 + 40;
+            ripple.style.width = size + 'px';
+            ripple.style.height = size + 'px';
+            ripple.style.left = (x - size/2) + 'px';
+            ripple.style.top = (y - size/2) + 'px';
+            
+            document.body.appendChild(ripple);
+            
+            // Remove ripple after animation
+            setTimeout(() => {
+                ripple.remove();
+            }, 1200);
+        }
+
+        // Create trailing dots with delay
+        function createTrail(x, y) {
+            const now = Date.now();
+            if (now - lastTrailTime < trailDelay) return;
+            lastTrailTime = now;
+
+            const trail = document.createElement('div');
+            trail.className = 'trail';
+            trail.style.left = x + 'px';
+            trail.style.top = y + 'px';
+            
+            document.body.appendChild(trail);
+            trails.push(trail);
+            
+            // Limit number of trails
+            if (trails.length > maxTrails) {
+                const oldTrail = trails.shift();
+                oldTrail.remove();
+            }
+            
+            // Longer fade out for smoother trail
+            setTimeout(() => {
+                trail.style.opacity = '0';
+                trail.style.transform = 'scale(0.3)';
+            }, 200);
+            
+            setTimeout(() => {
+                trail.remove();
+                trails = trails.filter(t => t !== trail);
+            }, 4200);
+        }
+
+        // Desktop events
+        document.addEventListener('mousemove', (e) => {
+            createTrail(e.clientX, e.clientY);
+        });
+
+        document.addEventListener('click', (e) => {
+            createRipple(e.clientX, e.clientY);
+        });
+
+        // Mobile events
+        document.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            createRipple(touch.clientX, touch.clientY);
+        });
+
+        document.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            createRipple(touch.clientX, touch.clientY);
+        }, { passive: false });
+
+        // Double tap for bigger ripple
+        let lastTap = 0;
+        document.addEventListener('touchend', (e) => {
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - lastTap;
+            if (tapLength < 500 && tapLength > 0) {
+                const touch = e.changedTouches[0];
+                // Create bigger ripple on double tap
+                const ripple = document.createElement('div');
+                ripple.className = 'ripple';
+                ripple.style.width = '120px';
+                ripple.style.height = '120px';
+                ripple.style.left = (touch.clientX - 60) + 'px';
+                ripple.style.top = (touch.clientY - 60) + 'px';
+                ripple.style.background = 'radial-gradient(circle, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.3) 40%, transparent 70%)';
+                
+                document.body.appendChild(ripple);
+                
+                setTimeout(() => {
+                    ripple.remove();
+                }, 1200);
+            }
+            lastTap = currentTime;
+        });
+    </script>
+</body>
+</html>
