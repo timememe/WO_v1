@@ -102,6 +102,17 @@
             z-index: 9998;
         }
 
+        /* Trail line connecting dots */
+        .trail-line {
+            position: fixed;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.2) 50%, rgba(255, 255, 255, 0.4) 100%);
+            pointer-events: none;
+            transition: all 0.8s ease;
+            z-index: 9997;
+            transform-origin: left center;
+        }
+
         /* Mobile-specific adjustments */
         @media (pointer: coarse) {
             .trail {
@@ -122,9 +133,11 @@
     <script>
         // Water ripple and cursor trail effects
         let trails = [];
-        const maxTrails = 64;
+        let trailLines = [];
+        const maxTrails = 12;
         let lastTrailTime = 0;
-        const trailDelay = 25; // Delay between trails in ms
+        const trailDelay = 50; // Delay between trails in ms
+        let lastTrailPosition = null;
 
         // Create ripple effect
         function createRipple(x, y) {
@@ -146,19 +159,68 @@
             }, 1200);
         }
 
-        // Create trailing dots with delay
+        // Calculate distance and angle between two points
+        function calculateLineProps(x1, y1, x2, y2) {
+            const distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+            const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
+            return { distance, angle };
+        }
+
+        // Create trailing dots with connecting lines
         function createTrail(x, y) {
             const now = Date.now();
             if (now - lastTrailTime < trailDelay) return;
             lastTrailTime = now;
 
+            // Create connecting line to previous point
+            if (lastTrailPosition) {
+                const { distance, angle } = calculateLineProps(
+                    lastTrailPosition.x, lastTrailPosition.y, x, y
+                );
+                
+                // Only create line if distance is reasonable (not too long jumps)
+                if (distance < 200) {
+                    const line = document.createElement('div');
+                    line.className = 'trail-line';
+                    // Position line from center of previous dot to center of current dot
+                    line.style.left = (lastTrailPosition.x - 3) + 'px'; // -3 to center (half of dot width)
+                    line.style.top = (lastTrailPosition.y - 0.5) + 'px'; // -0.5 to center line height
+                    line.style.width = distance + 'px';
+                    line.style.transform = `rotate(${angle}deg)`;
+                    
+                    document.body.appendChild(line);
+                    trailLines.push(line);
+                    
+                    // Limit number of lines
+                    if (trailLines.length > maxTrails - 1) {
+                        const oldLine = trailLines.shift();
+                        oldLine.remove();
+                    }
+                    
+                    // Fade out line
+                    setTimeout(() => {
+                        line.style.opacity = '0';
+                        line.style.transform = `rotate(${angle}deg) scaleX(0.5)`;
+                    }, 200);
+                    
+                    setTimeout(() => {
+                        line.remove();
+                        trailLines = trailLines.filter(l => l !== line);
+                    }, 1000);
+                }
+            }
+
+            // Create trail dot (centered)
             const trail = document.createElement('div');
             trail.className = 'trail';
-            trail.style.left = x + 'px';
-            trail.style.top = y + 'px';
+            trail.style.left = (x - 3) + 'px'; // -3 to center the 6px dot
+            trail.style.top = (y - 3) + 'px';  // -3 to center the 6px dot
             
             document.body.appendChild(trail);
             trails.push(trail);
+            
+            // Update last position (store actual center coordinates)
+            lastTrailPosition = { x: x, y: y };
             
             // Limit number of trails
             if (trails.length > maxTrails) {
@@ -166,7 +228,7 @@
                 oldTrail.remove();
             }
             
-            // Longer fade out for smoother trail
+            // Fade out trail dot
             setTimeout(() => {
                 trail.style.opacity = '0';
                 trail.style.transform = 'scale(0.3)';
@@ -175,7 +237,7 @@
             setTimeout(() => {
                 trail.remove();
                 trails = trails.filter(t => t !== trail);
-            }, 4200);
+            }, 1000);
         }
 
         // Desktop events
@@ -187,10 +249,11 @@
             createRipple(e.clientX, e.clientY);
         });
 
-        // Mobile events
+        // Mobile events - reset trail position on touch start
         document.addEventListener('touchstart', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
+            lastTrailPosition = null; // Reset to avoid long lines
             createRipple(touch.clientX, touch.clientY);
         });
 
