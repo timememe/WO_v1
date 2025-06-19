@@ -183,7 +183,7 @@
                     const line = document.createElement('div');
                     line.className = 'trail-line';
                     // Position line from center of previous dot to center of current dot
-                    line.style.left = (lastTrailPosition.x - 3) + 'px'; // -3 to center (half of dot width)
+                    line.style.left = (lastTrailPosition.x - 1) + 'px'; // -3 to center (half of dot width)
                     line.style.top = (lastTrailPosition.y - 0.5) + 'px'; // -0.5 to center line height
                     line.style.width = distance + 'px';
                     line.style.transform = `rotate(${angle}deg)`;
@@ -206,7 +206,7 @@
                     setTimeout(() => {
                         line.remove();
                         trailLines = trailLines.filter(l => l !== line);
-                    }, 1000);
+                    }, 4000);
                 }
             }
 
