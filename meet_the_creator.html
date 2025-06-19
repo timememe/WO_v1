@@ -16,12 +16,97 @@
             line-height: 1.6;
             color: #fff;
             background-color: #000;
+            overflow: hidden; /* Hide scrollbars for clean look */
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 0 20px;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Main title styling */
+        .main-title {
+            text-align: center;
+            font-family: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-weight: 900; /* Black weight */
+            font-size: clamp(4rem, 12vw, 12rem);
+            line-height: 0.85;
+            letter-spacing: -0.05em;
+            text-transform: uppercase;
+            user-select: none;
+            position: relative;
+        }
+
+        .main-title .line {
+            display: block;
+            overflow: hidden;
+        }
+
+        .main-title .letter {
+            display: inline-block;
+            opacity: 0;
+            transform: translateY(100%);
+            animation: letterSlideUp 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+
+        /* Staggered animation delays */
+        .main-title .letter:nth-child(1) { animation-delay: 0.1s; }
+        .main-title .letter:nth-child(2) { animation-delay: 0.15s; }
+        .main-title .letter:nth-child(3) { animation-delay: 0.2s; }
+        .main-title .letter:nth-child(4) { animation-delay: 0.25s; }
+        .main-title .letter:nth-child(5) { animation-delay: 0.3s; }
+        .main-title .letter:nth-child(6) { animation-delay: 0.35s; }
+        .main-title .letter:nth-child(7) { animation-delay: 0.4s; }
+        .main-title .letter:nth-child(8) { animation-delay: 0.45s; }
+        .main-title .letter:nth-child(9) { animation-delay: 0.5s; }
+        .main-title .letter:nth-child(10) { animation-delay: 0.55s; }
+        .main-title .letter:nth-child(11) { animation-delay: 0.6s; }
+        .main-title .letter:nth-child(12) { animation-delay: 0.65s; }
+        .main-title .letter:nth-child(13) { animation-delay: 0.7s; }
+        .main-title .letter:nth-child(14) { animation-delay: 0.75s; }
+        @keyframes letterSlideUp {
+            0% {
+                opacity: 0;
+                transform: translateY(100%);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0%);
+            }
+        }
+
+        /* Hover effect for letters */
+        .main-title .letter:hover {
+            animation: letterHover 0.4s ease forwards;
+            cursor: default;
+        }
+
+        @keyframes letterHover {
+            0%, 100% {
+                transform: translateY(0%);
+            }
+            50% {
+                transform: translateY(-10%);
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .main-title {
+                font-size: clamp(2.5rem, 15vw, 8rem);
+                line-height: 0.8;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .main-title {
+                font-size: clamp(2rem, 18vw, 6rem);
+            }
         }
 
         /* Responsive breakpoints */
@@ -29,11 +114,18 @@
             .container {
                 padding: 0 15px;
             }
+            .main-title {
+                font-size: clamp(2.5rem, 15vw, 8rem);
+                line-height: 0.8;
+            }
         }
 
         @media (max-width: 480px) {
             .container {
                 padding: 0 10px;
+            }
+            .main-title {
+                font-size: clamp(2rem, 18vw, 6rem);
             }
         }
 
@@ -123,15 +215,24 @@
 </head>
 <body>
     <div class="container">
-        <!-- Твой контент здесь -->
-        
+        <h1 class="main-title">
+            <span class="line">
+                <span class="letter">M</span><span class="letter">E</span><span class="letter">E</span><span class="letter">T</span>
+            </span>
+            <span class="line">
+                <span class="letter">T</span><span class="letter">H</span><span class="letter">E</span>
+            </span>
+            <span class="line">
+                <span class="letter">C</span><span class="letter">R</span><span class="letter">E</span><span class="letter">A</span><span class="letter">T</span><span class="letter">O</span><span class="letter">R</span>
+            </span>
+        </h1>
     </div>
 
     <script>
         // Water ripple and cursor trail effects
         let trails = [];
         let trailLines = [];
-        const maxTrails = 6;
+        const maxTrails = 12;
         let lastTrailTime = 0;
         const trailDelay = 50; // Delay between trails in ms
         let lastTrailPosition = null;
@@ -180,7 +281,7 @@
                     const line = document.createElement('div');
                     line.className = 'trail-line';
                     // Position line from center of previous dot to center of current dot
-                    line.style.left = (lastTrailPosition.x - 1) + 'px'; // -3 to center (half of dot width)
+                    line.style.left = (lastTrailPosition.x - 3) + 'px'; // -3 to center (half of dot width)
                     line.style.top = (lastTrailPosition.y - 0.5) + 'px'; // -0.5 to center line height
                     line.style.width = distance + 'px';
                     line.style.transform = `rotate(${angle}deg)`;
@@ -258,7 +359,6 @@
             e.preventDefault();
             const touch = e.touches[0];
             createTrail(touch.clientX, touch.clientY); // Добавляем трейл при движении
-            //createRipple(touch.clientX, touch.clientY);
         }, { passive: false });
 
         // Double tap for bigger ripple
