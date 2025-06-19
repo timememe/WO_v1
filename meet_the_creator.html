@@ -115,9 +115,6 @@
 
         /* Mobile-specific adjustments */
         @media (pointer: coarse) {
-            .trail {
-                display: none;
-            }
             .ripple {
                 animation-duration: 1.5s;
             }
@@ -134,7 +131,7 @@
         // Water ripple and cursor trail effects
         let trails = [];
         let trailLines = [];
-        const maxTrails = 12;
+        const maxTrails = 6;
         let lastTrailTime = 0;
         const trailDelay = 50; // Delay between trails in ms
         let lastTrailPosition = null;
@@ -206,7 +203,7 @@
                     setTimeout(() => {
                         line.remove();
                         trailLines = trailLines.filter(l => l !== line);
-                    }, 4000);
+                    }, 1000);
                 }
             }
 
@@ -260,7 +257,8 @@
         document.addEventListener('touchmove', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
-            createRipple(touch.clientX, touch.clientY);
+            createTrail(touch.clientX, touch.clientY); // Добавляем трейл при движении
+            //createRipple(touch.clientX, touch.clientY);
         }, { passive: false });
 
         // Double tap for bigger ripple
