@@ -1,0 +1,241 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    position: relative;
+    background-color: #000;
+}
+
+#gameCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: block;
+}
+
+.ui-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.ui-overlay h1 {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    font-size: 2rem;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    pointer-events: none;
+}
+
+.debug-controls {
+    position: absolute;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    pointer-events: auto;
+    background-color: rgba(0,0,0,0.5);
+    padding: 1rem;
+    border-radius: 8px;
+    backdrop-filter: blur(5px);
+}
+
+.debug-controls label {
+    color: white;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+#zSlider {
+    width: 200px;
+    margin: 0.5rem 0;
+}
+
+#debugToggle {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 0.5rem;
+}
+
+#debugToggle:hover {
+    background-color: #c0392b;
+}
+
+.instructions {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    pointer-events: none;
+}
+
+.instructions p {
+    color: rgba(255,255,255,0.8);
+    font-size: 1.1rem;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    background-color: rgba(0,0,0,0.3);
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    backdrop-filter: blur(5px);
+}
+
+@media (max-width: 768px) {
+    .ui-overlay h1 {
+        font-size: 1.5rem;
+        top: 15px;
+    }
+    
+    .instructions {
+        bottom: 20px;
+    }
+    
+    .instructions p {
+        font-size: 1rem;
+        padding: 0.6rem 1.2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .ui-overlay h1 {
+        font-size: 1.3rem;
+        top: 10px;
+    }
+    
+    .instructions {
+        bottom: 15px;
+    }
+    
+    .instructions p {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+    }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+    .ui-overlay h1 {
+        top: 5px;
+        font-size: 1.2rem;
+    }
+    
+    .instructions {
+        bottom: 10px;
+    }
+}
+
+/* Touch Controls */
+.touch-controls {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 100;
+    pointer-events: auto;
+}
+
+.dpad {
+    position: relative;
+    width: 120px;
+    height: 120px;
+}
+
+.control-btn {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    transition: all 0.1s ease;
+}
+
+.control-btn:active {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.6);
+    transform: scale(0.95);
+}
+
+.control-btn.up {
+    top: 0;
+    left: 40px;
+}
+
+.control-btn.left {
+    top: 40px;
+    left: 0;
+}
+
+.control-btn.right {
+    top: 40px;
+    right: 0;
+}
+
+.control-btn.down {
+    bottom: 0;
+    left: 40px;
+}
+
+/* Hide touch controls on desktop */
+@media (min-width: 769px) {
+    .touch-controls {
+        display: none;
+    }
+}
+
+/* Adjust touch controls for smaller screens */
+@media (max-width: 480px) {
+    .touch-controls {
+        bottom: 15px;
+        right: 15px;
+    }
+    
+    .dpad {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .control-btn {
+        width: 35px;
+        height: 35px;
+        font-size: 14px;
+    }
+    
+    .control-btn.up {
+        left: 32.5px;
+    }
+    
+    .control-btn.down {
+        left: 32.5px;
+    }
+}

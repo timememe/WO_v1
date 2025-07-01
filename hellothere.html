@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Rail Shooter</title>
+    <link rel="stylesheet" href="port_styles.css">
+</head>
+<body>
+    <div id="gameContainer"></div>
+    <div class="ui-overlay">
+        <h1>3D Rail Shooter</h1>
+        <div class="instructions">
+            <p>Navigate through the cloud field • Use WASD/Arrow Keys or Touch/Swipe</p>
+        </div>
+    </div>
+
+    <!-- Touch Controls -->
+    <div class="touch-controls">
+        <div class="dpad">
+            <button class="control-btn up" data-key="ArrowUp">↑</button>
+            <button class="control-btn left" data-key="ArrowLeft">←</button>
+            <button class="control-btn right" data-key="ArrowRight">→</button>
+            <button class="control-btn down" data-key="ArrowDown">↓</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="port_script.js"></script>
+</body>
+</html>
