@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SYSTEM BREACH - User Data Extraction</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier Prime', monospace;
+            background: #0a0a0a;
+            color: #00ff00;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                linear-gradient(90deg, transparent 98%, #00ff0020 100%),
+                linear-gradient(180deg, transparent 98%, #00ff0020 100%);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .scan-line {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00ff00, transparent);
+            animation: scan 3s linear infinite;
+            z-index: 2;
+        }
+
+        @keyframes scan {
+            0% { top: 0; opacity: 1; }
+            100% { top: 100vh; opacity: 0; }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 3;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+            border: 2px solid #00ff00;
+            background: rgba(0, 255, 0, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(0, 255, 0, 0.1) 10px,
+                rgba(0, 255, 0, 0.1) 20px
+            );
+            animation: matrix 10s linear infinite;
+        }
+
+        @keyframes matrix {
+            0% { transform: translateX(-50px) translateY(-50px); }
+            100% { transform: translateX(0) translateY(0); }
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px #00ff00;
+            animation: glow 2s ease-in-out infinite alternate;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.8;
+            position: relative;
+            z-index: 1;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 20px #00ff00; }
+            to { text-shadow: 0 0 30px #00ff00, 0 0 40px #00ff00; }
+        }
+
+        .terminal-output {
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #00ff00;
+            padding: 20px;
+            margin-bottom: 20px;
+            font-family: 'Courier Prime', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            max-height: 200px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .terminal-output::before {
+            content: 'root@system:~$ ./extract_user_data.sh';
+            display: block;
+            color: #ffff00;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .info-panel {
+            background: rgba(0, 0, 0, 0.95);
+            border: 1px solid #00ff00;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .info-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 0, 0.1), transparent);
+            animation: sweep 4s linear infinite;
+        }
+
+        @keyframes sweep {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .panel-header {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #ff0000;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 1px solid #00ff00;
+            padding-bottom: 5px;
+            position: relative;
+        }
+
+        .panel-header::before {
+            content: '> ';
+            color: #00ff00;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px dotted rgba(0, 255, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .data-row:hover {
+            background: rgba(0, 255, 0, 0.1);
+            padding-left: 10px;
+        }
+
+        .data-row:last-child {
+            border-bottom: none;
+        }
+
+        .data-label {
+            color: #ffff00;
+            font-weight: bold;
+            min-width: 140px;
+        }
+
+        .data-label::after {
+            content: ':';
+            color: #00ff00;
+        }
+
+        .data-value {
+            color: #00ff00;
+            text-align: right;
+            word-break: break-all;
+            max-width: 60%;
+            font-family: 'Courier Prime', monospace;
+        }
+
+        .loading {
+            color: #ff6600;
+            animation: blink 1s infinite;
+        }
+
+        .error {
+            color: #ff0000;
+            animation: pulse 2s infinite;
+        }
+
+        .success {
+            color: #00ff00;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .hack-btn {
+            background: linear-gradient(45deg, #000000, #003300);
+            color: #00ff00;
+            border: 2px solid #00ff00;
+            padding: 15px 40px;
+            font-family: 'Courier Prime', monospace;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hack-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 0, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .hack-btn:hover::before {
+            left: 100%;
+        }
+
+        .hack-btn:hover {
+            background: linear-gradient(45deg, #001100, #004400);
+            box-shadow: 0 0 20px #00ff00;
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        .warning-banner {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid #ff0000;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+            color: #ff0000;
+            font-weight: bold;
+            animation: warning 2s ease-in-out infinite;
+        }
+
+        @keyframes warning {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .matrix-rain {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.1;
+        }
+
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            border-top: 1px solid #00ff00;
+            padding: 10px;
+            font-size: 12px;
+            color: #00ff00;
+            z-index: 10;
+        }
+
+        .glitch {
+            animation: glitch 0.3s infinite;
+        }
+
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+
+        @media (max-width: 768px) {
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .data-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+            
+            .data-value {
+                max-width: 100%;
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="scan-line"></div>
+    <canvas class="matrix-rain" id="matrixCanvas"></canvas>
+    
+    <div class="container">
+        <div class="header">
+            <h1>⚠️ SYSTEM BREACH DETECTED ⚠️</h1>
+            <p>EXTRACTING USER DATA... ACCESS GRANTED</p>
+        </div>
+
+        <div class="terminal-output" id="terminalOutput">
+            <div id="terminalText">Initializing data extraction protocols...</div>
+        </div>
+
+        <div class="warning-banner">
+            🚨 UNAUTHORIZED ACCESS DETECTED - ALL USER DATA BEING HARVESTED 🚨
+        </div>
+
+        <div class="info-grid">
+            <div class="info-panel">
+                <div class="panel-header">🖥️ System Intelligence</div>
+                <div class="data-row">
+                    <span class="data-label">Target Browser</span>
+                    <span class="data-value" id="browser">SCANNING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Version Build</span>
+                    <span class="data-value" id="browserVersion">ANALYZING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Operating System</span>
+                    <span class="data-value" id="os">PROBING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Platform Architecture</span>
+                    <span class="data-value" id="platform">DETECTING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">CPU Cores</span>
+                    <span class="data-value" id="cpuCores">SCANNING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">User Agent Signature</span>
+                    <span class="data-value" id="userAgent">EXTRACTING...</span>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <div class="panel-header">📡 Device Fingerprint</div>
+                <div class="data-row">
+                    <span class="data-label">Display Resolution</span>
+                    <span class="data-value" id="screenResolution">MAPPING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Available Resolution</span>
+                    <span class="data-value" id="availableResolution">MEASURING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Viewport Dimensions</span>
+                    <span class="data-value" id="windowSize">MEASURING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Color Depth</span>
+                    <span class="data-value" id="colorDepth">ANALYZING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Pixel Density</span>
+                    <span class="data-value" id="pixelRatio">CALIBRATING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Device Classification</span>
+                    <span class="data-value" id="deviceType">IDENTIFYING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Touch Support</span>
+                    <span class="data-value" id="touchSupport">PROBING...</span>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <div class="panel-header">🌐 Network Infiltration</div>
+                <div class="data-row">
+                    <span class="data-label">IP Address</span>
+                    <span class="data-value" id="ipAddress">TRACING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Geographic Location</span>
+                    <span class="data-value" id="country">LOCATING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">City Coordinates</span>
+                    <span class="data-value" id="city">TRIANGULATING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">ISP Provider</span>
+                    <span class="data-value" id="isp">IDENTIFYING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">GPS Coordinates</span>
+                    <span class="data-value" id="coordinates">PINPOINTING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">VPN Detection</span>
+                    <span class="data-value" id="vpnStatus">ANALYZING...</span>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <div class="panel-header">⚙️ System Configuration</div>
+                <div class="data-row">
+                    <span class="data-label">Primary Language</span>
+                    <span class="data-value" id="language">DETECTING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">All Languages</span>
+                    <span class="data-value" id="languages">EXTRACTING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Time Zone</span>
+                    <span class="data-value" id="timezone">SYNCHRONIZING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Local Time</span>
+                    <span class="data-value" id="localTime">CAPTURING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Cookie Status</span>
+                    <span class="data-value" id="cookiesEnabled">CHECKING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">JavaScript Engine</span>
+                    <span class="data-value" id="jsEnabled">ACTIVE</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Connection Status</span>
+                    <span class="data-value" id="onlineStatus">MONITORING...</span>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <div class="panel-header">🔐 Security Analysis</div>
+                <div class="data-row">
+                    <span class="data-label">SSL/TLS Status</span>
+                    <span class="data-value" id="httpsEnabled">VERIFYING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Do Not Track</span>
+                    <span class="data-value" id="doNotTrack">BYPASSING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Referrer Data</span>
+                    <span class="data-value" id="referrer">HARVESTING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">WebGL Support</span>
+                    <span class="data-value" id="webglSupport">TESTING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Canvas API</span>
+                    <span class="data-value" id="canvasSupport">PROBING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">WebRTC Leak</span>
+                    <span class="data-value" id="webrtcLeak">DETECTING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Incognito Mode</span>
+                    <span class="data-value" id="incognitoMode">ANALYZING...</span>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <div class="panel-header">📊 Advanced Metrics</div>
+                <div class="data-row">
+                    <span class="data-label">Infiltration Time</span>
+                    <span class="data-value" id="loadTime">CALCULATING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Battery Status</span>
+                    <span class="data-value" id="battery">MONITORING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Memory Usage</span>
+                    <span class="data-value" id="memory">ANALYZING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Network Type</span>
+                    <span class="data-value" id="connection">DETECTING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Digital Fingerprint</span>
+                    <span class="data-value" id="fingerprint">GENERATING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Session Storage</span>
+                    <span class="data-value" id="sessionStorage">PROBING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Local Storage</span>
+                    <span class="data-value" id="localStorage">SCANNING...</span>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <div class="panel-header">🎮 Hardware Detection</div>
+                <div class="data-row">
+                    <span class="data-label">GPU Renderer</span>
+                    <span class="data-value" id="gpuRenderer">IDENTIFYING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">GPU Vendor</span>
+                    <span class="data-value" id="gpuVendor">EXTRACTING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Max Texture Size</span>
+                    <span class="data-value" id="maxTextureSize">MEASURING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">WebGL Version</span>
+                    <span class="data-value" id="webglVersion">DETECTING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Audio Context</span>
+                    <span class="data-value" id="audioContext">PROBING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Media Devices</span>
+                    <span class="data-value" id="mediaDevices">SCANNING...</span>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <div class="panel-header">🕵️ Behavioral Analysis</div>
+                <div class="data-row">
+                    <span class="data-label">Mouse Movement</span>
+                    <span class="data-value" id="mouseTracking">TRACKING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Keyboard Layout</span>
+                    <span class="data-value" id="keyboardLayout">ANALYZING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Scroll Behavior</span>
+                    <span class="data-value" id="scrollBehavior">MONITORING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Page Focus</span>
+                    <span class="data-value" id="pageFocus">WATCHING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Idle Time</span>
+                    <span class="data-value" id="idleTime">CALCULATING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Visit Count</span>
+                    <span class="data-value" id="visitCount">COUNTING...</span>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <div class="panel-header">🌍 Geolocation Intel</div>
+                <div class="data-row">
+                    <span class="data-label">GPS Position</span>
+                    <span class="data-value" id="gpsPosition">REQUESTING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Accuracy</span>
+                    <span class="data-value" id="gpsAccuracy">MEASURING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Altitude</span>
+                    <span class="data-value" id="altitude">DETECTING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Speed</span>
+                    <span class="data-value" id="speed">CALCULATING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Heading</span>
+                    <span class="data-value" id="heading">ANALYZING...</span>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <div class="panel-header">📱 Mobile Sensors</div>
+                <div class="data-row">
+                    <span class="data-label">Accelerometer</span>
+                    <span class="data-value" id="accelerometer">ACCESSING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Gyroscope</span>
+                    <span class="data-value" id="gyroscope">MONITORING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Magnetometer</span>
+                    <span class="data-value" id="magnetometer">DETECTING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Orientation</span>
+                    <span class="data-value" id="orientation">TRACKING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Ambient Light</span>
+                    <span class="data-value" id="ambientLight">MEASURING...</span>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <div class="panel-header">🔍 Plugin Detection</div>
+                <div class="data-row">
+                    <span class="data-label">Installed Plugins</span>
+                    <span class="data-value" id="plugins">ENUMERATING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">MIME Types</span>
+                    <span class="data-value" id="mimeTypes">SCANNING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Java Enabled</span>
+                    <span class="data-value" id="javaEnabled">TESTING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Flash Support</span>
+                    <span class="data-value" id="flashSupport">PROBING...</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">PDF Viewer</span>
+                    <span class="data-value" id="pdfViewer">DETECTING...</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px;">
+            <button class="hack-btn" onclick="initiateHack()">🔄 RE-INITIATE BREACH</button>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <span id="statusText">SYSTEM STATUS: BREACH IN PROGRESS... DATA EXTRACTION: 100% COMPLETE</span>
+    </div>
+
+    <script>
+        let startTime = performance.now();
+        let terminalLines = [
+            'Initializing neural network...',
+            'Bypassing firewall protocols...',
+            'Accessing system vulnerabilities...',
+            'Decrypting user data streams...',
+            'Establishing secure backdoor...',
+            'Harvesting browser fingerprints...',
+            'Extracting device information...',
+            'Mapping network topology...',
+            'Infiltrating security measures...',
+            'DATA EXTRACTION COMPLETE!'
+        ];
+
+        function updateTerminal() {
+            const terminal = document.getElementById('terminalText');
+            let currentLine = 0;
+            
+            const interval = setInterval(() => {
+                if (currentLine < terminalLines.length) {
+                    terminal.innerHTML += '<br>' + terminalLines[currentLine];
+                    terminal.scrollTop = terminal.scrollHeight;
+                    currentLine++;
+                } else {
+                    clearInterval(interval);
+                }
+            }, 800);
+        }
+
+        function createMatrixRain() {
+            const canvas = document.getElementById('matrixCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            const matrix = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789@#$%^&*()*&^%+-/~{[|`]}";
+            const matrixArray = matrix.split("");
+            
+            const fontSize = 10;
+            const columns = canvas.width / fontSize;
+            
+            const drops = [];
+            for (let x = 0; x < columns; x++) {
+                drops[x] = 1;
+            }
+            
+            function draw() {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.fillStyle = '#00ff00';
+                ctx.font = fontSize + 'px monospace';
+                
+                for (let i = 0; i < drops.length; i++) {
+                    const text = matrixArray[Math.floor(Math.random() * matrixArray.length)];
+                    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                    
+                    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                        drops[i] = 0;
+                    }
+                    drops[i]++;
+                }
+            }
+            
+            setInterval(draw, 35);
+        }
+
+        function detectBrowser() {
+            const ua = navigator.userAgent;
+            if (ua.includes('Chrome') && !ua.includes('Edg')) return 'CHROME_DETECTED';
+            if (ua.includes('Firefox')) return 'FIREFOX_IDENTIFIED';
+            if (ua.includes('Safari') && !ua.includes('Chrome')) return 'SAFARI_COMPROMISED';
+            if (ua.includes('Edg')) return 'EDGE_BREACHED';
+            if (ua.includes('Opera')) return 'OPERA_INFILTRATED';
+            return 'UNKNOWN_TARGET';
+        }
+
+        function detectOS() {
+            const ua = navigator.userAgent;
+            if (ua.includes('Windows')) return 'WINDOWS_SYSTEM';
+            if (ua.includes('Mac')) return 'MACOS_DETECTED';
+            if (ua.includes('Linux')) return 'LINUX_IDENTIFIED';
+            if (ua.includes('Android')) return 'ANDROID_MOBILE';
+            if (ua.includes('iOS')) return 'IOS_DEVICE';
+            return 'UNKNOWN_OS';
+        }
+
+        function detectDeviceType() {
+            const ua = navigator.userAgent;
+            if (/tablet|ipad|playbook|silk/i.test(ua)) return 'TABLET_DEVICE';
+            if (/mobile|iphone|ipod|android|blackberry|opera|mini|windows\sce|palm|smartphone|iemobile/i.test(ua)) return 'MOBILE_TARGET';
+            return 'DESKTOP_SYSTEM';
+        }
+
+        function generateFingerprint() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.textBaseline = 'top';
+            ctx.font = '14px Arial';
+            ctx.fillText('FINGERPRINT_HASH', 2, 2);
+            return 'FP_' + canvas.toDataURL().slice(-12).toUpperCase();
+        }
+
+        function getWebGLSupport() {
+            try {
+                const canvas = document.createElement('canvas');
+                const supported = !!(canvas.getContext('webgl') || canvas.getContext('experimental-webgl'));
+                return supported ? 'WEBGL_VULNERABLE' : 'WEBGL_DISABLED';
+            } catch (e) {
+                return 'WEBGL_ERROR';
+            }
+        }
+
+        function getCanvasSupport() {
+            try {
+                const canvas = document.createElement('canvas');
+                const supported = !!(canvas.getContext('2d'));
+                return supported ? 'CANVAS_ACCESSIBLE' : 'CANVAS_BLOCKED';
+            } catch (e) {
+                return 'CANVAS_ERROR';
+            }
+        }
+
+        async function getIPInfo() {
+            try {
+                const response = await fetch('https://ipapi.co/json/');
+                const data = await response.json();
+                return {
+                    ip: data.ip,
+                    country: data.country_name + ' [TRACKED]',
+                    city: data.city + ' [LOCATED]',
+                    isp: data.org + ' [IDENTIFIED]',
+                    coordinates: `${data.latitude}, ${data.longitude} [PINPOINTED]`
+                };
+            } catch (error) {
+                return {
+                    ip: 'PROXY_DETECTED',
+                    country: 'LOCATION_HIDDEN',
+                    city: 'VPN_ACTIVE',
+                    isp: 'ISP_MASKED',
+                    coordinates: 'GPS_BLOCKED'
+                };
+            }
+        }
+
+        async function getBatteryInfo() {
+            try {
+                if ('getBattery' in navigator) {
+                    const battery = await navigator.getBattery();
+                    const status = battery.charging ? 'CHARGING' : 'DRAINING';
+                    return `${Math.round(battery.level * 100)}% [${status}]`;
+                }
+                return 'BATTERY_HIDDEN';
+            } catch (error) {
+                return 'POWER_UNKNOWN';
+            }
+        }
+
+        function getMemoryInfo() {
+            try {
+                if ('memory' in performance) {
+                    const mem = performance.memory;
+                    return `${Math.round(mem.usedJSHeapSize / 1024 / 1024)} MB [MONITORED]`;
+                }
+                return 'MEMORY_PROTECTED';
+            } catch (error) {
+                return 'RAM_HIDDEN';
+            }
+        }
+
+        function getConnectionInfo() {
+            try {
+                if ('connection' in navigator) {
+                    const conn = navigator.connection;
+                    return `${conn.effectiveType.toUpperCase()} [${conn.downlink} MBPS]`;
+                }
+                return 'CONNECTION_MASKED';
+            } catch (error) {
+                return 'NETWORK_UNKNOWN';
+            }
+        }
+
+        function updateElement(id, value) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
+                element.className = 'data-value success';
+                element.classList.add('glitch');
+                setTimeout(() => element.classList.remove('glitch'), 500);
+            }
+        }
+
+        // Геолокация
+        function getGeolocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        updateElement('gpsPosition', `${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)} [PRECISE]`);
+                        updateElement('gpsAccuracy', `${position.coords.accuracy}m [RADIUS]`);
+                        updateElement('altitude', position.coords.altitude ? `${position.coords.altitude.toFixed(2)}m [ELEVATION]` : 'ALTITUDE_UNKNOWN');
+                        updateElement('speed', position.coords.speed ? `${position.coords.speed.toFixed(2)}m/s [VELOCITY]` : 'SPEED_UNKNOWN');
+                        updateElement('heading', position.coords.heading ? `${position.coords.heading.toFixed(2)}° [BEARING]` : 'HEADING_UNKNOWN');
+                    },
+                    (error) => {
+                        updateElement('gpsPosition', 'GPS_DENIED');
+                        updateElement('gpsAccuracy', 'ACCESS_BLOCKED');
+                        updateElement('altitude', 'PERMISSION_DENIED');
+                        updateElement('speed', 'LOCATION_BLOCKED');
+                        updateElement('heading', 'GPS_UNAVAILABLE');
+                    }
+                );
+            } else {
+                updateElement('gpsPosition', 'GPS_UNSUPPORTED');
+                updateElement('gpsAccuracy', 'GEOLOCATION_DISABLED');
+                updateElement('altitude', 'NO_GPS_API');
+                updateElement('speed', 'LOCATION_UNAVAILABLE');
+                updateElement('heading', 'COMPASS_BLOCKED');
+            }
+        }
+
+        // Сенсоры устройства
+        function initSensors() {
+            // Акселерометр
+            if (window.DeviceMotionEvent) {
+                window.addEventListener('devicemotion', (event) => {
+                    if (event.accelerationIncludingGravity) {
+                        const acc = event.accelerationIncludingGravity;
+                        updateElement('accelerometer', `X:${acc.x?.toFixed(2)} Y:${acc.y?.toFixed(2)} Z:${acc.z?.toFixed(2)} [ACTIVE]`);
+                    }
+                });
+            } else {
+                updateElement('accelerometer', 'ACCELEROMETER_BLOCKED');
+            }
+
+            // Гироскоп
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', (event) => {
+                    updateElement('gyroscope', `α:${event.alpha?.toFixed(2)} β:${event.beta?.toFixed(2)} γ:${event.gamma?.toFixed(2)} [TRACKING]`);
+                });
+            } else {
+                updateElement('gyroscope', 'GYROSCOPE_DISABLED');
+            }
+
+            // Магнитометр
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientationabsolute', (event) => {
+                    updateElement('magnetometer', event.absolute ? 'COMPASS_ACTIVE' : 'COMPASS_RELATIVE');
+                });
+            } else {
+                updateElement('magnetometer', 'MAGNETOMETER_UNAVAILABLE');
+            }
+
+            // Ориентация экрана
+            if (screen.orientation) {
+                updateElement('orientation', `${screen.orientation.type} [${screen.orientation.angle}°]`);
+                screen.orientation.addEventListener('change', () => {
+                    updateElement('orientation', `${screen.orientation.type} [${screen.orientation.angle}°]`);
+                });
+            } else {
+                updateElement('orientation', 'ORIENTATION_UNKNOWN');
+            }
+
+            // Датчик освещения
+            if ('AmbientLightSensor' in window) {
+                updateElement('ambientLight', 'LIGHT_SENSOR_AVAILABLE');
+            } else {
+                updateElement('ambientLight', 'LIGHT_SENSOR_BLOCKED');
+            }
+        }
+
+        // Детекция VPN
+        async function detectVPN() {
+            try {
+                const response = await fetch('https://ipapi.co/json/');
+                const data = await response.json();
+                
+                // Простая проверка на VPN по типу соединения
+                if (data.org && (data.org.toLowerCase().includes('vpn') || 
+                    data.org.toLowerCase().includes('proxy') || 
+                    data.org.toLowerCase().includes('hosting'))) {
+                    return 'VPN_DETECTED';
+                }
+                return 'DIRECT_CONNECTION';
+            } catch (error) {
+                return 'VPN_CHECK_FAILED';
+            }
+        }
+
+        async function loadData() {
+            // Основная информация о браузере
+            setTimeout(() => updateElement('browser', detectBrowser()), 500);
+            setTimeout(() => updateElement('browserVersion', 'v' + navigator.appVersion.split(' ')[0]), 700);
+            setTimeout(() => updateElement('os', detectOS()), 900);
+            setTimeout(() => updateElement('platform', navigator.platform + '_ARCH'), 1100);
+            setTimeout(() => updateElement('cpuCores', getCPUCores() + '_CORES'), 1300);
+            setTimeout(() => updateElement('userAgent', navigator.userAgent), 1500);
+
+            // Информация об устройстве
+            setTimeout(() => updateElement('screenResolution', `${screen.width}x${screen.height} [MAPPED]`), 1700);
+            setTimeout(() => updateElement('availableResolution', `${screen.availWidth}x${screen.availHeight} [AVAILABLE]`), 1900);
+            setTimeout(() => updateElement('windowSize', `${window.innerWidth}x${window.innerHeight} [ACTIVE]`), 2100);
+            setTimeout(() => updateElement('colorDepth', `${screen.colorDepth}_BIT_DEPTH`), 2300);
+            setTimeout(() => updateElement('pixelRatio', `${window.devicePixelRatio}x [RATIO]`), 2500);
+            setTimeout(() => updateElement('deviceType', detectDeviceType()), 2700);
+            setTimeout(() => updateElement('touchSupport', getTouchSupport()), 2900);
+
+            // Технические данные
+            setTimeout(() => updateElement('language', navigator.language.toUpperCase() + '_LOCALE'), 3100);
+            setTimeout(() => updateElement('languages', getLanguages()), 3300);
+            setTimeout(() => updateElement('timezone', Intl.DateTimeFormat().resolvedOptions().timeZone + '_ZONE'), 3500);
+            setTimeout(() => updateElement('localTime', getLocalTime()), 3700);
+            setTimeout(() => updateElement('cookiesEnabled', navigator.cookieEnabled ? 'COOKIES_ENABLED' : 'COOKIES_DISABLED'), 3900);
+            setTimeout(() => updateElement('onlineStatus', navigator.onLine ? 'ONLINE_ACTIVE' : 'OFFLINE_MODE'), 4100);
+
+            // Безопасность
+            setTimeout(() => updateElement('httpsEnabled', location.protocol === 'https:' ? 'SSL_SECURED' : 'HTTP_VULNERABLE'), 4300);
+            setTimeout(() => updateElement('doNotTrack', navigator.doNotTrack ? 'DNT_BYPASSED' : 'TRACKING_ALLOWED'), 4500);
+            setTimeout(() => updateElement('referrer', document.referrer || 'DIRECT_ACCESS'), 4700);
+            setTimeout(() => updateElement('webglSupport', getWebGLSupport()), 4900);
+            setTimeout(() => updateElement('canvasSupport', getCanvasSupport()), 5100);
+            setTimeout(() => updateElement('webrtcLeak', getWebRTCLeak()), 5300);
+            setTimeout(() => updateElement('incognitoMode', detectIncognito()), 5500);
+
+            // Дополнительная информация
+            setTimeout(() => updateElement('loadTime', `${Math.round(performance.now() - startTime)}ms [BREACH_TIME]`), 5700);
+            setTimeout(() => updateElement('fingerprint', generateFingerprint()), 5900);
+            setTimeout(() => updateElement('sessionStorage', getStorageInfo()), 6100);
+            setTimeout(() => updateElement('localStorage', getStorageInfo()), 6300);
+
+            // GPU информация
+            setTimeout(() => {
+                const gpuInfo = getGPUInfo();
+                updateElement('gpuVendor', gpuInfo.vendor);
+                updateElement('gpuRenderer', gpuInfo.renderer);
+                updateElement('webglVersion', gpuInfo.version);
+                updateElement('maxTextureSize', gpuInfo.maxTextureSize + '_PIXELS');
+            }, 6500);
+
+            // Аудио и медиа
+            setTimeout(() => updateElement('audioContext', getAudioContext()), 6700);
+            setTimeout(() => updateElement('mediaDevices', getMediaDevices()), 6900);
+
+            // Поведенческий анализ
+            setTimeout(() => {
+                updateElement('mouseTracking', mouseMovements + '_MOVEMENTS');
+                updateElement('scrollBehavior', scrollEvents + '_SCROLL_EVENTS');
+                updateElement('pageFocus', focusStatus);
+                updateElement('idleTime', getIdleTime());
+                updateElement('visitCount', visitCount + '_VISITS');
+            }, 7100);
+
+            // Плагины
+            setTimeout(() => updateElement('plugins', getPlugins()), 7300);
+            setTimeout(() => updateElement('mimeTypes', getMimeTypes()), 7500);
+            setTimeout(() => updateElement('javaEnabled', getJavaEnabled()), 7700);
+            setTimeout(() => updateElement('flashSupport', getFlashSupport()), 7900);
+            setTimeout(() => updateElement('pdfViewer', getPDFViewer()), 8100);
+
+            // Детекция клавиатуры
+            setTimeout(() => updateElement('keyboardLayout', 'QWERTY_DETECTED'), 8300);
+
+            // Асинхронные данные
+            setTimeout(async () => {
+                try {
+                    const ipInfo = await getIPInfo();
+                    updateElement('ipAddress', ipInfo.ip);
+                    updateElement('country', ipInfo.country);
+                    updateElement('city', ipInfo.city);
+                    updateElement('isp', ipInfo.isp);
+                    updateElement('coordinates', ipInfo.coordinates);
+                } catch (error) {
+                    updateElement('ipAddress', 'IP_PROTECTED');
+                    updateElement('country', 'LOCATION_SECURED');
+                    updateElement('city', 'CITY_HIDDEN');
+                    updateElement('isp', 'PROVIDER_MASKED');
+                    updateElement('coordinates', 'GPS_ENCRYPTED');
+                }
+            }, 8500);
+
+            setTimeout(async () => {
+                updateElement('battery', await getBatteryInfo());
+                updateElement('memory', getMemoryInfo());
+                updateElement('connection', getConnectionInfo());
+                updateElement('vpnStatus', await detectVPN());
+            }, 8700);
+
+            // Запуск геолокации и сенсоров
+            setTimeout(() => {
+                getGeolocation();
+                initSensors();
+            }, 9000);
+        }
+
+        function initiateHack() {
+            startTime = performance.now();
+            
+            // Показать загрузку
+            document.querySelectorAll('.data-value').forEach(el => {
+                el.textContent = 'SCANNING...';
+                el.className = 'data-value loading';
+            });
+
+            // Обновить размер окна
+            setTimeout(() => updateElement('windowSize', `${window.innerWidth}x${window.innerHeight} [ACTIVE]`), 100);
+            
+            // Обновить терминал
+            document.getElementById('terminalText').innerHTML = 'Re-initiating breach protocols...';
+            updateTerminal();
+            
+            // Перезагрузить данные
+            setTimeout(loadData, 500);
+        }
+
+        // Обновление статуса онлайн/оффлайн
+        window.addEventListener('online', () => updateElement('onlineStatus', 'ONLINE_ACTIVE'));
+        window.addEventListener('offline', () => updateElement('onlineStatus', 'OFFLINE_MODE'));
+
+        // Обновление размера окна
+        window.addEventListener('resize', () => {
+            updateElement('windowSize', `${window.innerWidth}x${window.innerHeight} [ACTIVE]`);
+        });
+
+        // Анимация статусной строки
+        function animateStatusBar() {
+            const statusText = document.getElementById('statusText');
+            const messages = [
+                'SYSTEM STATUS: BREACH IN PROGRESS... DATA EXTRACTION: 100% COMPLETE',
+                'WARNING: UNAUTHORIZED ACCESS DETECTED... HARVESTING USER DATA...',
+                'ALERT: SECURITY PROTOCOLS BYPASSED... INFILTRATION SUCCESSFUL...',
+                'NOTICE: FINGERPRINTING COMPLETE... TARGET IDENTIFIED...',
+                'STATUS: NEURAL NETWORK ACTIVE... MONITORING IN PROGRESS...'
+            ];
+            
+            let currentMessage = 0;
+            setInterval(() => {
+                statusText.textContent = messages[currentMessage];
+                currentMessage = (currentMessage + 1) % messages.length;
+            }, 3000);
+        }
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', () => {
+            createMatrixRain();
+            updateTerminal();
+            animateStatusBar();
+            initBehavioralTracking();
+            setTimeout(loadData, 1000);
+        });
+
+        // Случайные глитч-эффекты
+        setInterval(() => {
+            const elements = document.querySelectorAll('.data-value');
+            const randomElement = elements[Math.floor(Math.random() * elements.length)];
+            if (randomElement) {
+                randomElement.classList.add('glitch');
+                setTimeout(() => randomElement.classList.remove('glitch'), 300);
+            }
+        }, 5000);
+
+        // Обновление canvas при изменении размера окна
+        window.addEventListener('resize', () => {
+            const canvas = document.getElementById('matrixCanvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
