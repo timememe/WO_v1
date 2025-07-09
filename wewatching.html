@@ -930,6 +930,7 @@
                         updateElement('accelerometer', `X:${acc.x?.toFixed(2)} Y:${acc.y?.toFixed(2)} Z:${acc.z?.toFixed(2)} [ACTIVE]`);
                     }
                 });
+                updateElement('accelerometer', 'MOTION_LISTENER_ACTIVE');
             } else {
                 updateElement('accelerometer', 'ACCELEROMETER_BLOCKED');
             }
@@ -937,8 +938,11 @@
             // Гироскоп
             if (window.DeviceOrientationEvent) {
                 window.addEventListener('deviceorientation', (event) => {
-                    updateElement('gyroscope', `α:${event.alpha?.toFixed(2)} β:${event.beta?.toFixed(2)} γ:${event.gamma?.toFixed(2)} [TRACKING]`);
+                    if (event.alpha !== null || event.beta !== null || event.gamma !== null) {
+                        updateElement('gyroscope', `α:${event.alpha?.toFixed(2)} β:${event.beta?.toFixed(2)} γ:${event.gamma?.toFixed(2)} [TRACKING]`);
+                    }
                 });
+                updateElement('gyroscope', 'ORIENTATION_LISTENER_ACTIVE');
             } else {
                 updateElement('gyroscope', 'GYROSCOPE_DISABLED');
             }
@@ -948,6 +952,7 @@
                 window.addEventListener('deviceorientationabsolute', (event) => {
                     updateElement('magnetometer', event.absolute ? 'COMPASS_ACTIVE' : 'COMPASS_RELATIVE');
                 });
+                updateElement('magnetometer', 'COMPASS_LISTENER_ACTIVE');
             } else {
                 updateElement('magnetometer', 'MAGNETOMETER_UNAVAILABLE');
             }
@@ -964,9 +969,17 @@
 
             // Датчик освещения
             if ('AmbientLightSensor' in window) {
-                updateElement('ambientLight', 'LIGHT_SENSOR_AVAILABLE');
+                try {
+                    const sensor = new AmbientLightSensor();
+                    sensor.addEventListener('reading', () => {
+                        updateElement('ambientLight', `${sensor.illuminance} LUX [MEASURED]`);
+                    });
+                    sensor.start();
+                } catch (e) {
+                    updateElement('ambientLight', 'LIGHT_SENSOR_BLOCKED');
+                }
             } else {
-                updateElement('ambientLight', 'LIGHT_SENSOR_BLOCKED');
+                updateElement('ambientLight', 'LIGHT_SENSOR_UNAVAILABLE');
             }
         }
 
@@ -1096,18 +1109,26 @@
         function initiateHack() {
             startTime = performance.now();
             
+            // Сброс счетчиков
+            mouseMovements = 0;
+            scrollEvents = 0;
+            lastActivity = Date.now();
+            
             // Показать загрузку
             document.querySelectorAll('.data-value').forEach(el => {
                 el.textContent = 'SCANNING...';
                 el.className = 'data-value loading';
             });
 
-            // Обновить размер окна
-            setTimeout(() => updateElement('windowSize', `${window.innerWidth}x${window.innerHeight} [ACTIVE]`), 100);
+            // Обновить размер окна немедленно
+            updateElement('windowSize', `${window.innerWidth}x${window.innerHeight} [ACTIVE]`);
             
             // Обновить терминал
             document.getElementById('terminalText').innerHTML = 'Re-initiating breach protocols...';
             updateTerminal();
+            
+            // Перезапустить поведенческий трекинг
+            initBehavioralTracking();
             
             // Перезагрузить данные
             setTimeout(loadData, 500);
