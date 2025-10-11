@@ -11,12 +11,21 @@ class VisualManager {
             player: { image: '../../../shared/assets/images/anim/talk_blue.gif', background: '../../../shared/assets/images/anim/exp_bg.gif' },
             enemy: { image: '../../../shared/assets/images/anim/talk_red.gif', background: '../../../shared/assets/images/anim/exp_bg.gif' }
         };
+        this.baseCharDelay = 55; // ~18 символов в секунду ≈ средней скорости чтения
+        this.readingPauseMs = 3000;
+        this.typingTimeout = null;
+        this.pauseTimeout = null;
+        this.currentSpeechResolve = null;
     }
 
     setVisual(state, text = '') {
-        this.visualImage.src = this.assets[state].image;
-        this.visualBackground.src = this.assets[state].background;
-        this.showSpeechBubble(text);
+        const assets = this.assets[state] ?? this.assets.idle;
+        this.cancelSpeech();
+        if (assets) {
+            this.visualImage.src = assets.image;
+            this.visualBackground.src = assets.background;
+        }
+        const speechPromise = this.showSpeechBubble(text);
         if (state === 'idle') {
             this.statsOverlay.classList.add('visible');
             this.pointsOverlay.classList.add('visible');
@@ -24,23 +33,67 @@ class VisualManager {
             this.statsOverlay.classList.remove('visible');
             this.pointsOverlay.classList.remove('visible');
         }
+        return speechPromise;
     }
 
     showSpeechBubble(text) {
         this.speechBubble.textContent = '';
         this.speechBubble.classList.remove('visible');
-        if (text) {
-            let index = 0;
+        if (!text) {
+            return Promise.resolve();
+        }
+
+        return new Promise(resolve => {
+            this.currentSpeechResolve = () => {
+                resolve();
+                this.currentSpeechResolve = null;
+            };
             this.speechBubble.classList.add('visible');
-            const typeText = () => {
+            let index = 0;
+            const typeNext = () => {
                 if (index < text.length) {
                     this.speechBubble.textContent += text[index];
+                    const delay = this.getCharDelay(text[index]);
                     index++;
-                    setTimeout(typeText, 50);
+                    this.typingTimeout = setTimeout(typeNext, delay);
+                } else {
+                    this.typingTimeout = null;
+                    this.pauseTimeout = setTimeout(() => {
+                        this.pauseTimeout = null;
+                        if (this.currentSpeechResolve) {
+                            this.currentSpeechResolve();
+                        }
+                    }, this.readingPauseMs);
                 }
             };
-            typeText();
+            typeNext();
+        });
+    }
+
+    getCharDelay(char) {
+        if (!char) return this.baseCharDelay;
+        if (char === ' ') return Math.max(20, Math.floor(this.baseCharDelay * 0.6));
+        if (char === '\n') return this.baseCharDelay * 1.2;
+        if (/[.!?]/.test(char)) return this.baseCharDelay + 220;
+        if (/[,:;]/.test(char)) return this.baseCharDelay + 140;
+        return this.baseCharDelay;
+    }
+
+    cancelSpeech() {
+        if (this.typingTimeout) {
+            clearTimeout(this.typingTimeout);
+            this.typingTimeout = null;
         }
+        if (this.pauseTimeout) {
+            clearTimeout(this.pauseTimeout);
+            this.pauseTimeout = null;
+        }
+        if (this.currentSpeechResolve) {
+            this.currentSpeechResolve();
+            this.currentSpeechResolve = null;
+        }
+        this.speechBubble.textContent = '';
+        this.speechBubble.classList.remove('visible');
     }
 }
 
@@ -217,6 +270,7 @@ class GameEngine {
         this.dialogueHistory = []; // История тезисов
         this.playerStyle = { emotionalTurns: 0, logicalTurns: 0 }; // Стиль игрока
         this.enemyStyle = { emotionalTurns: 0, logicalTurns: 0 }; // Стиль скептика
+        this.lastVictorySpeechPromise = null;
         this.player.cards = cardManager.getInitialPlayerCards(this.player);
         this.enemy.cards = cardManager.getInitialEnemyCards(this.enemy);
     }
@@ -369,13 +423,14 @@ class GameEngine {
     checkVictory() {
         if (this.player.points >= 3) {
             this.uiManager.addMessage("Ты победил! Все 3 твои точки зажжены!", 'player');
-            this.visualManager.setVisual('player', "Победа!");
+            this.lastVictorySpeechPromise = this.visualManager.setVisual('player', "Победа!");
             return true;
         } else if (this.enemy.points >= 3) {
             this.uiManager.addMessage("Скептик победил! Ты проиграл!", 'enemy');
-            this.visualManager.setVisual('enemy', "Поражение!");
+            this.lastVictorySpeechPromise = this.visualManager.setVisual('enemy', "Поражение!");
             return true;
         }
+        this.lastVictorySpeechPromise = null;
         return false;
     }
 
@@ -407,7 +462,7 @@ class GameEngine {
         this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
     }
 
-    playCard(card) {
+    async playCard(card) {
         if (!this.playerTurn || card.used || this.playerHasPlayedCard || !this.gameActive) return;
         this.turn++;
         this.playerHasPlayedCard = true;
@@ -420,8 +475,8 @@ class GameEngine {
         }
 
         let message = this.applyCard(card, this.player, this.enemy);
-        this.visualManager.setVisual('player', message);
-        this.uiManager.addMessage(message, 'player', this.turn);
+        const speechPromise = this.visualManager.setVisual('player', message);
+        this.uiManager.addMessage(card.text, 'player', this.turn);
 
         if (card.used) {
             this.player.discardPile.push(card);
@@ -439,23 +494,29 @@ class GameEngine {
         if (this.checkVictory()) {
             this.gameActive = false;
             this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
+            const victorySpeech = this.lastVictorySpeechPromise ?? speechPromise;
+            await victorySpeech;
+            return;
+        }
+
+        await speechPromise;
+        if (!this.gameActive) {
             return;
         }
 
         this.playerTurn = false;
         this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
-        setTimeout(() => {
-            this.visualManager.setVisual('enemy');
-            setTimeout(() => this.enemyTurn(), 2000);
-        }, 2000);
+        await this.visualManager.setVisual('enemy');
+        await this.enemyTurn();
     }
 
-    enemyTurn() {
+    async enemyTurn() {
         if (!this.gameActive) return;
         this.turn++;
         this.enemyHasPlayedCard = true;
         let availableCards = this.enemy.cards.filter(card => !card.used);
         let message = '';
+        let playedCardText = null;
 
         if (!this.enemyHasPlayedCard && this.enemy.discardPile.length > 0 && availableCards.length < 5 && Math.random() > 0.5) {
             let randomIndex = Math.floor(Math.random() * this.enemy.discardPile.length);
@@ -492,6 +553,7 @@ class GameEngine {
                 message = `${this.cardManager.repeatCard.text} (Отменяет предыдущий ход)`;
                 this.enemy.cards = this.enemy.cards.filter(c => !c.used);
                 this.enemy.discardPile.push(cancelledCard);
+                playedCardText = cancelledCard.text ?? message;
             } else {
                 availableCards.splice(repeatCardIndex, 1);
                 this.enemy.cards = availableCards;
@@ -507,6 +569,7 @@ class GameEngine {
             }
 
             message = this.applyCard(randomCard, this.enemy, this.player);
+            playedCardText = randomCard.text;
 
             if (randomCard.used) {
                 this.enemy.discardPile.push(randomCard);
@@ -520,10 +583,12 @@ class GameEngine {
             this.addCounterCards(randomCard, this.player.cards, this.player.discardPile);
         } else {
             message = "Скептик: \"Мне нечего сказать...\"";
+            playedCardText = message;
         }
 
-        this.visualManager.setVisual('enemy', message);
-        this.uiManager.addMessage(message, 'enemy', this.turn);
+        const speechPromise = this.visualManager.setVisual('enemy', message);
+        const logText = playedCardText ?? message;
+        this.uiManager.addMessage(logText, 'enemy', this.turn);
         this.checkPoints(this.enemy, this.player);
         this.addReflectionAndObservation(this.player, this.enemy);
 
@@ -531,6 +596,13 @@ class GameEngine {
         if (this.checkVictory()) {
             this.gameActive = false;
             this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
+            const victorySpeech = this.lastVictorySpeechPromise ?? speechPromise;
+            await victorySpeech;
+            return;
+        }
+
+        await speechPromise;
+        if (!this.gameActive) {
             return;
         }
 
@@ -539,7 +611,7 @@ class GameEngine {
         this.enemyHasPlayedCard = false;
         this.uiManager.updateStats(this.player, this.enemy);
         this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
-        setTimeout(() => this.visualManager.setVisual('idle'), 2000);
+        await this.visualManager.setVisual('idle');
     }
 }
 
@@ -631,7 +703,7 @@ class UIManager {
 // Инициализация игры
 let gameEngine;
 
-function startGame(cardData) {
+async function startGame(cardData) {
     const cardManager = new CardManager(cardData);
     const uiManager = new UIManager();
     const visualManager = new VisualManager();
@@ -648,8 +720,10 @@ function startGame(cardData) {
             gameEngine.enemy.cards = gameEngine.enemy.cards.filter(c => !c.used);
         }
         gameEngine.player.logic -= firstEnemyCard.damage ?? 0;
-        gameEngine.visualManager.setVisual('enemy', `${firstEnemyCard.text}${firstEnemyCard.damage ? ` (-${firstEnemyCard.damage} logic)` : ''}`);
-        gameEngine.uiManager.addMessage(`${firstEnemyCard.text}${firstEnemyCard.damage ? ` (-${firstEnemyCard.damage} logic)` : ''}`, 'enemy', 1);
+        gameEngine.updateMaxStats(gameEngine.player);
+        const introText = firstEnemyCard.text;
+        const speechPromise = gameEngine.visualManager.setVisual('enemy', introText);
+        gameEngine.uiManager.addMessage(introText, 'enemy', 1);
         gameEngine.dialogueHistory.push({ id: firstEnemyCard.name, turn: 1, source: 'enemy' });
         if (firstEnemyCard.effect === 'emotion') {
             gameEngine.enemyStyle.emotionalTurns++;
@@ -659,12 +733,12 @@ function startGame(cardData) {
         gameEngine.addCounterCards(firstEnemyCard, gameEngine.player.cards, gameEngine.player.discardPile);
         gameEngine.checkPoints(gameEngine.enemy, gameEngine.player);
         gameEngine.addReflectionAndObservation(gameEngine.player, gameEngine.enemy);
+        await speechPromise;
     }
 
     gameEngine.uiManager.updateStats(gameEngine.player, gameEngine.enemy);
     gameEngine.uiManager.renderCards(gameEngine.player.cards, gameEngine.playerTurn, gameEngine.playerHasPlayedCard, gameEngine.playCard.bind(gameEngine));
-
-    setTimeout(() => gameEngine.visualManager.setVisual('idle'), 3000);
+    await gameEngine.visualManager.setVisual('idle');
 }
 
 async function initializeGame() {
@@ -674,7 +748,7 @@ async function initializeGame() {
             throw new Error(`Failed to load cards.json: ${response.status}`);
         }
         const cardData = await response.json();
-        startGame(cardData);
+        await startGame(cardData);
     } catch (error) {
         console.error('Не удалось загрузить данные карт:', error);
         const dialog = document.getElementById('dialog');
