@@ -5,7 +5,8 @@
       "Bash(mv:*)",
       "Bash(rmdir:*)",
       "Bash(tree:*)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(git -C \"D:\\NEUROMKA\\CODE\\world_order\\v1\\WO_v1\" add .)"
     ],
     "deny": [],
     "ask": []
