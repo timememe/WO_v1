@@ -1,0 +1,15 @@
+/*
+  Cache-Control: no-cache, no-store, must-revalidate
+  Pragma: no-cache
+  Expires: 0
+
+/projects/interactive/duelogue/*
+  Cache-Control: no-cache, no-store, must-revalidate
+  Pragma: no-cache
+  Expires: 0
+
+*.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+*.json
+  Cache-Control: no-cache, no-store, must-revalidate
