@@ -125,7 +125,19 @@ class CardManager {
         const clone = JSON.parse(JSON.stringify(template));
         clone.used = false;
         clone.fromDiscard = false;
+        if (!clone.currentVariantIndex) {
+            clone.currentVariantIndex = 0;
+        }
         return clone;
+    }
+
+    getCardText(card) {
+        // Если есть вариации текста, выбрать текущий вариант
+        if (card.textVariants && card.textVariants.length > 0) {
+            const index = card.currentVariantIndex ?? 0;
+            return card.textVariants[index] || card.text;
+        }
+        return card.text;
     }
 
     getEffectPools(cards) {
@@ -191,7 +203,7 @@ class CardManager {
         if (category === 'Атака') {
             // Противостояние атаке = Уклонение
             if (this.evasionCards.length && Math.random() < 0.7) {
-                return this.cloneCard(this.pickRandom(this.evasionCards));
+                return this.getUniqueCard(this.evasionCards, character);
             }
         } else if (category === 'Защита') {
             // Противостояние защите = Атака
@@ -201,10 +213,27 @@ class CardManager {
         } else if (category === 'Уклонение') {
             // Противостояние уклонению = Защита
             if (this.defenseCards.length && Math.random() < 0.7) {
-                return this.cloneCard(this.pickRandom(this.defenseCards));
+                return this.getUniqueCard(this.defenseCards, character);
             }
         }
 
+        return null;
+    }
+
+    // Получить уникальную карту из пула (которой нет в руке)
+    getUniqueCard(pool, character, maxAttempts = 5) {
+        if (!pool.length) return null;
+
+        const existingNames = new Set(character.cards.map(c => c.name));
+
+        // Фильтруем пул, исключая карты которые уже в руке
+        const availablePool = pool.filter(template => !existingNames.has(template.name));
+
+        if (availablePool.length > 0) {
+            return this.cloneCard(this.pickRandom(availablePool));
+        }
+
+        // Если все карты из пула уже в руке, возвращаем null
         return null;
     }
 
@@ -212,8 +241,11 @@ class CardManager {
         return this.cloneCard(this.repeatCard);
     }
 
-    getDefenseCard() {
+    getDefenseCard(character = null) {
         if (!this.defenseCards.length) return null;
+        if (character) {
+            return this.getUniqueCard(this.defenseCards, character);
+        }
         return this.cloneCard(this.pickRandom(this.defenseCards));
     }
 
@@ -225,7 +257,8 @@ class CardManager {
         const logicWeight = character.logic / total;
         const useLogic = Math.random() < logicWeight;
         const pool = useLogic ? (logic.length ? logic : this.rareAttackCards) : (emotion.length ? emotion : this.rareAttackCards);
-        return this.cloneCard(this.pickRandom(pool));
+
+        return this.getUniqueCard(pool, character) || this.cloneCard(this.pickRandom(pool));
     }
 
     getWeightedCard(character, baseTemplates = this.basePlayerCards) {
@@ -236,9 +269,8 @@ class CardManager {
         const logicWeight = character.logic / total;
         const useLogic = Math.random() < logicWeight;
         const pool = useLogic ? (logic.length ? logic : baseTemplates) : (emotion.length ? emotion : baseTemplates);
-        const baseTemplate = this.pickRandom(pool);
 
-        return this.cloneCard(baseTemplate);
+        return this.getUniqueCard(pool, character) || this.cloneCard(this.pickRandom(pool));
     }
 }
 
@@ -265,7 +297,20 @@ class GameEngine {
     }
 
     applyCard(card, source, target) {
-        let message = card.text;
+        // Получить текущий вариант текста (для речи)
+        let speechText = this.cardManager.getCardText(card);
+
+        // Лог-детали будут содержать все числовые данные
+        let logDetails = [];
+
+        // Обновить индекс варианта для следующего использования
+        if (card.textVariants && card.textVariants.length > 0) {
+            card.currentVariantIndex = (card.currentVariantIndex ?? 0) + 1;
+            if (card.currentVariantIndex >= card.textVariants.length) {
+                card.currentVariantIndex = 0; // Зацикливаем если варианты закончились
+            }
+        }
+
         let finalDamage = card.damage ?? 0;
         let finalHeal = card.heal ?? 0;
         let wasCancelled = false;
@@ -279,7 +324,7 @@ class GameEngine {
                 // Полная отмена последней карты врага
                 if (targetLastCard) {
                     wasCancelled = true;
-                    message += ` (Отменяет "${targetLastCard.name}")`;
+                    logDetails.push(`(Отменяет "${targetLastCard.name}")`);
                 }
             } else if (card.effect === 'mirror' && targetLastCard?.category === 'Атака') {
                 // Зеркало - копирует атаку врага (с учетом своих эмоций)
@@ -289,7 +334,7 @@ class GameEngine {
                     ? (Math.random() > 0.5 ? 'logic' : 'emotion')
                     : targetLastCard.effect;
                 target[targetStat] = (target[targetStat] ?? 0) - mirrorDamage;
-                message += ` (-${mirrorDamage} ${targetStat} врагу)`;
+                logDetails.push(`-${mirrorDamage} ${targetStat} врагу`);
             } else if (card.effect === 'reflect' && targetLastCard?.category === 'Атака') {
                 // Отражение - полный возврат урона (с учетом своих эмоций)
                 const damageMultiplier = this.getDamageMultiplier(source);
@@ -298,7 +343,7 @@ class GameEngine {
                     ? (Math.random() > 0.5 ? 'logic' : 'emotion')
                     : targetLastCard.effect;
                 target[targetStat] = (target[targetStat] ?? 0) - reflectDamage;
-                message += ` (-${reflectDamage} ${targetStat} отражено!)`;
+                logDetails.push(`-${reflectDamage} ${targetStat} отражено!`);
             }
         }
 
@@ -311,7 +356,7 @@ class GameEngine {
             // Проверка преимущества: Атака > Защита (+50% урона)
             if (targetLastCard?.category === 'Защита') {
                 finalDamage = Math.floor(finalDamage * 1.5);
-                message += ` (Пробивает защиту!)`;
+                logDetails.push('(Пробивает защиту!)');
             }
 
             // Применить урон (учитывая щит)
@@ -325,17 +370,17 @@ class GameEngine {
                     const absorbed = Math.min(target.shield, finalDamage);
                     target.shield -= absorbed;
                     finalDamage -= absorbed;
-                    message += ` (Щит: -${absorbed})`;
+                    logDetails.push(`(Щит: -${absorbed})`);
                     if (target.shield <= 0) {
                         delete target.shield;
-                        message += ` (Щит разрушен!)`;
+                        logDetails.push('(Щит разрушен!)');
                     }
                 }
 
                 // Остаток урона
                 if (finalDamage > 0) {
                     target[targetStat] = (target[targetStat] ?? 0) - finalDamage;
-                    message += ` (-${finalDamage} ${targetStat})`;
+                    logDetails.push(`-${finalDamage} ${targetStat}`);
                 }
             }
         }
@@ -345,17 +390,17 @@ class GameEngine {
             // Проверка преимущества: Защита > Уклонение (+50% лечения)
             if (targetLastCard?.category === 'Уклонение') {
                 finalHeal = Math.floor(finalHeal * 1.5);
-                message += ` (Ловит в ловушку!)`;
+                logDetails.push('(Ловит в ловушку!)');
             }
 
             if (card.effect === 'shield') {
                 // Создать щит
                 source.shield = (source.shield ?? 0) + (card.shield ?? 0);
-                message += ` (Щит: +${card.shield})`;
+                logDetails.push(`(Щит: +${card.shield})`);
             } else if (finalHeal > 0) {
                 // Лечение
                 source[card.effect] = (source[card.effect] ?? 0) + finalHeal;
-                message += ` (+${finalHeal} ${card.effect})`;
+                logDetails.push(`+${finalHeal} ${card.effect}`);
             }
         }
 
@@ -363,7 +408,7 @@ class GameEngine {
         if (card.fromDiscard) {
             let repeatCardIndex = target.cards.findIndex(c => c.name === "Повторение" && !c.used);
             if (repeatCardIndex !== -1) {
-                message += ` (Обнулено: "Ты уже это говорил!")`;
+                logDetails.push('(Обнулено: "Ты уже это говорил!")');
                 target.cards[repeatCardIndex].used = true;
             } else {
                 // Дать противнику карту "Повторение"
@@ -375,11 +420,22 @@ class GameEngine {
         this.updateMaxStats(target);
         source.lastCard = card;
 
-        return message;
+        return { speechText, logText: logDetails.join(' ') };
+    }
+
+    // Проверить есть ли карта с таким именем в руке
+    hasCardInHand(character, cardName) {
+        return character.cards.some(c => c.name === cardName);
     }
 
     addCardsToHand(card, character) {
         if (!card) return;
+
+        // Проверка на дубликат - не добавлять карту если такая уже есть в руке
+        if (this.hasCardInHand(character, card.name)) {
+            return; // Пропускаем добавление дубликата
+        }
+
         const handLimit = this.getHandLimit(character);
 
         if (character.cards.length < handLimit) {
@@ -459,10 +515,10 @@ class GameEngine {
                 const attackPool = isPlayer ? this.cardManager.basePlayerCards : this.cardManager.baseEnemyCards;
                 card = this.cardManager.getWeightedCard(character, attackPool);
             } else if (type === 'Защита') {
-                card = this.cardManager.getDefenseCard();
+                card = this.cardManager.getDefenseCard(character);
             } else if (type === 'Уклонение') {
                 if (this.cardManager.evasionCards.length) {
-                    card = this.cardManager.cloneCard(this.cardManager.pickRandom(this.cardManager.evasionCards));
+                    card = this.cardManager.getUniqueCard(this.cardManager.evasionCards, character);
                 }
             }
 
@@ -502,7 +558,7 @@ class GameEngine {
     addDefenseWhenLow(character) {
         // Если персонаж в минусе, дать ему защитную карту
         if ((character.logic < 0 && !character.logicNegative) || (character.emotion < 0 && !character.emotionNegative)) {
-            const defenseCard = this.cardManager.getDefenseCard();
+            const defenseCard = this.cardManager.getDefenseCard(character);
             if (defenseCard) {
                 this.addCardsToHand(defenseCard, character);
             }
@@ -563,9 +619,11 @@ class GameEngine {
             card.used = true;
         }
 
-        let message = this.applyCard(card, this.player, this.enemy);
-        const speechPromise = this.visualManager.setVisual('player', message);
-        this.uiManager.addMessage(card.text, 'player', this.turn);
+        const cardText = this.cardManager.getCardText(card);
+        const { speechText, logText } = this.applyCard(card, this.player, this.enemy);
+        const speechPromise = this.visualManager.setVisual('player', speechText);
+        const fullLogMessage = logText ? `${cardText} ${logText}` : cardText;
+        this.uiManager.addMessage(fullLogMessage, 'player', this.turn);
 
         if (card.used) {
             this.player.discardPile.push(card);
@@ -602,8 +660,8 @@ class GameEngine {
         this.turn++;
         this.enemyHasPlayedCard = true;
         let availableCards = this.enemy.cards.filter(card => !card.used);
-        let message = '';
-        let playedCardText = null;
+        let speechText = '';
+        let logText = '';
 
         if (!this.enemyHasPlayedCard && this.enemy.discardPile.length > 0 && availableCards.length < 5 && Math.random() > 0.5) {
             let randomIndex = Math.floor(Math.random() * this.enemy.discardPile.length);
@@ -632,10 +690,10 @@ class GameEngine {
             if (Math.random() > 0.5) {
                 let cancelledCard = availableCards[repeatCardIndex];
                 cancelledCard.used = true;
-                message = `${this.cardManager.repeatCard.text} (Отменяет предыдущий ход)`;
+                speechText = this.cardManager.repeatCard.text;
+                logText = `${speechText} (Отменяет предыдущий ход)`;
                 this.enemy.cards = this.enemy.cards.filter(c => !c.used);
                 this.enemy.discardPile.push(cancelledCard);
-                playedCardText = cancelledCard.text ?? message;
             } else {
                 availableCards.splice(repeatCardIndex, 1);
                 this.enemy.cards = availableCards;
@@ -650,8 +708,10 @@ class GameEngine {
                 randomCard.used = true;
             }
 
-            message = this.applyCard(randomCard, this.enemy, this.player);
-            playedCardText = randomCard.text;
+            const cardText = this.cardManager.getCardText(randomCard);
+            const result = this.applyCard(randomCard, this.enemy, this.player);
+            speechText = result.speechText;
+            logText = result.logText ? `${cardText} ${result.logText}` : cardText;
 
             if (randomCard.used) {
                 this.enemy.discardPile.push(randomCard);
@@ -660,12 +720,11 @@ class GameEngine {
 
             this.addCounterCard(randomCard, this.player, true);
         } else {
-            message = "Скептик: \"Мне нечего сказать...\"";
-            playedCardText = message;
+            speechText = "Мне нечего сказать...";
+            logText = `Скептик: "${speechText}"`;
         }
 
-        const speechPromise = this.visualManager.setVisual('enemy', message);
-        const logText = playedCardText ?? message;
+        const speechPromise = this.visualManager.setVisual('enemy', speechText);
         this.uiManager.addMessage(logText, 'enemy', this.turn);
         this.checkPoints(this.enemy, this.player);
         this.addDefenseWhenLow(this.player);
@@ -799,6 +858,8 @@ async function startGame(cardData) {
 
     const firstEnemyCard = gameEngine.enemy.cards[0];
     if (firstEnemyCard) {
+        const firstCardText = cardManager.getCardText(firstEnemyCard);
+
         firstEnemyCard.usesLeft--;
         if (firstEnemyCard.usesLeft !== undefined && firstEnemyCard.usesLeft <= 0) {
             firstEnemyCard.used = true;
@@ -807,9 +868,10 @@ async function startGame(cardData) {
             gameEngine.enemy.discardPile.push(firstEnemyCard);
             gameEngine.enemy.cards = gameEngine.enemy.cards.filter(c => !c.used);
         }
-        const introMessage = gameEngine.applyCard(firstEnemyCard, gameEngine.enemy, gameEngine.player);
-        const speechPromise = gameEngine.visualManager.setVisual('enemy', introMessage);
-        gameEngine.uiManager.addMessage(firstEnemyCard.text, 'enemy', 1);
+        const { speechText, logText } = gameEngine.applyCard(firstEnemyCard, gameEngine.enemy, gameEngine.player);
+        const speechPromise = gameEngine.visualManager.setVisual('enemy', speechText);
+        const fullLogMessage = logText ? `${firstCardText} ${logText}` : firstCardText;
+        gameEngine.uiManager.addMessage(fullLogMessage, 'enemy', 1);
         gameEngine.addCounterCard(firstEnemyCard, gameEngine.player, true);
         gameEngine.checkPoints(gameEngine.enemy, gameEngine.player);
         gameEngine.addDefenseWhenLow(gameEngine.player);
@@ -823,7 +885,7 @@ async function startGame(cardData) {
 
 async function initializeGame() {
     try {
-        const response = await fetch('cards.json', { cache: 'no-store' });
+        const response = await fetch('cards.json?v=20251012_7', { cache: 'no-store' });
         if (!response.ok) {
             throw new Error(`Failed to load cards.json: ${response.status}`);
         }

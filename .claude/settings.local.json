@@ -6,7 +6,9 @@
       "Bash(rmdir:*)",
       "Bash(tree:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(git -C \"D:\\NEUROMKA\\CODE\\world_order\\v1\\WO_v1\" add .)"
+      "Bash(git -C \"D:\\NEUROMKA\\CODE\\world_order\\v1\\WO_v1\" add .)",
+      "Bash(git -C \"D:\\NEUROMKA\\CODE\\world_order\\v1\\WO_v1\" commit -m \"Fix duelogue deploy issues: add redirect page and cache busting\n\n- Add duelogue.html redirect page in root for short URL access\n- Add cache busting version parameter to game.js\n- Update player stats display to match current constants (4/4)\n- Remove unused config files (_headers, _redirects, render.yaml)\")",
+      "Bash(git -C \"D:\\NEUROMKA\\CODE\\world_order\\v1\\WO_v1\" push)"
     ],
     "deny": [],
     "ask": []

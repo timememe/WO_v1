@@ -13,10 +13,20 @@
             padding: 10px;
             min-height: 100vh;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             color: #fff;
             box-sizing: border-box;
+            gap: 10px;
+        }
+        .game-wrapper {
+            width: 100%;
+            max-width: 450px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
         }
         h1 {
             font-size: clamp(12px, 3vw, 18px);
@@ -26,14 +36,10 @@
             line-height: 1.2;
         }
         .container {
-            width: min(90vw, 50vh);
-            height: min(160vw, 90vh);
+            width: 100%;
             max-width: 450px;
-            max-height: 800px;
-            aspect-ratio: 9/16;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
             background-color: #1a1a1a;
             border: 2px solid #333;
             border-radius: 12px;
@@ -44,14 +50,13 @@
         .visual-screen {
             position: relative;
             width: 100%;
-            height: 35%;
+            aspect-ratio: 16/9;
             background-color: #000;
             margin-bottom: 10px;
             overflow: hidden;
             border: 3px solid #333;
             border-radius: 8px;
             box-shadow: 0 0 8px rgba(0,0,0,0.5);
-            flex-shrink: 0;
         }
         .visual-background {
             position: absolute;
@@ -195,11 +200,10 @@
             padding: 10px;
             border-radius: 4px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-            height: 30%;
+            min-height: 120px;
+            max-height: 200px;
             overflow-y: auto;
-            margin-bottom: 10px;
             border: 2px solid #444;
-            flex-shrink: 0;
         }
         .message {
             margin: 6px 0;
@@ -225,87 +229,116 @@
             color: #888;
             margin-bottom: 3px;
         }
+        .cards-container {
+            width: 100%;
+            max-width: 450px;
+            background-color: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
         .cards-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 8px;
-            margin-bottom: 8px;
-            flex: 1;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 10px;
             align-content: start;
-            overflow-y: auto;
         }
         .card {
             position: relative;
-            padding: 8px;
-            border-radius: 4px;
+            padding: 10px;
+            border-radius: 8px;
             cursor: pointer;
-            text-align: center;
-            transition: background-color 0.2s;
-            border: 2px solid #333;
-            font-size: clamp(7px, 1.8vw, 9px);
-            overflow: hidden;
+            transition: all 0.2s ease;
+            border: 3px solid rgba(0, 0, 0, 0.3);
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            height: 80px;
+            gap: 6px;
+            aspect-ratio: 2.5/3.5;
+            min-height: 120px;
             color: #fff;
-            word-wrap: break-word;
-            line-height: 1.1;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            overflow: visible;
+        }
+        .card:hover:not(.used) {
+            transform: translateY(-4px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
         }
         .card-uses {
             position: absolute;
-            top: 4px;
-            right: 4px;
-            background-color: rgba(0, 0, 0, 0.6);
-            border-radius: 12px;
-            padding: 2px 6px;
-            font-size: clamp(6px, 1.4vw, 8px);
-            line-height: 1;
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            top: -6px;
+            right: -6px;
+            background-color: rgba(0, 0, 0, 0.85);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(9px, 2vw, 11px);
+            font-weight: bold;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            z-index: 1;
         }
         .card.Атака {
-            background-color: #cc3333;
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            border-color: #c0392b;
         }
-        .card.Атака:hover {
-            background-color: #aa2222;
+        .card.Атака:hover:not(.used) {
+            background: linear-gradient(135deg, #ff5c4c 0%, #d0493b 100%);
         }
         .card.Защита {
-            background-color: #33cc33;
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            border-color: #229954;
         }
-        .card.Защита:hover {
-            background-color: #22aa22;
+        .card.Защита:hover:not(.used) {
+            background: linear-gradient(135deg, #37be70 0%, #32a964 100%);
         }
         .card.Уклонение {
-            background-color: #cccc33;
+            background: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
+            border-color: #d68910;
         }
-        .card.Уклонение:hover {
-            background-color: #aaaa22;
+        .card.Уклонение:hover:not(.used) {
+            background: linear-gradient(135deg, #ffac22 0%, #e69920 100%);
         }
         .card.used, .card:disabled {
-            background-color: #666;
+            background: linear-gradient(135deg, #555 0%, #444 100%);
+            border-color: #333;
             cursor: not-allowed;
+            opacity: 0.6;
         }
         .card-title {
             font-weight: bold;
-            margin-bottom: 5px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            font-size: clamp(9px, 2vw, 11px);
+            line-height: 1.3;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+            word-wrap: break-word;
+            hyphens: auto;
         }
         .card-desc {
-            font-size: 8px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
+            font-size: clamp(7px, 1.6vw, 9px);
+            line-height: 1.4;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            word-wrap: break-word;
+            hyphens: auto;
+            opacity: 0.9;
         }
         .card-stats {
-            font-size: 10px;
-            margin-top: 5px;
+            font-size: clamp(8px, 1.7vw, 10px);
+            font-weight: bold;
+            padding: 4px 6px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            text-align: center;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
         }
         #discardButton {
             padding: 10px 20px;
@@ -327,67 +360,72 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>ДУЕЛОГ</h1>
-        <div class="visual-screen" id="visualScreen">
-            <img id="visualBackground" class="visual-background" src="" alt="Фон">
-            <img id="visualImage" class="visual-image" src="" alt="Сцена">
-            <div id="speechBubble" class="speech-bubble"></div>
-            <div id="statsOverlay" class="stats-overlay">
-                <div id="playerStatsOverlay" class="stat-panel">
-                    <div class="stat-title">Ты</div>
-                    <div class="stat-row">
-                        <span class="stat-name">Логика</span>
-                        <div class="stat-bar">
-                            <div id="playerLogicBar" class="stat-bar-fill logic"></div>
+    <div class="game-wrapper">
+        <div class="container">
+            <h1>ДУЕЛОГ</h1>
+            <div class="visual-screen" id="visualScreen">
+                <img id="visualBackground" class="visual-background" src="" alt="Фон">
+                <img id="visualImage" class="visual-image" src="" alt="Сцена">
+                <div id="speechBubble" class="speech-bubble"></div>
+                <div id="statsOverlay" class="stats-overlay">
+                    <div id="playerStatsOverlay" class="stat-panel">
+                        <div class="stat-title">Ты</div>
+                        <div class="stat-row">
+                            <span class="stat-name">Логика</span>
+                            <div class="stat-bar">
+                                <div id="playerLogicBar" class="stat-bar-fill logic"></div>
+                            </div>
+                            <span id="playerLogicValue" class="stat-number">4</span>
                         </div>
-                        <span id="playerLogicValue" class="stat-number">4</span>
+                        <div class="stat-row">
+                            <span class="stat-name">Эмоции</span>
+                            <div class="stat-bar">
+                                <div id="playerEmotionBar" class="stat-bar-fill emotion"></div>
+                            </div>
+                            <span id="playerEmotionValue" class="stat-number">4</span>
+                        </div>
                     </div>
-                    <div class="stat-row">
-                        <span class="stat-name">Эмоции</span>
-                        <div class="stat-bar">
-                            <div id="playerEmotionBar" class="stat-bar-fill emotion"></div>
+                    <div id="enemyStatsOverlay" class="stat-panel">
+                        <div class="stat-title">Скептик</div>
+                        <div class="stat-row">
+                            <span class="stat-name">Логика</span>
+                            <div class="stat-bar">
+                                <div id="enemyLogicBar" class="stat-bar-fill logic"></div>
+                            </div>
+                            <span id="enemyLogicValue" class="stat-number">4</span>
                         </div>
-                        <span id="playerEmotionValue" class="stat-number">4</span>
+                        <div class="stat-row">
+                            <span class="stat-name">Эмоции</span>
+                            <div class="stat-bar">
+                                <div id="enemyEmotionBar" class="stat-bar-fill emotion"></div>
+                            </div>
+                            <span id="enemyEmotionValue" class="stat-number">4</span>
+                        </div>
                     </div>
                 </div>
-                <div id="enemyStatsOverlay" class="stat-panel">
-                    <div class="stat-title">Скептик</div>
-                    <div class="stat-row">
-                        <span class="stat-name">Логика</span>
-                        <div class="stat-bar">
-                            <div id="enemyLogicBar" class="stat-bar-fill logic"></div>
-                        </div>
-                        <span id="enemyLogicValue" class="stat-number">4</span>
+                <div id="pointsOverlay" class="points-overlay">
+                    <div id="playerPointsOverlay">
+                        <div class="dot" data-index="0"></div>
+                        <div class="dot" data-index="1"></div>
+                        <div class="dot" data-index="2"></div>
                     </div>
-                    <div class="stat-row">
-                        <span class="stat-name">Эмоции</span>
-                        <div class="stat-bar">
-                            <div id="enemyEmotionBar" class="stat-bar-fill emotion"></div>
-                        </div>
-                        <span id="enemyEmotionValue" class="stat-number">4</span>
+                    <div id="enemyPointsOverlay">
+                        <div class="dot" data-index="0"></div>
+                        <div class="dot" data-index="1"></div>
+                        <div class="dot" data-index="2"></div>
                     </div>
                 </div>
             </div>
-            <div id="pointsOverlay" class="points-overlay">
-                <div id="playerPointsOverlay">
-                    <div class="dot" data-index="0"></div>
-                    <div class="dot" data-index="1"></div>
-                    <div class="dot" data-index="2"></div>
-                </div>
-                <div id="enemyPointsOverlay">
-                    <div class="dot" data-index="0"></div>
-                    <div class="dot" data-index="1"></div>
-                    <div class="dot" data-index="2"></div>
-                </div>
-            </div>
+            <div id="dialog"></div>
         </div>
-        <div id="dialog"></div>
-        <div id="handInfo" style="text-align: center; font-size: 10px; color: #aaa; margin-bottom: 8px;">Карты: 0/5</div>
-        <button id="discardButton" onclick="gameEngine.drawFromDiscard()" style="display: none;">Взять из колоды</button>
-        <div class="cards-grid" id="cardDeck"></div>
+
+        <div class="cards-container">
+            <div id="handInfo" style="text-align: center; font-size: 10px; color: #aaa; margin-bottom: 8px;">Карты: 0/5</div>
+            <button id="discardButton" onclick="gameEngine.drawFromDiscard()" style="display: none;">Взять из колоды</button>
+            <div class="cards-grid" id="cardDeck"></div>
+        </div>
     </div>
 
-    <script src="game.js?v=20251012"></script>
+    <script src="game.js?v=20251012_7"></script>
 </body>
 </html>
