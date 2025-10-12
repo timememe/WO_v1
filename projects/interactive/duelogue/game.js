@@ -4,6 +4,152 @@ const PLAYER_START_EMOTION = 4;
 const ENEMY_START_LOGIC = 4;
 const ENEMY_START_EMOTION = 4;
 
+// Класс для логирования игровых событий
+class GameLogger {
+    constructor() {
+        this.logs = [];
+        this.enabled = true;
+    }
+
+    log(category, message, data = {}) {
+        if (!this.enabled) return;
+
+        const logEntry = {
+            timestamp: new Date().toISOString(),
+            category,
+            message,
+            data: JSON.parse(JSON.stringify(data)) // Deep clone
+        };
+
+        this.logs.push(logEntry);
+
+        // Форматированный вывод в консоль
+        const color = this.getCategoryColor(category);
+        console.log(
+            `%c[${category}] ${message}`,
+            `color: ${color}; font-weight: bold`,
+            data
+        );
+    }
+
+    getCategoryColor(category) {
+        const colors = {
+            'TURN': '#3498db',
+            'CARD': '#e74c3c',
+            'STATS': '#2ecc71',
+            'DAMAGE': '#e67e22',
+            'HEAL': '#9b59b6',
+            'CANCEL': '#f39c12',
+            'HAND': '#1abc9c',
+            'VICTORY': '#c0392b',
+            'INIT': '#34495e'
+        };
+        return colors[category] || '#7f8c8d';
+    }
+
+    logCardPlayed(who, card, turn) {
+        this.log('CARD', `${who} играет карту "${card.name}"`, {
+            turn,
+            category: card.category,
+            effect: card.effect,
+            damage: card.damage,
+            heal: card.heal,
+            usesLeft: card.usesLeft
+        });
+    }
+
+    logStatsChange(who, before, after, reason) {
+        this.log('STATS', `${who}: Изменение характеристик`, {
+            reason,
+            before: { logic: before.logic, emotion: before.emotion, shield: before.shield },
+            after: { logic: after.logic, emotion: after.emotion, shield: after.shield },
+            delta: {
+                logic: after.logic - before.logic,
+                emotion: after.emotion - before.emotion,
+                shield: (after.shield ?? 0) - (before.shield ?? 0)
+            }
+        });
+    }
+
+    logDamage(attacker, defender, stat, amount, finalAmount) {
+        this.log('DAMAGE', `${attacker} наносит урон ${defender}`, {
+            targetStat: stat,
+            rawDamage: amount,
+            finalDamage: finalAmount,
+            absorbed: amount - finalAmount
+        });
+    }
+
+    logHeal(who, stat, amount) {
+        this.log('HEAL', `${who} восстанавливает ${stat}`, {
+            stat,
+            amount
+        });
+    }
+
+    logCancel(who, canceledCard) {
+        this.log('CANCEL', `${who} отменяет "${canceledCard.name}"`, {
+            canceledCard: canceledCard.name,
+            category: canceledCard.category
+        });
+    }
+
+    logHandChange(who, action, card = null) {
+        this.log('HAND', `${who}: ${action}`, {
+            card: card?.name,
+            category: card?.category
+        });
+    }
+
+    logTurnStart(turn, who) {
+        this.log('TURN', `===== Ход ${turn}: ${who} =====`, { turn, who });
+    }
+
+    logVictory(winner) {
+        this.log('VICTORY', `🏆 ${winner} победил!`, { winner });
+    }
+
+    logInit(message, data = {}) {
+        this.log('INIT', message, data);
+    }
+
+    exportLogs() {
+        return JSON.stringify(this.logs, null, 2);
+    }
+
+    clearLogs() {
+        this.logs = [];
+        console.clear();
+        console.log('%c[LOGGER] Логи очищены', 'color: #95a5a6');
+    }
+
+    toggle() {
+        this.enabled = !this.enabled;
+        console.log(`%c[LOGGER] Логирование ${this.enabled ? 'включено' : 'выключено'}`, 'color: #95a5a6');
+    }
+}
+
+// Глобальный логгер
+const gameLogger = new GameLogger();
+
+// Экспорт функций в window для доступа из консоли
+window.gameLogs = {
+    view: () => console.table(gameLogger.logs),
+    export: () => gameLogger.exportLogs(),
+    clear: () => gameLogger.clearLogs(),
+    toggle: () => gameLogger.toggle(),
+    help: () => {
+        console.log('%cДоступные команды логирования:', 'color: #3498db; font-size: 14px; font-weight: bold');
+        console.log('%cgameLogs.view()%c - Показать все логи в виде таблицы', 'color: #2ecc71', 'color: inherit');
+        console.log('%cgameLogs.export()%c - Экспортировать логи в JSON', 'color: #2ecc71', 'color: inherit');
+        console.log('%cgameLogs.clear()%c - Очистить логи', 'color: #2ecc71', 'color: inherit');
+        console.log('%cgameLogs.toggle()%c - Включить/выключить логирование', 'color: #2ecc71', 'color: inherit');
+    }
+};
+
+console.log('%c🎮 Система логирования игры активна!', 'color: #3498db; font-size: 14px; font-weight: bold');
+console.log('%cВведите %cgameLogs.help()%c для списка команд', 'color: #95a5a6', 'color: #2ecc71', 'color: #95a5a6');
+
 // Класс для управления игровыми событиями
 class EventManager {
     constructor(visualManager, uiManager) {
@@ -343,6 +489,25 @@ class GameEngine {
     }
 
     applyCard(card, source, target) {
+        // Определить кто играет карту
+        const who = source === this.player ? 'Игрок' : 'Скептик';
+        const opponent = target === this.player ? 'Игрок' : 'Скептик';
+
+        // Сохранить состояние ПЕРЕД применением карты
+        const sourceBefore = {
+            logic: source.logic,
+            emotion: source.emotion,
+            shield: source.shield
+        };
+        const targetBefore = {
+            logic: target.logic,
+            emotion: target.emotion,
+            shield: target.shield
+        };
+
+        // Логирование начала применения карты
+        gameLogger.logCardPlayed(who, card, this.turn);
+
         // Получить текущий вариант текста (для речи)
         let speechText = this.cardManager.getCardText(card);
 
@@ -390,6 +555,7 @@ class GameEngine {
                     }
 
                     logDetails.push(`(Отменяет "${targetLastCard.name}")`);
+                    gameLogger.logCancel(who, targetLastCard);
                     delete source.lastCardEffects;
                 }
             } else if (card.effect === 'mirror' && targetLastCard?.category === 'Атака') {
@@ -506,6 +672,26 @@ class GameEngine {
         this.updateMaxStats(source);
         this.updateMaxStats(target);
         source.lastCard = card;
+
+        // Логирование изменений характеристик ПОСЛЕ применения карты
+        const sourceAfter = {
+            logic: source.logic,
+            emotion: source.emotion,
+            shield: source.shield
+        };
+        const targetAfter = {
+            logic: target.logic,
+            emotion: target.emotion,
+            shield: target.shield
+        };
+
+        // Логируем изменения только если они были
+        if (sourceBefore.logic !== sourceAfter.logic || sourceBefore.emotion !== sourceAfter.emotion || sourceBefore.shield !== sourceAfter.shield) {
+            gameLogger.logStatsChange(who, sourceBefore, sourceAfter, `Применение карты "${card.name}"`);
+        }
+        if (targetBefore.logic !== targetAfter.logic || targetBefore.emotion !== targetAfter.emotion || targetBefore.shield !== targetAfter.shield) {
+            gameLogger.logStatsChange(opponent, targetBefore, targetAfter, `Эффект от карты "${card.name}"`);
+        }
 
         return { speechText, logText: logDetails.join(' ') };
     }
@@ -699,6 +885,8 @@ class GameEngine {
         this.turn++;
         this.playerHasPlayedCard = true;
 
+        gameLogger.logTurnStart(this.turn, 'Игрок');
+
         if (card.usesLeft !== undefined) {
             card.usesLeft--;
             if (card.usesLeft <= 0) card.used = true;
@@ -724,6 +912,8 @@ class GameEngine {
 
         this.uiManager.updateStats(this.player, this.enemy);
         if (this.checkVictory()) {
+            const winner = this.player.points >= 3 ? 'Игрок' : 'Скептик';
+            gameLogger.logVictory(winner);
             this.gameActive = false;
             this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
             const victorySpeech = this.lastVictorySpeechPromise ?? speechPromise;
@@ -746,6 +936,9 @@ class GameEngine {
         if (!this.gameActive) return;
         this.turn++;
         this.enemyHasPlayedCard = true;
+
+        gameLogger.logTurnStart(this.turn, 'Скептик');
+
         let availableCards = this.enemy.cards.filter(card => !card.used);
         let speechText = '';
         let logText = '';
@@ -819,6 +1012,8 @@ class GameEngine {
 
         this.uiManager.updateStats(this.player, this.enemy);
         if (this.checkVictory()) {
+            const winner = this.player.points >= 3 ? 'Игрок' : 'Скептик';
+            gameLogger.logVictory(winner);
             this.gameActive = false;
             this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
             const victorySpeech = this.lastVictorySpeechPromise ?? speechPromise;
@@ -944,8 +1139,17 @@ async function startGame(cardData) {
     gameEngine = new GameEngine(cardManager, uiManager, visualManager);
     const eventManager = new EventManager(visualManager, uiManager);
 
+    // Логируем начальное состояние
+    gameLogger.logInit('Игра начинается', {
+        playerStats: { logic: gameEngine.player.logic, emotion: gameEngine.player.emotion },
+        enemyStats: { logic: gameEngine.enemy.logic, emotion: gameEngine.enemy.emotion },
+        playerHand: gameEngine.player.cards.map(c => c.name),
+        enemyHand: gameEngine.enemy.cards.map(c => c.name)
+    });
+
     // Подбросить монетку для определения первого хода
     const playerStarts = await eventManager.coinFlip();
+    gameLogger.logInit(`Монетка: ${playerStarts ? 'Игрок' : 'Скептик'} начинает первым`);
 
     if (playerStarts) {
         // Игрок начинает первым - враг не ходит в начале
@@ -989,7 +1193,7 @@ async function startGame(cardData) {
 
 async function initializeGame() {
     try {
-        const response = await fetch('cards.json?v=20251012_10', { cache: 'no-store' });
+        const response = await fetch('cards.json?v=20251012_11', { cache: 'no-store' });
         if (!response.ok) {
             throw new Error(`Failed to load cards.json: ${response.status}`);
         }
