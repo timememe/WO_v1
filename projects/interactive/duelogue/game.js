@@ -1,3 +1,9 @@
+// Глобальные константы для стартовых характеристик
+const PLAYER_START_LOGIC = 4;
+const PLAYER_START_EMOTION = 4;
+const ENEMY_START_LOGIC = 4;
+const ENEMY_START_EMOTION = 4;
+
 // Класс для управления визуализацией
 class VisualManager {
     constructor() {
@@ -102,15 +108,12 @@ class CardManager {
     constructor(cardData) {
         this.basePlayerCards = cardData?.basePlayerCards ?? [];
         this.baseEnemyCards = cardData?.baseEnemyCards ?? [];
-        this.reflectionCards = cardData?.reflectionCards ?? {};
-        this.derivativeTemplates = cardData?.derivativeTemplates ?? [];
+        this.defenseCards = cardData?.defenseCards ?? [];
+        this.evasionCards = cardData?.evasionCards ?? [];
         this.rareAttackCards = cardData?.rareAttackCards ?? [];
-        this.counterCards = cardData?.counterCards ?? [];
 
         const specials = cardData?.specialCards ?? {};
         this.repeatCard = specials.repeatCard ?? null;
-        this.observationCard = specials.observationCard ?? null;
-        this.critiqueCard = specials.critiqueCard ?? null;
     }
 
     pickRandom(array) {
@@ -131,33 +134,37 @@ class CardManager {
         return { logic, emotion };
     }
 
-    getInitialCardsFor(character, templates) {
-        if (!templates.length) return [];
-
-        const { logic, emotion } = this.getEffectPools(templates);
-        const fallback = templates;
-        const total = Math.max(1, character.logic + character.emotion);
-        const logicWeight = character.logic / total;
-        const chosenNames = new Set();
+    getInitialCardsFor(character, attackTemplates) {
+        // Стартовая рука: 2 Атаки + 1 Защита + 1 Уклонение
         const result = [];
 
-        while (result.length < 2) {
+        // 2 атаки (logic и emotion по весам персонажа)
+        const { logic, emotion } = this.getEffectPools(attackTemplates);
+        const total = Math.max(1, character.logic + character.emotion);
+        const logicWeight = character.logic / total;
+
+        for (let i = 0; i < 2; i++) {
             const useLogic = Math.random() < logicWeight;
-            const pool = useLogic ? (logic.length ? logic : fallback) : (emotion.length ? emotion : fallback);
-            const available = pool.filter(card => !chosenNames.has(card.name));
-            const sourcePool = available.length ? available : pool;
-            if (!sourcePool.length) break;
-            const template = this.pickRandom(sourcePool);
-            chosenNames.add(template.name);
-            result.push(this.cloneCard(template));
-            if (chosenNames.size >= fallback.length) break;
+            const pool = useLogic ? (logic.length ? logic : attackTemplates) : (emotion.length ? emotion : attackTemplates);
+            if (pool.length) {
+                result.push(this.cloneCard(this.pickRandom(pool)));
+            }
         }
 
-        if (result.length < 2) {
-            fallback
-                .filter(card => !chosenNames.has(card.name))
-                .slice(0, 2 - result.length)
-                .forEach(card => result.push(this.cloneCard(card)));
+        // 1 защита (по типу персонажа)
+        if (this.defenseCards.length) {
+            const defensePool = this.defenseCards.filter(c => c.effect !== 'shield');
+            if (defensePool.length) {
+                const useLogic = Math.random() < logicWeight;
+                const preferred = defensePool.filter(c => c.effect === (useLogic ? 'logic' : 'emotion'));
+                const chosen = preferred.length ? this.pickRandom(preferred) : this.pickRandom(defensePool);
+                result.push(this.cloneCard(chosen));
+            }
+        }
+
+        // 1 уклонение
+        if (this.evasionCards.length) {
+            result.push(this.cloneCard(this.pickRandom(this.evasionCards)));
         }
 
         return result;
@@ -171,60 +178,43 @@ class CardManager {
         return this.getInitialCardsFor(enemy, this.baseEnemyCards);
     }
 
-    generateDerivativeCard(baseTemplate) {
-        if (!baseTemplate) {
-            return null;
-        }
-        if (!this.derivativeTemplates.length) {
-            return this.cloneCard(baseTemplate);
-        }
 
-        const template = this.pickRandom(this.derivativeTemplates);
-        const derivative = this.cloneCard(baseTemplate);
-        derivative.name = `${baseTemplate.name}${template.suffix ?? ''}`.trim();
-        derivative.text = `${baseTemplate.text}${template.textSuffix ?? ''}`;
-        derivative.desc = template.desc ?? baseTemplate.desc;
-        derivative.damage = (baseTemplate.damage ?? 0) + (template.damageBonus ?? 0);
+    // Получить карту, противостоящую последней карте врага
+    // Атака → Уклонение, Защита → Атака, Уклонение → Защита
+    getCounterCard(lastCard, character, isPlayer = true) {
+        if (!lastCard) return null;
 
-        if (template.heal !== undefined) {
-            derivative.heal = template.heal;
-        }
+        const category = lastCard.category;
+        // Выбрать правильный набор карт в зависимости от того, кто получает карту
+        const attackPool = isPlayer ? this.basePlayerCards : this.baseEnemyCards;
 
-        delete derivative.usesLeft; // derivative карты одноразовые
-        return derivative;
-    }
-
-    generateCounterCards(lastCard) {
-        if (!this.counterCards.length) return [];
-
-        const counters = [];
-        if (Math.random() < 0.3) {
-            const logicCounter = this.counterCards.filter(card => card.effect === 'logic');
-            const emotionCounter = this.counterCards.filter(card => card.effect === 'emotion');
-
-            if (lastCard.effect === 'logic' && lastCard.damage && logicCounter.length) {
-                counters.push(this.cloneCard(this.pickRandom(logicCounter)));
-            } else if (lastCard.effect === 'emotion' && lastCard.damage && emotionCounter.length) {
-                counters.push(this.cloneCard(this.pickRandom(emotionCounter)));
+        if (category === 'Атака') {
+            // Противостояние атаке = Уклонение
+            if (this.evasionCards.length && Math.random() < 0.7) {
+                return this.cloneCard(this.pickRandom(this.evasionCards));
+            }
+        } else if (category === 'Защита') {
+            // Противостояние защите = Атака
+            if (Math.random() < 0.7) {
+                return this.getWeightedCard(character, attackPool);
+            }
+        } else if (category === 'Уклонение') {
+            // Противостояние уклонению = Защита
+            if (this.defenseCards.length && Math.random() < 0.7) {
+                return this.cloneCard(this.pickRandom(this.defenseCards));
             }
         }
-        return counters;
-    }
 
-    getReflectionCard(type) {
-        return this.cloneCard(this.reflectionCards?.[type]);
-    }
-
-    getObservationCard() {
-        return this.cloneCard(this.observationCard);
+        return null;
     }
 
     getRepeatCard() {
         return this.cloneCard(this.repeatCard);
     }
 
-    getCritiqueCard() {
-        return this.cloneCard(this.critiqueCard);
+    getDefenseCard() {
+        if (!this.defenseCards.length) return null;
+        return this.cloneCard(this.pickRandom(this.defenseCards));
     }
 
     getRareAttackCard(character) {
@@ -248,9 +238,7 @@ class CardManager {
         const pool = useLogic ? (logic.length ? logic : baseTemplates) : (emotion.length ? emotion : baseTemplates);
         const baseTemplate = this.pickRandom(pool);
 
-        return Math.random() < 0.5
-            ? this.cloneCard(baseTemplate)
-            : this.generateDerivativeCard(baseTemplate);
+        return this.cloneCard(baseTemplate);
     }
 }
 
@@ -260,110 +248,155 @@ class GameEngine {
         this.cardManager = cardManager;
         this.uiManager = uiManager;
         this.visualManager = visualManager;
-        this.player = { logic: 3, maxLogic: 3, emotion: 5, maxEmotion: 5, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], discardPile: [], lastCard: null };
-        this.enemy = { logic: 4, maxLogic: 4, emotion: 4, maxEmotion: 4, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], discardPile: [], lastCard: null };
+        this.player = { logic: PLAYER_START_LOGIC, maxLogic: PLAYER_START_LOGIC, emotion: PLAYER_START_EMOTION, maxEmotion: PLAYER_START_EMOTION, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], discardPile: [], lastCard: null };
+        this.enemy = { logic: ENEMY_START_LOGIC, maxLogic: ENEMY_START_LOGIC, emotion: ENEMY_START_EMOTION, maxEmotion: ENEMY_START_EMOTION, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], discardPile: [], lastCard: null };
         this.turn = 1;
         this.playerTurn = true;
         this.gameActive = true;
         this.playerHasPlayedCard = false;
         this.enemyHasPlayedCard = false;
-        this.dialogueHistory = []; // История тезисов
-        this.playerStyle = { emotionalTurns: 0, logicalTurns: 0 }; // Стиль игрока
-        this.enemyStyle = { emotionalTurns: 0, logicalTurns: 0 }; // Стиль скептика
         this.lastVictorySpeechPromise = null;
         this.player.cards = cardManager.getInitialPlayerCards(this.player);
         this.enemy.cards = cardManager.getInitialEnemyCards(this.enemy);
+
+        // Убедиться что стартовые руки содержат минимум карт
+        this.ensureMinimumHandComposition(this.player, true);
+        this.ensureMinimumHandComposition(this.enemy, false);
     }
 
     applyCard(card, source, target) {
         let message = card.text;
-        let damageBonus = 0;
+        let finalDamage = card.damage ?? 0;
+        let finalHeal = card.heal ?? 0;
         let wasCancelled = false;
 
-        // Проверка "Замечания" на повторение
-        let repeatCardIndex = target.cards.findIndex(c => c.name === "Повторение" && !c.used);
-        if (repeatCardIndex !== -1 && card.fromDiscard && (source === this.enemy ? Math.random() > 0.5 : true)) {
-            message += ` (Обнулено: "Ты уже это говорил!")`;
-            wasCancelled = true;
-            target.cards[repeatCardIndex].used = true;
-        } else if (card.fromDiscard) {
-            this.addCardsToHand(this.cardManager.getRepeatCard(), target.cards, target.discardPile);
+        // Сохранить последнюю карту врага для контекста
+        const targetLastCard = target.lastCard;
+
+        // ============ УКЛОНЕНИЕ ============
+        if (card.category === 'Уклонение') {
+            if (card.effect === 'cancel') {
+                // Полная отмена последней карты врага
+                if (targetLastCard) {
+                    wasCancelled = true;
+                    message += ` (Отменяет "${targetLastCard.name}")`;
+                }
+            } else if (card.effect === 'mirror' && targetLastCard?.category === 'Атака') {
+                // Зеркало - копирует атаку врага (с учетом своих эмоций)
+                const damageMultiplier = this.getDamageMultiplier(source);
+                let mirrorDamage = Math.floor((targetLastCard.damage ?? 0) * (card.modifier ?? 0.75) * damageMultiplier);
+                const targetStat = targetLastCard.effect === 'random'
+                    ? (Math.random() > 0.5 ? 'logic' : 'emotion')
+                    : targetLastCard.effect;
+                target[targetStat] = (target[targetStat] ?? 0) - mirrorDamage;
+                message += ` (-${mirrorDamage} ${targetStat} врагу)`;
+            } else if (card.effect === 'reflect' && targetLastCard?.category === 'Атака') {
+                // Отражение - полный возврат урона (с учетом своих эмоций)
+                const damageMultiplier = this.getDamageMultiplier(source);
+                let reflectDamage = Math.floor((targetLastCard.damage ?? 0) * damageMultiplier);
+                const targetStat = targetLastCard.effect === 'random'
+                    ? (Math.random() > 0.5 ? 'logic' : 'emotion')
+                    : targetLastCard.effect;
+                target[targetStat] = (target[targetStat] ?? 0) - reflectDamage;
+                message += ` (-${reflectDamage} ${targetStat} отражено!)`;
+            }
         }
 
-        if (!wasCancelled) {
-            if (card.category === 'Тезис') {
-                this.dialogueHistory.push({ id: card.name, turn: this.turn, source: source === this.player ? 'player' : 'enemy' });
-                if (card.effect === 'emotion') source === this.player ? this.playerStyle.emotionalTurns++ : this.enemyStyle.emotionalTurns++;
-                if (card.effect === 'logic') source === this.player ? this.playerStyle.logicalTurns++ : this.enemyStyle.logicalTurns++;
+        // ============ АТАКА ============
+        else if (card.category === 'Атака' && !wasCancelled) {
+            // Применить множитель урона от эмоций атакующего
+            const damageMultiplier = this.getDamageMultiplier(source);
+            finalDamage = Math.floor(finalDamage * damageMultiplier);
+
+            // Проверка преимущества: Атака > Защита (+50% урона)
+            if (targetLastCard?.category === 'Защита') {
+                finalDamage = Math.floor(finalDamage * 1.5);
+                message += ` (Пробивает защиту!)`;
             }
 
-            if (card.category === 'Контраргумент') {
-                const lastThesis = this.dialogueHistory.filter(t => t.source !== (source === this.player ? 'player' : 'enemy')).slice(-1)[0];
-                if (lastThesis && this.turn - lastThesis.turn <= 2) {
-                    damageBonus += 1;
-                    message += ` (Усилено: свежий тезис!)`;
+            // Применить урон (учитывая щит)
+            if (finalDamage > 0) {
+                const targetStat = card.effect === 'random'
+                    ? (Math.random() > 0.5 ? 'logic' : 'emotion')
+                    : card.effect;
+
+                // Щит поглощает урон
+                if (target.shield && target.shield > 0) {
+                    const absorbed = Math.min(target.shield, finalDamage);
+                    target.shield -= absorbed;
+                    finalDamage -= absorbed;
+                    message += ` (Щит: -${absorbed})`;
+                    if (target.shield <= 0) {
+                        delete target.shield;
+                        message += ` (Щит разрушен!)`;
+                    }
+                }
+
+                // Остаток урона
+                if (finalDamage > 0) {
+                    target[targetStat] = (target[targetStat] ?? 0) - finalDamage;
+                    message += ` (-${finalDamage} ${targetStat})`;
                 }
             }
-
-            if (card.category === 'Замечание' && card.name !== "Повторение") {
-                const style = source === this.player ? this.enemyStyle : this.playerStyle;
-                if (style.emotionalTurns >= 3) {
-                    damageBonus += 2;
-                    message += ` (Усилено: слишком эмоционально!)`;
-                } else if (style.logicalTurns >= 3) {
-                    damageBonus += 2;
-                    message += ` (Усилено: слишком логично!)`;
-                }
-            }
-
-            if (card.category === 'Укол') {
-                const targetTheses = this.dialogueHistory.filter(t => t.source === (target === this.player ? 'player' : 'enemy'));
-                if (targetTheses.length >= 2 && targetTheses.some(t => t.id !== targetTheses[0].id)) {
-                    damageBonus += 2;
-                    message += ` (Усилено: противоречие!)`;
-                }
-                if (card.risk && Math.random() < card.risk) {
-                    source[card.effect === 'random' ? (Math.random() > 0.5 ? 'logic' : 'emotion') : card.effect] -= 2;
-                    message += ` (Обратный урон: -2)`;
-                }
-            }
-
-            if (card.effect === 'random') {
-                let targetStat = Math.random() > 0.5 ? 'logic' : 'emotion';
-                target[targetStat] -= (card.damage + damageBonus);
-                message += ` (-${card.damage + damageBonus} ${targetStat})`;
-            } else if (card.damage) {
-                target[card.effect] -= (card.damage + damageBonus);
-                message += ` (-${card.damage + damageBonus} ${card.effect})`;
-            } else if (card.heal) {
-                source[card.effect] += card.heal;
-                message += ` (+${card.heal} ${card.effect})`;
-            }
-            if (card.heal && card.damage) {
-                source[card.effect] += card.heal;
-                message += ` (+${card.heal} ${card.effect})`;
-            }
-
-            this.updateMaxStats(source);
-            this.updateMaxStats(target);
         }
 
+        // ============ ЗАЩИТА ============
+        else if (card.category === 'Защита' && !wasCancelled) {
+            // Проверка преимущества: Защита > Уклонение (+50% лечения)
+            if (targetLastCard?.category === 'Уклонение') {
+                finalHeal = Math.floor(finalHeal * 1.5);
+                message += ` (Ловит в ловушку!)`;
+            }
+
+            if (card.effect === 'shield') {
+                // Создать щит
+                source.shield = (source.shield ?? 0) + (card.shield ?? 0);
+                message += ` (Щит: +${card.shield})`;
+            } else if (finalHeal > 0) {
+                // Лечение
+                source[card.effect] = (source[card.effect] ?? 0) + finalHeal;
+                message += ` (+${finalHeal} ${card.effect})`;
+            }
+        }
+
+        // Проверка "Повторение" на карты из discard
+        if (card.fromDiscard) {
+            let repeatCardIndex = target.cards.findIndex(c => c.name === "Повторение" && !c.used);
+            if (repeatCardIndex !== -1) {
+                message += ` (Обнулено: "Ты уже это говорил!")`;
+                target.cards[repeatCardIndex].used = true;
+            } else {
+                // Дать противнику карту "Повторение"
+                this.addCardsToHand(this.cardManager.getRepeatCard(), target);
+            }
+        }
+
+        this.updateMaxStats(source);
+        this.updateMaxStats(target);
         source.lastCard = card;
+
         return message;
     }
 
-    addCardsToHand(card, targetCards, discardPile) {
-        if (targetCards.length < 5) {
-            targetCards.push(card);
+    addCardsToHand(card, character) {
+        if (!card) return;
+        const handLimit = this.getHandLimit(character);
+
+        if (character.cards.length < handLimit) {
+            character.cards.push(card);
         } else {
-            discardPile.push(targetCards.shift());
-            targetCards.push(card);
+            // Рука переполнена, сбросить старейшую карту
+            character.discardPile.push(character.cards.shift());
+            character.cards.push(card);
         }
     }
 
-    addCounterCards(lastCard, targetCards, discardPile) {
-        let newCards = this.cardManager.generateCounterCards(lastCard);
-        newCards.forEach(card => this.addCardsToHand(card, targetCards, discardPile));
+    addCounterCard(lastCard, character, isPlayer = true) {
+        // 70% шанс получить карту, противостоящую последней карте врага
+        const counterCard = this.cardManager.getCounterCard(lastCard, character, isPlayer);
+        if (counterCard) {
+            this.addCardsToHand(counterCard, character);
+        }
     }
 
     updateMaxStats(character) {
@@ -372,6 +405,71 @@ class GameEngine {
         if (character.maxEmotion === undefined) character.maxEmotion = character.emotion;
         character.maxLogic = Math.max(character.maxLogic, character.logic);
         character.maxEmotion = Math.max(character.maxEmotion, character.emotion);
+    }
+
+    // Вычислить максимальный размер руки в зависимости от логики
+    getHandLimit(character) {
+        const logic = character.logic ?? 0;
+        if (logic <= 0) return 3;
+        if (logic <= 2) return 4;
+        if (logic <= 4) return 5;
+        if (logic <= 6) return 6;
+        return 7;
+    }
+
+    // Вычислить множитель урона в зависимости от эмоций
+    getDamageMultiplier(character) {
+        const emotion = character.emotion ?? 0;
+        if (emotion <= 0) return 0.5;
+        if (emotion <= 2) return 0.75;
+        if (emotion <= 4) return 1.0;
+        if (emotion <= 6) return 1.25;
+        return 1.5;
+    }
+
+    // Проверить и пополнить минимальный состав руки (1 атака, 1 защита, 1 уклонение)
+    ensureMinimumHandComposition(character, isPlayer = true) {
+        const handLimit = this.getHandLimit(character);
+
+        // Подсчитать сколько карт каждого типа
+        const cardsByCategory = {
+            'Атака': character.cards.filter(c => c.category === 'Атака').length,
+            'Защита': character.cards.filter(c => c.category === 'Защита').length,
+            'Уклонение': character.cards.filter(c => c.category === 'Уклонение').length
+        };
+
+        const missingTypes = [];
+
+        // Проверить минимальные требования
+        if (cardsByCategory['Атака'] === 0 && character.cards.length < handLimit) {
+            missingTypes.push('Атака');
+        }
+        if (cardsByCategory['Защита'] === 0 && character.cards.length < handLimit) {
+            missingTypes.push('Защита');
+        }
+        if (cardsByCategory['Уклонение'] === 0 && character.cards.length < handLimit) {
+            missingTypes.push('Уклонение');
+        }
+
+        // Добавить недостающие типы карт
+        for (const type of missingTypes) {
+            let card = null;
+
+            if (type === 'Атака') {
+                const attackPool = isPlayer ? this.cardManager.basePlayerCards : this.cardManager.baseEnemyCards;
+                card = this.cardManager.getWeightedCard(character, attackPool);
+            } else if (type === 'Защита') {
+                card = this.cardManager.getDefenseCard();
+            } else if (type === 'Уклонение') {
+                if (this.cardManager.evasionCards.length) {
+                    card = this.cardManager.cloneCard(this.cardManager.pickRandom(this.cardManager.evasionCards));
+                }
+            }
+
+            if (card) {
+                this.addCardsToHand(card, character);
+            }
+        }
     }
 
     checkPoints(winner, loser) {
@@ -401,23 +499,18 @@ class GameEngine {
         if (loser.emotion > 0) loser.emotionDepleted = false;
     }
 
-    addReflectionAndObservation(character, opponent) {
-        if (character.logic < 0 && !character.logicNegative) {
-            this.addCardsToHand(this.cardManager.getReflectionCard('logic'), character.cards, character.discardPile);
-            if (Math.random() < 0.3) this.addCardsToHand(this.cardManager.getObservationCard(), opponent.cards, opponent.discardPile);
-            character.logicNegative = true;
-        }
-        if (character.emotion < 0 && !character.emotionNegative) {
-            this.addCardsToHand(this.cardManager.getReflectionCard('emotion'), character.cards, character.discardPile);
-            if (Math.random() < 0.3) this.addCardsToHand(this.cardManager.getObservationCard(), opponent.cards, opponent.discardPile);
-            character.emotionNegative = true;
+    addDefenseWhenLow(character) {
+        // Если персонаж в минусе, дать ему защитную карту
+        if ((character.logic < 0 && !character.logicNegative) || (character.emotion < 0 && !character.emotionNegative)) {
+            const defenseCard = this.cardManager.getDefenseCard();
+            if (defenseCard) {
+                this.addCardsToHand(defenseCard, character);
+            }
+            if (character.logic < 0) character.logicNegative = true;
+            if (character.emotion < 0) character.emotionNegative = true;
         }
         if (character.logic >= 0) character.logicNegative = false;
         if (character.emotion >= 0) character.emotionNegative = false;
-
-        if (character.lastCard && opponent.lastCard && character.lastCard.effect !== opponent.lastCard.effect && Math.random() < 0.5) {
-            this.addCardsToHand(this.cardManager.getCritiqueCard(), character.cards, character.discardPile);
-        }
     }
 
     checkVictory() {
@@ -435,7 +528,8 @@ class GameEngine {
     }
 
     drawFromDiscard() {
-        if (!this.playerTurn || this.playerHasPlayedCard || this.player.discardPile.length === 0 || this.player.cards.length >= 5) return;
+        const handLimit = this.getHandLimit(this.player);
+        if (!this.playerTurn || this.playerHasPlayedCard || this.player.discardPile.length === 0 || this.player.cards.length >= handLimit) return;
         let randomIndex = Math.floor(Math.random() * this.player.discardPile.length);
         let drawnCard = this.player.discardPile.splice(randomIndex, 1)[0];
         drawnCard.used = false;
@@ -445,11 +539,6 @@ class GameEngine {
             const rareCard = this.cardManager.getRareAttackCard(this.player);
             if (rareCard) {
                 drawnCard = rareCard;
-            }
-        } else if (Math.random() < 0.5 && drawnCard.usesLeft > 0) {
-            const derivativeCard = this.cardManager.generateDerivativeCard(drawnCard);
-            if (derivativeCard) {
-                drawnCard = derivativeCard;
             }
         } else {
             const weightedCard = this.cardManager.getWeightedCard(this.player);
@@ -484,11 +573,9 @@ class GameEngine {
         }
 
         this.checkPoints(this.player, this.enemy);
-        this.addReflectionAndObservation(this.enemy, this.player);
-        if (!card.used && Math.random() < 0.5) {
-            this.addCardsToHand(this.cardManager.generateDerivativeCard(card), this.player.cards, this.player.discardPile);
-        }
-        this.addCounterCards(card, this.enemy.cards, this.enemy.discardPile);
+        this.addDefenseWhenLow(this.enemy);
+        this.addCounterCard(card, this.enemy, false);
+        this.ensureMinimumHandComposition(this.enemy, false);
 
         this.uiManager.updateStats(this.player, this.enemy);
         if (this.checkVictory()) {
@@ -528,11 +615,6 @@ class GameEngine {
                 const rareCard = this.cardManager.getRareAttackCard(this.enemy);
                 if (rareCard) {
                     drawnCard = rareCard;
-                }
-            } else if (Math.random() < 0.5 && drawnCard.usesLeft > 0) {
-                const derivativeCard = this.cardManager.generateDerivativeCard(drawnCard);
-                if (derivativeCard) {
-                    drawnCard = derivativeCard;
                 }
             } else {
                 const weightedCard = this.cardManager.getWeightedCard(this.enemy, this.cardManager.baseEnemyCards);
@@ -576,11 +658,7 @@ class GameEngine {
                 this.enemy.cards = this.enemy.cards.filter(c => !c.used);
             }
 
-            if (!randomCard.used && Math.random() < 0.5) {
-                this.addCardsToHand(this.cardManager.generateDerivativeCard(randomCard), this.enemy.cards, this.enemy.discardPile);
-            }
-
-            this.addCounterCards(randomCard, this.player.cards, this.player.discardPile);
+            this.addCounterCard(randomCard, this.player, true);
         } else {
             message = "Скептик: \"Мне нечего сказать...\"";
             playedCardText = message;
@@ -590,7 +668,8 @@ class GameEngine {
         const logText = playedCardText ?? message;
         this.uiManager.addMessage(logText, 'enemy', this.turn);
         this.checkPoints(this.enemy, this.player);
-        this.addReflectionAndObservation(this.player, this.enemy);
+        this.addDefenseWhenLow(this.player);
+        this.ensureMinimumHandComposition(this.player, true);
 
         this.uiManager.updateStats(this.player, this.enemy);
         if (this.checkVictory()) {
@@ -648,6 +727,15 @@ class UIManager {
         for (let i = 0; i < 3; i++) {
             playerDotsOverlay[i].className = 'dot' + (i < player.points ? ' active player' : '');
             enemyDotsOverlay[i].className = 'dot' + (i < enemy.points ? ' active enemy' : '');
+        }
+
+        // Обновить индикатор лимита руки
+        const handLimit = gameEngine.getHandLimit(player);
+        const handInfo = document.getElementById('handInfo');
+        if (handInfo) {
+            const damageMultiplier = gameEngine.getDamageMultiplier(player);
+            const multiplierText = damageMultiplier !== 1.0 ? ` | Урон: x${damageMultiplier.toFixed(2)}` : '';
+            handInfo.textContent = `Карты: ${player.cards.length}/${handLimit}${multiplierText}`;
         }
 
         switch (true) {
@@ -719,20 +807,12 @@ async function startGame(cardData) {
             gameEngine.enemy.discardPile.push(firstEnemyCard);
             gameEngine.enemy.cards = gameEngine.enemy.cards.filter(c => !c.used);
         }
-        gameEngine.player.logic -= firstEnemyCard.damage ?? 0;
-        gameEngine.updateMaxStats(gameEngine.player);
-        const introText = firstEnemyCard.text;
-        const speechPromise = gameEngine.visualManager.setVisual('enemy', introText);
-        gameEngine.uiManager.addMessage(introText, 'enemy', 1);
-        gameEngine.dialogueHistory.push({ id: firstEnemyCard.name, turn: 1, source: 'enemy' });
-        if (firstEnemyCard.effect === 'emotion') {
-            gameEngine.enemyStyle.emotionalTurns++;
-        } else {
-            gameEngine.enemyStyle.logicalTurns++;
-        }
-        gameEngine.addCounterCards(firstEnemyCard, gameEngine.player.cards, gameEngine.player.discardPile);
+        const introMessage = gameEngine.applyCard(firstEnemyCard, gameEngine.enemy, gameEngine.player);
+        const speechPromise = gameEngine.visualManager.setVisual('enemy', introMessage);
+        gameEngine.uiManager.addMessage(firstEnemyCard.text, 'enemy', 1);
+        gameEngine.addCounterCard(firstEnemyCard, gameEngine.player, true);
         gameEngine.checkPoints(gameEngine.enemy, gameEngine.player);
-        gameEngine.addReflectionAndObservation(gameEngine.player, gameEngine.enemy);
+        gameEngine.addDefenseWhenLow(gameEngine.player);
         await speechPromise;
     }
 

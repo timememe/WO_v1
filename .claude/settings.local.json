@@ -4,7 +4,8 @@
       "Bash(mkdir:*)",
       "Bash(mv:*)",
       "Bash(rmdir:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": [],
     "ask": []

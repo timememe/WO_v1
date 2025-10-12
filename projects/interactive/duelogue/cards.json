@@ -1,165 +1,190 @@
 {
   "basePlayerCards": [
     {
-      "category": "Тезис",
-      "name": "Кофе для мозга",
+      "category": "Атака",
+      "name": "Факт о кофеине",
       "effect": "logic",
       "damage": 2,
-      "text": "Кофе улучшает концентрацию, это доказано наукой!",
-      "desc": "Утверждение про пользу.",
+      "text": "Кофеин улучшает когнитивные функции!",
+      "desc": "Средний урон логике",
+      "usesLeft": 2,
+      "used": false,
+      "fromDiscard": false
+    },
+    {
+      "category": "Атака",
+      "name": "Любовь к кофе",
+      "effect": "emotion",
+      "damage": 2,
+      "text": "Кофе приносит радость миллионам!",
+      "desc": "Средний урон эмоциям",
+      "usesLeft": 2,
+      "used": false,
+      "fromDiscard": false
+    },
+    {
+      "category": "Атака",
+      "name": "Лёгкий довод",
+      "effect": "logic",
+      "damage": 1,
+      "text": "Кофе — это традиция веков.",
+      "desc": "Слабый урон логике",
       "usesLeft": 3,
       "used": false,
       "fromDiscard": false
     },
     {
-      "category": "Тезис",
-      "name": "Кофе для души",
-      "effect": "emotion",
-      "damage": 2,
-      "text": "Кофе поднимает настроение, это факт!",
-      "desc": "Утверждение про чувства.",
-      "usesLeft": 3,
+      "category": "Атака",
+      "name": "Критический удар",
+      "effect": "random",
+      "damage": 4,
+      "text": "Кофе — основа цивилизации!",
+      "desc": "Сильный урон случайно",
+      "usesLeft": 1,
       "used": false,
       "fromDiscard": false
     }
   ],
   "baseEnemyCards": [
     {
-      "category": "Тезис",
-      "name": "Кофе как яд",
+      "category": "Атака",
+      "name": "Вред для сердца",
       "effect": "logic",
       "damage": 2,
-      "text": "Кофе вреден для сердца, исследования это подтверждают!",
-      "desc": "Утверждение про вред.",
+      "text": "Кофе вреден для сердца, это доказано!",
+      "desc": "Средний урон логике",
+      "usesLeft": 2,
+      "used": false,
+      "fromDiscard": false
+    },
+    {
+      "category": "Атака",
+      "name": "Кофе как зависимость",
+      "effect": "emotion",
+      "damage": 2,
+      "text": "Кофе вызывает зависимость, как наркотик!",
+      "desc": "Средний урон эмоциям",
+      "usesLeft": 2,
+      "used": false,
+      "fromDiscard": false
+    },
+    {
+      "category": "Атака",
+      "name": "Слабое сомнение",
+      "effect": "emotion",
+      "damage": 1,
+      "text": "Кофе — это просто привычка...",
+      "desc": "Слабый урон эмоциям",
       "usesLeft": 3,
       "used": false,
       "fromDiscard": false
     },
     {
-      "category": "Тезис",
-      "name": "Кофе как цепи",
+      "category": "Атака",
+      "name": "Яд в чашке",
+      "effect": "random",
+      "damage": 4,
+      "text": "Кофе медленно убивает нас!",
+      "desc": "Сильный урон случайно",
+      "usesLeft": 1,
+      "used": false,
+      "fromDiscard": false
+    }
+  ],
+  "defenseCards": [
+    {
+      "category": "Защита",
+      "name": "Переосмысление",
+      "effect": "logic",
+      "heal": 3,
+      "text": "Если подумать, есть и другие исследования...",
+      "desc": "Восстанавливает логику +3",
+      "used": false,
+      "fromDiscard": false
+    },
+    {
+      "category": "Защита",
+      "name": "Глубокий вдох",
       "effect": "emotion",
-      "damage": 2,
-      "text": "Кофе вызывает зависимость, как любой наркотик!",
-      "desc": "Утверждение про чувства.",
-      "usesLeft": 3,
+      "heal": 3,
+      "text": "Я сохраняю спокойствие...",
+      "desc": "Восстанавливает эмоции +3",
+      "used": false,
+      "fromDiscard": false
+    },
+    {
+      "category": "Защита",
+      "name": "Стальная воля",
+      "effect": "shield",
+      "shield": 4,
+      "shieldDuration": 1,
+      "text": "Меня не проймёшь!",
+      "desc": "Блокирует 4 урона на ход",
+      "used": false,
+      "fromDiscard": false
+    }
+  ],
+  "evasionCards": [
+    {
+      "category": "Уклонение",
+      "name": "Не в кассу",
+      "effect": "cancel",
+      "text": "Это вообще не по теме!",
+      "desc": "Отменяет последнюю карту врага",
+      "used": false,
+      "fromDiscard": false
+    },
+    {
+      "category": "Уклонение",
+      "name": "Зеркало",
+      "effect": "mirror",
+      "modifier": 0.75,
+      "text": "Твои же слова против тебя!",
+      "desc": "Копирует 75% атаки врага",
+      "used": false,
+      "fromDiscard": false
+    },
+    {
+      "category": "Уклонение",
+      "name": "Ты уверен?",
+      "effect": "reflect",
+      "text": "А ты сам-то в это веришь?",
+      "desc": "Отражает урон обратно",
       "used": false,
       "fromDiscard": false
     }
   ],
   "specialCards": {
     "repeatCard": {
-      "category": "Замечание",
+      "category": "Уклонение",
       "name": "Повторение",
-      "effect": "none",
-      "damage": 0,
+      "effect": "cancel",
       "text": "Ты уже это говорил!",
-      "desc": "Обнуляет ход.",
-      "used": false,
-      "fromDiscard": false
-    },
-    "observationCard": {
-      "category": "Замечание",
-      "name": "Растерянность",
-      "effect": "random",
-      "damage": 2,
-      "text": "Ты совсем растерялся, да?",
-      "desc": "Усугубляет слабость.",
-      "used": false,
-      "fromDiscard": false
-    },
-    "critiqueCard": {
-      "category": "Укол",
-      "name": "Противоречие",
-      "effect": "random",
-      "damage": 3,
-      "text": "Твои слова не сходятся!",
-      "desc": "Атака с риском (-2 тебе при неудаче).",
-      "used": false,
-      "fromDiscard": false,
-      "risk": 0.3
-    }
-  },
-  "reflectionCards": {
-    "logic": {
-      "category": "Размышление",
-      "name": "Переосмысление",
-      "effect": "logic",
-      "heal": 3,
-      "text": "Хотя, если подумать, есть исследования за кофе…",
-      "desc": "Восстанавливает логику.",
-      "used": false,
-      "fromDiscard": false
-    },
-    "emotion": {
-      "category": "Размышление",
-      "name": "Спокойствие",
-      "effect": "emotion",
-      "heal": 3,
-      "text": "Я всё же спокоен, кофе помогает.",
-      "desc": "Восстанавливает эмоции.",
+      "desc": "Отменяет карту из discard",
       "used": false,
       "fromDiscard": false
     }
   },
   "rareAttackCards": [
     {
-      "category": "Тезис",
+      "category": "Атака",
       "name": "Упрямство",
       "effect": "emotion",
       "damage": 3,
       "text": "Ты просто упрям, кофе — это жизнь!",
-      "desc": "Сильное утверждение про чувства.",
+      "desc": "Сильный урон эмоциям",
       "used": false,
       "fromDiscard": false
     },
     {
-      "category": "Тезис",
+      "category": "Атака",
       "name": "Бзик",
       "effect": "logic",
       "damage": 3,
       "text": "Твой страх кофе — это бзик!",
-      "desc": "Сильное утверждение про логику.",
+      "desc": "Сильный урон логике",
       "used": false,
       "fromDiscard": false
-    }
-  ],
-  "counterCards": [
-    {
-      "category": "Контраргумент",
-      "name": "Спорные данные",
-      "effect": "logic",
-      "damage": 2,
-      "text": "Да, но исследования про кофе спорные!",
-      "desc": "Оспаривает логику.",
-      "used": false,
-      "fromDiscard": false
-    },
-    {
-      "category": "Контраргумент",
-      "name": "Преувеличение",
-      "effect": "emotion",
-      "damage": 2,
-      "text": "Ты преувеличиваешь, это не так страшно!",
-      "desc": "Оспаривает эмоции.",
-      "used": false,
-      "fromDiscard": false
-    }
-  ],
-  "derivativeTemplates": [
-    {
-      "suffix": "+ Факты",
-      "damageBonus": 0,
-      "heal": 1,
-      "textSuffix": " И это факт!",
-      "desc": "Утверждение с защитой."
-    },
-    {
-      "suffix": "+ Жар",
-      "damageBonus": 1,
-      "heal": 0,
-      "textSuffix": " Сказано с жаром!",
-      "desc": "Усиленное утверждение."
     }
   ]
 }

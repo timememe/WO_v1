@@ -263,35 +263,23 @@
             line-height: 1;
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
-        .card.Тезис {
-            background-color: #0066cc;
+        .card.Атака {
+            background-color: #cc3333;
         }
-        .card.Тезис:hover {
-            background-color: #004d99;
+        .card.Атака:hover {
+            background-color: #aa2222;
         }
-        .card.Контраргумент {
-            background-color: #cc6600;
+        .card.Защита {
+            background-color: #33cc33;
         }
-        .card.Контраргумент:hover {
-            background-color: #994d00;
+        .card.Защита:hover {
+            background-color: #22aa22;
         }
-        .card.Размышление {
-            background-color: #009900;
+        .card.Уклонение {
+            background-color: #cccc33;
         }
-        .card.Размышление:hover {
-            background-color: #007300;
-        }
-        .card.Замечание {
-            background-color: #660066;
-        }
-        .card.Замечание:hover {
-            background-color: #4d004d;
-        }
-        .card.Укол {
-            background-color: #cc0000;
-        }
-        .card.Укол:hover {
-            background-color: #990000;
+        .card.Уклонение:hover {
+            background-color: #aaaa22;
         }
         .card.used, .card:disabled {
             background-color: #666;
@@ -395,7 +383,8 @@
             </div>
         </div>
         <div id="dialog"></div>
-        <button id="discardButton" onclick="gameEngine.drawFromDiscard()">Взять из колоды</button>
+        <div id="handInfo" style="text-align: center; font-size: 10px; color: #aaa; margin-bottom: 8px;">Карты: 0/5</div>
+        <button id="discardButton" onclick="gameEngine.drawFromDiscard()" style="display: none;">Взять из колоды</button>
         <div class="cards-grid" id="cardDeck"></div>
     </div>
 
