@@ -1191,6 +1191,14 @@ async function startGame(cardData) {
     await gameEngine.visualManager.setVisual('idle');
 }
 
+// Глобальные переменные для статистики
+let gameStats = {
+    totalTurns: 0,
+    totalCards: 0,
+    totalDamage: 0,
+    totalHealing: 0
+};
+
 async function initializeGame() {
     try {
         const response = await fetch('cards.json?v=20251012_11', { cache: 'no-store' });
@@ -1198,6 +1206,18 @@ async function initializeGame() {
             throw new Error(`Failed to load cards.json: ${response.status}`);
         }
         const cardData = await response.json();
+
+        // Скрыть меню и показать игру
+        hideMenu();
+
+        // Сброс статистики
+        gameStats = {
+            totalTurns: 0,
+            totalCards: 0,
+            totalDamage: 0,
+            totalHealing: 0
+        };
+
         await startGame(cardData);
     } catch (error) {
         console.error('Не удалось загрузить данные карт:', error);
@@ -1212,4 +1232,241 @@ async function initializeGame() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', initializeGame);
+// ============ УПРАВЛЕНИЕ МЕНЮ ============
+
+function showMenu() {
+    const menuScreen = document.getElementById('menuScreen');
+    const gameWrapper = document.getElementById('gameWrapper');
+    const pauseButton = document.getElementById('pauseButton');
+
+    if (menuScreen) menuScreen.classList.remove('hidden');
+    if (gameWrapper) gameWrapper.style.display = 'none';
+    if (pauseButton) pauseButton.classList.add('hidden');
+}
+
+function hideMenu() {
+    const menuScreen = document.getElementById('menuScreen');
+    const gameWrapper = document.getElementById('gameWrapper');
+    const pauseButton = document.getElementById('pauseButton');
+
+    if (menuScreen) menuScreen.classList.add('hidden');
+    if (gameWrapper) gameWrapper.style.display = 'flex';
+    if (pauseButton) pauseButton.classList.remove('hidden');
+}
+
+function startSinglePlayer() {
+    initializeGame();
+}
+
+function showMultiplayerMenu() {
+    alert('Сетевая игра будет доступна в будущих обновлениях!\n\nДля реализации потребуется:\n- WebSocket сервер\n- Система матчмейкинга\n- Синхронизация игровых состояний\n\nТемплейт кода доступен в multiplayer.js');
+}
+
+function showRules() {
+    const rulesText = `
+=== ПРАВИЛА ДУЕЛОГА ===
+
+ЦЕЛЬ: Набрать 3 победных очка первым
+
+ХАРАКТЕРИСТИКИ:
+• Логика (синяя) - рациональное мышление
+• Эмоции (розовая) - эмоциональная устойчивость
+
+ОЧКИ НАЧИСЛЯЮТСЯ:
+• Логика врага ≤ 0
+• Эмоции врага ≤ 0
+• Обе характеристики < 0 три хода подряд
+
+КАРТЫ:
+• Атака (красная) - наносит урон
+• Защита (зелёная) - лечит или создаёт щит
+• Уклонение (жёлтая) - отменяет или отражает
+
+МЕХАНИКИ:
+• Преимущества: Атака > Защита > Уклонение
+• Эмоции влияют на урон (0-7+ = x0.5 - x1.5)
+• Логика влияет на лимит руки (0-7+ = 3-7 карт)
+• Щит поглощает урон до разрушения
+
+Удачи в споре!
+    `;
+    alert(rulesText);
+}
+
+// ============ ЭКРАН ОКОНЧАНИЯ ИГРЫ ============
+
+function showEndgameScreen(isVictory) {
+    const endgameScreen = document.getElementById('endgameScreen');
+    const endgameTitle = document.getElementById('endgameTitle');
+
+    if (!endgameScreen || !endgameTitle) return;
+
+    // Установить заголовок
+    if (isVictory) {
+        endgameTitle.textContent = '🏆 Победа!';
+        endgameTitle.className = 'endgame-title victory';
+    } else {
+        endgameTitle.textContent = '💀 Поражение';
+        endgameTitle.className = 'endgame-title defeat';
+    }
+
+    // Заполнить статистику
+    if (gameEngine) {
+        document.getElementById('finalPlayerPoints').textContent = gameEngine.player.points;
+        document.getElementById('finalEnemyPoints').textContent = gameEngine.enemy.points;
+    }
+
+    // Подсчитать статистику из логов
+    const logs = gameLogger.logs;
+    let totalTurns = 0;
+    let totalCards = 0;
+    let totalDamage = 0;
+    let totalHealing = 0;
+
+    logs.forEach(log => {
+        if (log.category === 'TURN') totalTurns++;
+        if (log.category === 'CARD') totalCards++;
+        if (log.category === 'DAMAGE') totalDamage += log.data.finalDamage || 0;
+        if (log.category === 'HEAL') totalHealing += log.data.amount || 0;
+    });
+
+    document.getElementById('totalTurns').textContent = totalTurns;
+    document.getElementById('totalCards').textContent = totalCards;
+    document.getElementById('totalDamage').textContent = totalDamage;
+    document.getElementById('totalHealing').textContent = totalHealing;
+
+    // Показать экран
+    endgameScreen.classList.remove('hidden');
+}
+
+function hideEndgameScreen() {
+    const endgameScreen = document.getElementById('endgameScreen');
+    if (endgameScreen) endgameScreen.classList.add('hidden');
+}
+
+function restartGame() {
+    hideEndgameScreen();
+    gameLogger.clearLogs();
+    initializeGame();
+}
+
+function backToMenu() {
+    hideEndgameScreen();
+    showMenu();
+
+    // Очистить диалог
+    const dialog = document.getElementById('dialog');
+    if (dialog) dialog.innerHTML = '';
+
+    gameLogger.clearLogs();
+}
+
+// ============ УПРАВЛЕНИЕ ПАУЗОЙ ============
+
+let gamePaused = false;
+
+function showPauseScreen() {
+    const pauseScreen = document.getElementById('pauseScreen');
+    if (!pauseScreen || !gameEngine || !gameEngine.gameActive) return;
+
+    gamePaused = true;
+    pauseScreen.classList.remove('hidden');
+
+    // Остановить все анимации и таймеры визуала
+    if (gameEngine && gameEngine.visualManager) {
+        gameEngine.visualManager.cancelSpeech();
+    }
+}
+
+function hidePauseScreen() {
+    const pauseScreen = document.getElementById('pauseScreen');
+    if (pauseScreen) pauseScreen.classList.add('hidden');
+    gamePaused = false;
+}
+
+function resumeGame() {
+    hidePauseScreen();
+    // Игра продолжается с того же места
+}
+
+function pauseRestartGame() {
+    hidePauseScreen();
+    hideEndgameScreen();
+    gameLogger.clearLogs();
+    initializeGame();
+}
+
+function pauseExitToMenu() {
+    hidePauseScreen();
+    hideEndgameScreen();
+    showMenu();
+
+    // Остановить игру
+    if (gameEngine) {
+        gameEngine.gameActive = false;
+    }
+
+    // Очистить диалог
+    const dialog = document.getElementById('dialog');
+    if (dialog) dialog.innerHTML = '';
+
+    gameLogger.clearLogs();
+}
+
+// Добавить обработку клавиши Escape для паузы
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' || e.key === 'Esc') {
+        const pauseScreen = document.getElementById('pauseScreen');
+        const menuScreen = document.getElementById('menuScreen');
+        const endgameScreen = document.getElementById('endgameScreen');
+
+        // Открыть паузу только если игра идет (не в меню и не на экране окончания)
+        if (pauseScreen && menuScreen && endgameScreen) {
+            const menuHidden = menuScreen.classList.contains('hidden');
+            const endgameHidden = endgameScreen.classList.contains('hidden');
+            const pauseHidden = pauseScreen.classList.contains('hidden');
+
+            if (menuHidden && endgameHidden && pauseHidden) {
+                // Игра идет, открыть паузу
+                showPauseScreen();
+            } else if (!pauseHidden) {
+                // Пауза открыта, закрыть её
+                resumeGame();
+            }
+        }
+    }
+});
+
+// ============ ОБНОВЛЕНИЕ checkVictory для показа экрана ============
+
+// Переопределяем метод checkVictory в GameEngine
+const originalCheckVictory = GameEngine.prototype.checkVictory;
+GameEngine.prototype.checkVictory = function() {
+    const result = originalCheckVictory.call(this);
+
+    if (result) {
+        // Игра окончена, показать экран окончания через 2 секунды
+        const isVictory = this.player.points >= 3;
+        setTimeout(() => {
+            showEndgameScreen(isVictory);
+        }, 2000);
+    }
+
+    return result;
+};
+
+// Экспорт функций в window для доступа из HTML
+window.startSinglePlayer = startSinglePlayer;
+window.showMultiplayerMenu = showMultiplayerMenu;
+window.showRules = showRules;
+window.restartGame = restartGame;
+window.backToMenu = backToMenu;
+window.showPauseScreen = showPauseScreen;
+window.resumeGame = resumeGame;
+window.pauseRestartGame = pauseRestartGame;
+window.pauseExitToMenu = pauseExitToMenu;
+
+// Показать меню при загрузке
+document.addEventListener('DOMContentLoaded', () => {
+    showMenu();
+});

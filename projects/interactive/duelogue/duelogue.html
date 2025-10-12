@@ -357,10 +357,364 @@
             background-color: #666;
             cursor: not-allowed;
         }
+
+        /* Главное меню */
+        .menu-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            gap: 20px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .menu-screen.hidden {
+            display: none;
+        }
+        .menu-title {
+            font-size: clamp(24px, 8vw, 48px);
+            color: #fff;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.8);
+            margin-bottom: 20px;
+            text-align: center;
+            line-height: 1.2;
+        }
+        .menu-subtitle {
+            font-size: clamp(10px, 2.5vw, 14px);
+            color: #aaa;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            max-width: 300px;
+        }
+        .menu-button {
+            padding: 15px 30px;
+            font-size: clamp(12px, 3vw, 16px);
+            font-family: 'Press Start 2P', cursive;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: #fff;
+            border: 3px solid #2c3e50;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        .menu-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+            background: linear-gradient(135deg, #3ba3e8 0%, #2e8bc7 100%);
+        }
+        .menu-button:active {
+            transform: translateY(0);
+        }
+        .menu-button.secondary {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            border-color: #1e7e34;
+        }
+        .menu-button.secondary:hover {
+            background: linear-gradient(135deg, #2fc770 0%, #26a65e 100%);
+        }
+        .menu-button.disabled {
+            background: linear-gradient(135deg, #555 0%, #444 100%);
+            border-color: #333;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .menu-button.disabled:hover {
+            transform: none;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Экран окончания игры */
+        .endgame-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .endgame-screen.hidden {
+            display: none;
+        }
+        .endgame-content {
+            background-color: #2a2a2a;
+            border: 3px solid #444;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+        }
+        .endgame-title {
+            font-size: clamp(18px, 5vw, 32px);
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+        .endgame-title.victory {
+            color: #2ecc71;
+        }
+        .endgame-title.defeat {
+            color: #e74c3c;
+        }
+        .endgame-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .stat-group {
+            background-color: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .stat-group-title {
+            font-size: clamp(10px, 2.5vw, 14px);
+            color: #aaa;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #333;
+            font-size: clamp(9px, 2vw, 12px);
+        }
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+        .stat-label {
+            color: #bbb;
+        }
+        .stat-value {
+            color: #fff;
+            font-weight: bold;
+        }
+        .endgame-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        .endgame-button {
+            padding: 12px 24px;
+            font-size: clamp(10px, 2.5vw, 14px);
+            font-family: 'Press Start 2P', cursive;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: #fff;
+            border: 3px solid #2c3e50;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        .endgame-button:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, #3ba3e8 0%, #2e8bc7 100%);
+        }
+
+        /* Экран паузы */
+        .pause-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .pause-screen.hidden {
+            display: none;
+        }
+        .pause-content {
+            background-color: #2a2a2a;
+            border: 3px solid #444;
+            border-radius: 12px;
+            padding: 40px 30px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+        .pause-title {
+            font-size: clamp(20px, 6vw, 36px);
+            text-align: center;
+            margin-bottom: 30px;
+            color: #f39c12;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+        .pause-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+        }
+        .pause-button {
+            padding: 15px 30px;
+            font-size: clamp(11px, 3vw, 15px);
+            font-family: 'Press Start 2P', cursive;
+            color: #fff;
+            border: 3px solid #2c3e50;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        .pause-button.continue {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            border-color: #1e7e34;
+        }
+        .pause-button.continue:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, #2fc770 0%, #26a65e 100%);
+        }
+        .pause-button.restart {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            border-color: #2c3e50;
+        }
+        .pause-button.restart:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, #3ba3e8 0%, #2e8bc7 100%);
+        }
+        .pause-button.menu {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            border-color: #a93226;
+        }
+        .pause-button.menu:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, #ff5c4c 0%, #d0493b 100%);
+        }
+
+        /* Кнопка паузы на игровом экране */
+        .pause-game-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
+            border: 3px solid #2c3e50;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #fff;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        .pause-game-button:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, #ffac22 0%, #e69920 100%);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+        }
+        .pause-game-button.hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
-    <div class="game-wrapper">
+    <!-- Главное меню -->
+    <div class="menu-screen" id="menuScreen">
+        <div class="menu-title">ДУЕЛОГ</div>
+        <div class="menu-subtitle">Словесная битва за истину</div>
+        <div class="menu-buttons">
+            <button class="menu-button" onclick="startSinglePlayer()">Играть</button>
+            <button class="menu-button secondary disabled" onclick="showMultiplayerMenu()">Сетевая игра</button>
+            <button class="menu-button" onclick="showRules()">Правила</button>
+        </div>
+    </div>
+
+    <!-- Кнопка паузы -->
+    <button class="pause-game-button hidden" id="pauseButton" onclick="showPauseScreen()">⏸</button>
+
+    <!-- Экран паузы -->
+    <div class="pause-screen hidden" id="pauseScreen">
+        <div class="pause-content">
+            <div class="pause-title">⏸ ПАУЗА</div>
+            <div class="pause-buttons">
+                <button class="pause-button continue" onclick="resumeGame()">Продолжить</button>
+                <button class="pause-button restart" onclick="pauseRestartGame()">Перезапустить</button>
+                <button class="pause-button menu" onclick="pauseExitToMenu()">Выйти в меню</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Экран окончания игры -->
+    <div class="endgame-screen hidden" id="endgameScreen">
+        <div class="endgame-content">
+            <div class="endgame-title" id="endgameTitle">Победа!</div>
+            <div class="endgame-stats">
+                <div class="stat-group">
+                    <div class="stat-group-title">Итоговый счет</div>
+                    <div class="stat-item">
+                        <span class="stat-label">Ты</span>
+                        <span class="stat-value" id="finalPlayerPoints">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Скептик</span>
+                        <span class="stat-value" id="finalEnemyPoints">0</span>
+                    </div>
+                </div>
+                <div class="stat-group">
+                    <div class="stat-group-title">Статистика игры</div>
+                    <div class="stat-item">
+                        <span class="stat-label">Ходов сыграно</span>
+                        <span class="stat-value" id="totalTurns">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Карт сыграно</span>
+                        <span class="stat-value" id="totalCards">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Урон нанесен</span>
+                        <span class="stat-value" id="totalDamage">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">HP восстановлено</span>
+                        <span class="stat-value" id="totalHealing">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="endgame-buttons">
+                <button class="endgame-button" onclick="restartGame()">Заново</button>
+                <button class="endgame-button" onclick="backToMenu()">Меню</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-wrapper" id="gameWrapper">
         <div class="container">
             <h1>ДУЕЛОГ</h1>
             <div class="visual-screen" id="visualScreen">
@@ -426,7 +780,8 @@
         </div>
     </div>
 
-    <script src="game.js?v=20251012_12"></script>
+    <script src="game.js?v=20251012_14"></script>
     <script src="game.test.js"></script>
+    <script src="multiplayer.js"></script>
 </body>
 </html>
