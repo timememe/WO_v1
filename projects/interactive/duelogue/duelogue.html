@@ -438,6 +438,57 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
         }
 
+        /* Селектор колоды */
+        .deck-selector {
+            width: 100%;
+            max-width: 400px;
+            margin-bottom: 20px;
+        }
+        .deck-label {
+            font-size: clamp(10px, 2.5vw, 14px);
+            color: #aaa;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        .deck-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .deck-card {
+            background-color: #2a2a2a;
+            border: 3px solid #444;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+        }
+        .deck-card:hover {
+            border-color: #3498db;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+        }
+        .deck-card.selected {
+            border-color: #27ae60;
+            background-color: rgba(39, 174, 96, 0.1);
+            box-shadow: 0 0 12px rgba(39, 174, 96, 0.4);
+        }
+        .deck-card-name {
+            font-size: clamp(11px, 2.5vw, 14px);
+            color: #fff;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        .deck-card-desc {
+            font-size: clamp(8px, 2vw, 10px);
+            color: #aaa;
+            line-height: 1.4;
+        }
+        .deck-card.selected .deck-card-name {
+            color: #27ae60;
+        }
+
         /* Экран окончания игры */
         .endgame-screen {
             position: fixed;
@@ -642,6 +693,149 @@
         .pause-game-button.hidden {
             display: none;
         }
+
+        /* Экран мультиплеера */
+        .multiplayer-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .multiplayer-screen.hidden {
+            display: none;
+        }
+        .multiplayer-content {
+            background-color: #2a2a2a;
+            border: 3px solid #444;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+        }
+        .multiplayer-title {
+            font-size: clamp(16px, 4vw, 24px);
+            text-align: center;
+            margin-bottom: 25px;
+            color: #27ae60;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+        .multiplayer-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .multiplayer-tab {
+            flex: 1;
+            padding: 12px;
+            font-size: clamp(10px, 2.5vw, 13px);
+            font-family: 'Press Start 2P', cursive;
+            background: #1a1a1a;
+            color: #aaa;
+            border: 2px solid #333;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        .multiplayer-tab.active {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            color: #fff;
+            border-color: #1e7e34;
+        }
+        .multiplayer-tab:hover:not(.active) {
+            background: #2a2a2a;
+            border-color: #444;
+        }
+        .multiplayer-panel {
+            display: none;
+        }
+        .multiplayer-panel.active {
+            display: block;
+        }
+        .multiplayer-input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: clamp(10px, 2.5vw, 14px);
+            font-family: 'Press Start 2P', cursive;
+            background-color: #1a1a1a;
+            color: #fff;
+            border: 2px solid #444;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        .multiplayer-input:focus {
+            outline: none;
+            border-color: #27ae60;
+        }
+        .multiplayer-button {
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 10px;
+            font-size: clamp(11px, 3vw, 15px);
+            font-family: 'Press Start 2P', cursive;
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            color: #fff;
+            border: 3px solid #1e7e34;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .multiplayer-button:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, #2fc770 0%, #26a65e 100%);
+        }
+        .multiplayer-button.secondary {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            border-color: #a93226;
+        }
+        .multiplayer-button.secondary:hover {
+            background: linear-gradient(135deg, #ff5c4c 0%, #d0493b 100%);
+        }
+        .room-code {
+            background-color: #1a1a1a;
+            border: 2px solid #27ae60;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .room-code-label {
+            font-size: clamp(9px, 2vw, 12px);
+            color: #aaa;
+            margin-bottom: 10px;
+        }
+        .room-code-value {
+            font-size: clamp(16px, 5vw, 32px);
+            color: #27ae60;
+            letter-spacing: 4px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            word-break: break-all;
+        }
+        .waiting-message {
+            text-align: center;
+            font-size: clamp(10px, 2.5vw, 14px);
+            color: #f39c12;
+            margin: 20px 0;
+            line-height: 1.6;
+        }
+        .status-message {
+            text-align: center;
+            font-size: clamp(9px, 2vw, 12px);
+            color: #95a5a6;
+            margin-top: 15px;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
@@ -649,10 +843,65 @@
     <div class="menu-screen" id="menuScreen">
         <div class="menu-title">ДУЕЛОГ</div>
         <div class="menu-subtitle">Словесная битва за истину</div>
+
+        <!-- Выбор колоды -->
+        <div class="deck-selector" id="deckSelector">
+            <div class="deck-label">Выбери колоду:</div>
+            <div class="deck-list" id="deckList">
+                <!-- Заполнится динамически -->
+            </div>
+        </div>
+
         <div class="menu-buttons">
-            <button class="menu-button" onclick="startSinglePlayer()">Играть</button>
-            <button class="menu-button secondary disabled" onclick="showMultiplayerMenu()">Сетевая игра</button>
+            <button class="menu-button" onclick="startSinglePlayerGame()">Играть</button>
+            <button class="menu-button secondary" onclick="showMultiplayerScreen()">Сетевая игра</button>
             <button class="menu-button" onclick="showRules()">Правила</button>
+        </div>
+    </div>
+
+    <!-- Экран мультиплеера -->
+    <div class="multiplayer-screen hidden" id="multiplayerScreen">
+        <div class="multiplayer-content">
+            <div class="multiplayer-title">🌐 Сетевая игра</div>
+
+            <div class="multiplayer-tabs">
+                <button class="multiplayer-tab active" id="tabCreate" onclick="switchMultiplayerTab('create')">Создать</button>
+                <button class="multiplayer-tab" id="tabJoin" onclick="switchMultiplayerTab('join')">Присоединиться</button>
+            </div>
+
+            <!-- Панель создания комнаты -->
+            <div class="multiplayer-panel active" id="panelCreate">
+                <button class="multiplayer-button" onclick="createRoom()">Создать комнату</button>
+
+                <div id="roomCreatedPanel" style="display: none;">
+                    <div class="room-code">
+                        <div class="room-code-label">Код комнаты:</div>
+                        <div class="room-code-value" id="roomCodeDisplay">------</div>
+                    </div>
+                    <div class="waiting-message">
+                        Ожидание противника...<br>
+                        Отправь код другу!
+                    </div>
+                    <button class="multiplayer-button secondary" onclick="cancelRoom()">Отменить</button>
+                </div>
+
+                <div class="status-message" id="createStatus"></div>
+            </div>
+
+            <!-- Панель присоединения к комнате -->
+            <div class="multiplayer-panel" id="panelJoin">
+                <input
+                    type="text"
+                    class="multiplayer-input"
+                    id="roomCodeInput"
+                    placeholder="Введи код комнаты"
+                    maxlength="6"
+                    style="text-transform: uppercase;">
+                <button class="multiplayer-button" onclick="joinRoom()">Присоединиться</button>
+                <div class="status-message" id="joinStatus"></div>
+            </div>
+
+            <button class="multiplayer-button secondary" onclick="cancelRoom()">Назад в меню</button>
         </div>
     </div>
 
@@ -665,8 +914,8 @@
             <div class="pause-title">⏸ ПАУЗА</div>
             <div class="pause-buttons">
                 <button class="pause-button continue" onclick="resumeGame()">Продолжить</button>
-                <button class="pause-button restart" onclick="pauseRestartGame()">Перезапустить</button>
-                <button class="pause-button menu" onclick="pauseExitToMenu()">Выйти в меню</button>
+                <button class="pause-button restart" onclick="restartGame()">Перезапустить</button>
+                <button class="pause-button menu" onclick="exitToMenu()">Выйти в меню</button>
             </div>
         </div>
     </div>
@@ -709,7 +958,7 @@
             </div>
             <div class="endgame-buttons">
                 <button class="endgame-button" onclick="restartGame()">Заново</button>
-                <button class="endgame-button" onclick="backToMenu()">Меню</button>
+                <button class="endgame-button" onclick="exitToMenu()">Меню</button>
             </div>
         </div>
     </div>
@@ -780,8 +1029,12 @@
         </div>
     </div>
 
-    <script src="game.js?v=20251012_14"></script>
-    <script src="game.test.js"></script>
+    <!-- Модули игры -->
+    <script src="modules/cards.js"></script>
+    <script src="modules/visual.js"></script>
+    <script src="modules/ui.js"></script>
+    <script src="modules/engine.js"></script>
     <script src="multiplayer.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>

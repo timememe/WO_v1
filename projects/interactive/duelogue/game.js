@@ -1258,8 +1258,290 @@ function startSinglePlayer() {
     initializeGame();
 }
 
+// ============ МУЛЬТИПЛЕЕР ============
+
+let multiplayer = null;
+let isMultiplayerMode = false;
+
 function showMultiplayerMenu() {
-    alert('Сетевая игра будет доступна в будущих обновлениях!\n\nДля реализации потребуется:\n- WebSocket сервер\n- Система матчмейкинга\n- Синхронизация игровых состояний\n\nТемплейт кода доступен в multiplayer.js');
+    const menuScreen = document.getElementById('menuScreen');
+    const multiplayerScreen = document.getElementById('multiplayerScreen');
+
+    if (menuScreen) menuScreen.classList.add('hidden');
+    if (multiplayerScreen) multiplayerScreen.classList.remove('hidden');
+}
+
+function hideMultiplayerScreen() {
+    const multiplayerScreen = document.getElementById('multiplayerScreen');
+    if (multiplayerScreen) multiplayerScreen.classList.add('hidden');
+}
+
+function backFromMultiplayer() {
+    if (multiplayer) {
+        multiplayer.disconnect();
+        multiplayer = null;
+    }
+    hideMultiplayerScreen();
+    showMenu();
+}
+
+function switchMultiplayerTab(tab) {
+    const tabCreate = document.getElementById('tabCreate');
+    const tabJoin = document.getElementById('tabJoin');
+    const panelCreate = document.getElementById('panelCreate');
+    const panelJoin = document.getElementById('panelJoin');
+
+    if (tab === 'create') {
+        tabCreate.classList.add('active');
+        tabJoin.classList.remove('active');
+        panelCreate.classList.add('active');
+        panelJoin.classList.remove('active');
+    } else {
+        tabJoin.classList.add('active');
+        tabCreate.classList.remove('active');
+        panelJoin.classList.add('active');
+        panelCreate.classList.remove('active');
+    }
+}
+
+async function createRoom() {
+    const createStatus = document.getElementById('createStatus');
+    createStatus.textContent = 'Подключение...';
+
+    try {
+        // Создать экземпляр мультиплеера
+        multiplayer = new MultiplayerManager();
+        multiplayer.playerId = 'player_' + Math.random().toString(36).substr(2, 9);
+
+        // Настроить колбэки
+        multiplayer.onRoomCreated = (roomId) => {
+            document.getElementById('roomCodeDisplay').textContent = roomId;
+            document.getElementById('roomCreatedPanel').style.display = 'block';
+            createStatus.textContent = '';
+        };
+
+        multiplayer.onOpponentJoined = async () => {
+            createStatus.textContent = 'Противник присоединился! Начинаем...';
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            hideMultiplayerScreen();
+            isMultiplayerMode = true;
+            await initializeMultiplayerGame(true); // Хост
+        };
+
+        multiplayer.onDisconnect = () => {
+            createStatus.textContent = 'Соединение потеряно';
+        };
+
+        multiplayer.onError = (error) => {
+            createStatus.textContent = `Ошибка: ${error}`;
+        };
+
+        // Подключиться к серверу
+        const serverUrl = 'ws://localhost:8080'; // Измените на ваш адрес сервера
+        await multiplayer.connect(serverUrl);
+
+        // Создать комнату
+        multiplayer.createRoom();
+    } catch (error) {
+        createStatus.textContent = `Ошибка подключения: ${error.message}`;
+    }
+}
+
+async function joinRoom() {
+    const roomCode = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+    const joinStatus = document.getElementById('joinStatus');
+
+    if (!roomCode) {
+        joinStatus.textContent = 'Введи код комнаты';
+        return;
+    }
+
+    joinStatus.textContent = 'Подключение...';
+
+    try {
+        // Создать экземпляр мультиплеера
+        multiplayer = new MultiplayerManager();
+        multiplayer.playerId = 'player_' + Math.random().toString(36).substr(2, 9);
+
+        // Настроить колбэки
+        multiplayer.onRoomJoined = async () => {
+            joinStatus.textContent = 'Подключено! Начинаем...';
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            hideMultiplayerScreen();
+            isMultiplayerMode = true;
+            await initializeMultiplayerGame(false); // Гость
+        };
+
+        multiplayer.onGameStart = () => {
+            console.log('Игра начинается...');
+        };
+
+        multiplayer.onDisconnect = () => {
+            joinStatus.textContent = 'Соединение потеряно';
+        };
+
+        multiplayer.onError = (error) => {
+            joinStatus.textContent = `Ошибка: ${error}`;
+        };
+
+        // Подключиться к серверу
+        const serverUrl = 'ws://localhost:8080'; // Измените на ваш адрес сервера
+        await multiplayer.connect(serverUrl);
+
+        // Присоединиться к комнате
+        multiplayer.joinRoom(roomCode);
+    } catch (error) {
+        joinStatus.textContent = `Ошибка подключения: ${error.message}`;
+    }
+}
+
+function cancelRoom() {
+    if (multiplayer) {
+        multiplayer.disconnect();
+        multiplayer = null;
+    }
+    document.getElementById('roomCreatedPanel').style.display = 'none';
+    document.getElementById('createStatus').textContent = '';
+}
+
+async function initializeMultiplayerGame(isHost) {
+    try {
+        const response = await fetch('cards.json?v=20251012_11', { cache: 'no-store' });
+        if (!response.ok) {
+            throw new Error(`Failed to load cards.json: ${response.status}`);
+        }
+        const cardData = await response.json();
+
+        // Скрыть меню и показать игру
+        hideMenu();
+
+        // Сброс статистики
+        gameStats = {
+            totalTurns: 0,
+            totalCards: 0,
+            totalDamage: 0,
+            totalHealing: 0
+        };
+
+        await startMultiplayerGame(cardData, isHost);
+    } catch (error) {
+        console.error('Не удалось загрузить данные карт:', error);
+    }
+}
+
+async function startMultiplayerGame(cardData, isHost) {
+    const cardManager = new CardManager(cardData);
+    const uiManager = new UIManager();
+    const visualManager = new VisualManager();
+    gameEngine = new GameEngine(cardManager, uiManager, visualManager);
+    const eventManager = new EventManager(visualManager, uiManager);
+
+    // Настроить обработку ходов противника
+    multiplayer.onOpponentMove = async (cardData) => {
+        console.log('Ход противника:', cardData);
+
+        // Найти карту в руке противника по имени
+        const enemyCard = gameEngine.enemy.cards.find(c => c.name === cardData.name);
+
+        if (enemyCard) {
+            // Применить ход противника
+            const {speechText, logText} = gameEngine.applyCard(enemyCard, gameEngine.enemy, gameEngine.player);
+            const speechPromise = visualManager.setVisual('enemy', speechText);
+            const fullLogMessage = logText ? `${cardData.name} ${logText}` : cardData.name;
+            uiManager.addMessage(fullLogMessage, 'enemy', gameEngine.turn);
+
+            // Удалить карту из руки противника если она использована
+            if (enemyCard.usesLeft) {
+                enemyCard.usesLeft--;
+                if (enemyCard.usesLeft <= 0) {
+                    gameEngine.enemy.cards = gameEngine.enemy.cards.filter(c => c.name !== enemyCard.name);
+                }
+            } else {
+                gameEngine.enemy.cards = gameEngine.enemy.cards.filter(c => c.name !== enemyCard.name);
+            }
+
+            gameEngine.checkPoints(gameEngine.enemy, gameEngine.player);
+            gameEngine.uiManager.updateStats(gameEngine.player, gameEngine.enemy);
+
+            await speechPromise;
+
+            // Передать ход игроку
+            gameEngine.playerTurn = true;
+            gameEngine.playerHasPlayedCard = false;
+            gameEngine.uiManager.renderCards(gameEngine.player.cards, gameEngine.playerTurn, gameEngine.playerHasPlayedCard, playMultiplayerCard);
+        }
+    };
+
+    // Переопределить метод playCard для мультиплеера
+    window.playMultiplayerCard = async function(card) {
+        if (!gameEngine.playerTurn || card.used || gameEngine.playerHasPlayedCard || !gameEngine.gameActive) return;
+
+        gameEngine.playerHasPlayedCard = true;
+        gameEngine.turn++;
+
+        // Отправить ход на сервер
+        multiplayer.sendMove({
+            name: card.name,
+            category: card.category,
+            effect: card.effect,
+            damage: card.damage,
+            heal: card.heal
+        });
+
+        // Применить карту локально
+        if (card.usesLeft !== undefined) {
+            card.usesLeft--;
+            if (card.usesLeft <= 0) card.used = true;
+        } else {
+            card.used = true;
+        }
+
+        const cardText = cardManager.getCardText(card);
+        const {speechText, logText} = gameEngine.applyCard(card, gameEngine.player, gameEngine.enemy);
+        const speechPromise = visualManager.setVisual('player', speechText);
+        const fullLogMessage = logText ? `${cardText} ${logText}` : cardText;
+        uiManager.addMessage(fullLogMessage, 'player', gameEngine.turn);
+
+        if (card.used) {
+            gameEngine.player.discardPile.push(card);
+            gameEngine.player.cards = gameEngine.player.cards.filter(c => !c.used);
+        }
+
+        gameEngine.checkPoints(gameEngine.player, gameEngine.enemy);
+        gameEngine.uiManager.updateStats(gameEngine.player, gameEngine.enemy);
+
+        if (gameEngine.checkVictory()) {
+            multiplayer.send({
+                type: 'GAME_OVER',
+                roomId: multiplayer.roomId,
+                winner: gameEngine.player.points >= 3 ? 'player' : 'enemy'
+            });
+            gameEngine.gameActive = false;
+        }
+
+        await speechPromise;
+
+        // Передать ход противнику
+        gameEngine.playerTurn = false;
+        uiManager.renderCards(gameEngine.player.cards, gameEngine.playerTurn, gameEngine.playerHasPlayedCard, playMultiplayerCard);
+    };
+
+    // Логируем начальное состояние
+    gameLogger.logInit('Мультиплеер игра начинается', {
+        isHost: isHost,
+        playerStats: { logic: gameEngine.player.logic, emotion: gameEngine.player.emotion },
+        enemyStats: { logic: gameEngine.enemy.logic, emotion: gameEngine.enemy.emotion },
+        playerHand: gameEngine.player.cards.map(c => c.name),
+        enemyHand: gameEngine.enemy.cards.map(c => c.name)
+    });
+
+    // Хост начинает первым
+    gameEngine.playerTurn = isHost;
+    gameEngine.turn = 1;
+
+    gameEngine.uiManager.updateStats(gameEngine.player, gameEngine.enemy);
+    gameEngine.uiManager.renderCards(gameEngine.player.cards, gameEngine.playerTurn, gameEngine.playerHasPlayedCard, playMultiplayerCard);
+    await visualManager.setVisual('idle');
 }
 
 function showRules() {
