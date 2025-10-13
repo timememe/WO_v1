@@ -6,6 +6,7 @@ class MultiplayerManager {
         this.ws = null;
         this.roomId = null;
         this.playerId = null;
+        this.playerNickname = null;
         this.isHost = false;
         this.connected = false;
     }
@@ -54,7 +55,8 @@ class MultiplayerManager {
         this.isHost = true;
         this.send({
             type: 'CREATE_ROOM',
-            playerId: this.playerId
+            playerId: this.playerId,
+            nickname: this.playerNickname || 'Игрок'
         });
     }
 
@@ -66,7 +68,8 @@ class MultiplayerManager {
         this.send({
             type: 'JOIN_ROOM',
             roomId: roomId,
-            playerId: this.playerId
+            playerId: this.playerId,
+            nickname: this.playerNickname || 'Игрок'
         });
     }
 
@@ -106,7 +109,7 @@ class MultiplayerManager {
                 break;
 
             case 'OPPONENT_JOINED':
-                this.onOpponentJoined(message.opponentId);
+                this.onOpponentJoined(message.opponentId, message.opponentNickname);
                 break;
 
             case 'GAME_START':
@@ -156,7 +159,7 @@ class MultiplayerManager {
     onDisconnect() { console.log('MultiplayerManager: Disconnected'); }
     onRoomCreated(roomId) { console.log('MultiplayerManager: Room created:', roomId); }
     onRoomJoined(roomId) { console.log('MultiplayerManager: Room joined:', roomId); }
-    onOpponentJoined(opponentId) { console.log('MultiplayerManager: Opponent joined:', opponentId); }
+    onOpponentJoined(opponentId, opponentNickname) { console.log('MultiplayerManager: Opponent joined:', opponentId, opponentNickname); }
     onGameStart(data) { console.log('MultiplayerManager: Game starting:', data); }
     onOpponentMove(card) { console.log('MultiplayerManager: Opponent played card:', card); }
     onGameStateSync(state) { console.log('MultiplayerManager: Game state synced:', state); }

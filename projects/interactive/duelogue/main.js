@@ -10,6 +10,8 @@ let uiManager = null;
 let visualManager = null;
 let multiplayer = null;
 let isMultiplayerGame = false;
+let playerNickname = '';
+let opponentNickname = '';
 
 // Менеджер колод
 let deckManager = {
@@ -211,6 +213,16 @@ async function showMultiplayerScreen() {
     document.getElementById('menuScreen').classList.add('hidden');
     switchMultiplayerTab('create');
 
+    // Загрузить сохраненный никнейм
+    const savedNickname = localStorage.getItem('playerNickname');
+    if (savedNickname) {
+        document.getElementById('playerNicknameInput').value = savedNickname;
+        playerNickname = savedNickname;
+    } else {
+        playerNickname = 'Игрок_' + Math.random().toString(36).substr(2, 5);
+        document.getElementById('playerNicknameInput').value = playerNickname;
+    }
+
     if (!multiplayer.connected) {
         try {
             document.getElementById('createStatus').textContent = 'Подключение к серверу...';
@@ -234,6 +246,11 @@ function setupMultiplayerCallbacks() {
         document.getElementById('createStatus').textContent = 'Ожидание противника...';
     };
 
+    multiplayer.onOpponentJoined = (opponentId, opponentNick) => {
+        opponentNickname = opponentNick || 'Противник';
+        console.log(`✅ Противник присоединился: ${opponentNickname}`);
+    };
+
     multiplayer.onGameStart = async (data) => {
         const isHost = multiplayer.playerId === data.hostId;
         await startMultiplayerGame(isHost);
@@ -243,6 +260,7 @@ function setupMultiplayerCallbacks() {
         if (multiplayer.isHost) return;
         console.log('📥 Получено состояние от хоста');
         showGameScreen();
+        updatePlayerNames();
         const selectedDeck = deckManager.getSelectedDeck();
         cardManager = new CardManager();
         cardManager.loadCards(selectedDeck.file).then(() => {
@@ -283,13 +301,26 @@ function switchMultiplayerTab(tab) {
 
 function createRoom() {
     if (!multiplayer || !multiplayer.connected) return alert('Подключение к серверу...');
+
+    // Сохранить и отправить никнейм
+    playerNickname = document.getElementById('playerNicknameInput').value.trim() || 'Игрок_' + Math.random().toString(36).substr(2, 5);
+    localStorage.setItem('playerNickname', playerNickname);
+
+    multiplayer.playerNickname = playerNickname;
     multiplayer.createRoom();
 }
 
 function joinRoom() {
     if (!multiplayer || !multiplayer.connected) return alert('Подключение к серверу...');
+
+    // Сохранить и отправить никнейм
+    playerNickname = document.getElementById('playerNicknameInput').value.trim() || 'Игрок_' + Math.random().toString(36).substr(2, 5);
+    localStorage.setItem('playerNickname', playerNickname);
+
     const roomCode = document.getElementById('roomCodeInput').value.trim().toUpperCase();
     if (roomCode.length !== 6) return alert('Введите 6-значный код комнаты.');
+
+    multiplayer.playerNickname = playerNickname;
     multiplayer.joinRoom(roomCode);
 }
 
@@ -301,7 +332,7 @@ function cancelRoom() {
 async function startMultiplayerGame(isHost) {
     console.log(`🎮 Запуск мультиплеер игры (${isHost ? 'Хост' : 'Гость'})`);
     isMultiplayerGame = true;
-    
+
     const selectedDeck = deckManager.getSelectedDeck();
     cardManager = new CardManager();
     await cardManager.loadCards(selectedDeck.file);
@@ -309,6 +340,7 @@ async function startMultiplayerGame(isHost) {
 
     if (isHost) {
         showGameScreen();
+        updatePlayerNames();
         gameEngine = new GameEngine(cardManager, uiManager, visualManager, { isMultiplayer: true });
         await gameEngine.initializeMultiplayerGame(true);
         const initialState = gameEngine.getState();
@@ -317,6 +349,19 @@ async function startMultiplayerGame(isHost) {
     } else {
         console.log('🧘 Гость ожидает состояние от хоста...');
         document.getElementById('joinStatus').textContent = 'Синхронизация игры...';
+    }
+}
+
+function updatePlayerNames() {
+    const playerNameEl = document.getElementById('playerNameDisplay');
+    const enemyNameEl = document.getElementById('enemyNameDisplay');
+
+    if (isMultiplayerGame) {
+        if (playerNameEl) playerNameEl.textContent = playerNickname || 'Ты';
+        if (enemyNameEl) enemyNameEl.textContent = opponentNickname || 'Противник';
+    } else {
+        if (playerNameEl) playerNameEl.textContent = 'Ты';
+        if (enemyNameEl) enemyNameEl.textContent = 'Скептик';
     }
 }
 
