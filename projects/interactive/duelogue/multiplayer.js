@@ -113,6 +113,10 @@ class MultiplayerManager {
                 this.onOpponentMove(message.card);
                 break;
 
+            case 'GAME_START':
+                this.onGameStart(message);
+                break;
+
             case 'GAME_STATE':
                 this.onGameStateUpdate(message.state);
                 break;
@@ -170,6 +174,10 @@ class MultiplayerManager {
 
     onOpponentMove(card) {
         console.log('MultiplayerManager: Opponent played card:', card);
+    }
+
+    onGameStart(data) {
+        console.log('MultiplayerManager: Game starting:', data);
     }
 
     onGameStateUpdate(state) {

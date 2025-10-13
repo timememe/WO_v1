@@ -379,6 +379,7 @@ function cancelRoom() {
 
 async function startMultiplayerGame(isHost) {
     console.log(`🎮 Запуск мультиплеер игры (${isHost ? 'Хост' : 'Гость'})`);
+    isMultiplayerGame = true;
     showGameScreen();
 
     // Очистить диалог
@@ -393,94 +394,11 @@ async function startMultiplayerGame(isHost) {
     await cardManager.loadCards(selectedDeck.file);
     console.log('✅ Карты колоды загружены');
 
-    // Создать игровой движок
-    gameEngine = new GameEngine(cardManager, uiManager, visualManager);
-
-    // Настроить обработчик ходов противника
-    multiplayer.onOpponentMove = async (cardData) => {
-        console.log('📨 Получен ход противника:', cardData.name);
-
-        const enemyCard = gameEngine.enemy.cards.find(c => c.name === cardData.name);
-        if (!enemyCard) {
-            console.error('❌ Карта противника не найдена:', cardData.name);
-            return;
-        }
-
-        const {speechText, logText} = gameEngine.applyCard(enemyCard, gameEngine.enemy, gameEngine.player);
-
-        if (speechText) {
-            await visualManager.showSpeech(speechText, 'enemy');
-        }
-
-        if (enemyCard.usesLeft !== undefined) {
-            enemyCard.usesLeft--;
-            if (enemyCard.usesLeft <= 0) {
-                gameEngine.enemy.cards = gameEngine.enemy.cards.filter(c => c !== enemyCard);
-            }
-        } else {
-            gameEngine.enemy.cards = gameEngine.enemy.cards.filter(c => c !== enemyCard);
-        }
-
-        uiManager.renderStats(gameEngine.player, gameEngine.enemy);
-        uiManager.renderCards(gameEngine.player.cards, gameEngine.playerTurn, gameEngine.playerHasPlayedCard, playMultiplayerCard);
-
-        gameEngine.playerTurn = true;
-        gameEngine.turn++;
-
-        if (gameEngine.checkVictory()) {
-            return;
-        }
-    };
-
-    // Функция хода для мультиплеера
-    window.playMultiplayerCard = async function(card) {
-        if (!gameEngine.playerTurn || card.used || gameEngine.playerHasPlayedCard || !gameEngine.gameActive) return;
-
-        console.log('🎴 Отправка хода:', card.name);
-
-        multiplayer.sendMove({
-            name: card.name,
-            category: card.category,
-            effect: card.effect,
-            damage: card.damage,
-            heal: card.heal,
-            shield: card.shield
-        });
-
-        const {speechText, logText} = gameEngine.applyCard(card, gameEngine.player, gameEngine.enemy);
-
-        if (speechText) {
-            await visualManager.showSpeech(speechText, 'player');
-        }
-
-        if (card.usesLeft !== undefined) {
-            card.usesLeft--;
-            if (card.usesLeft <= 0) card.used = true;
-        } else {
-            card.used = true;
-        }
-
-        if (card.used) {
-            gameEngine.player.cards = gameEngine.player.cards.filter(c => !c.used);
-        }
-
-        uiManager.renderStats(gameEngine.player, gameEngine.enemy);
-        uiManager.renderCards(gameEngine.player.cards, gameEngine.playerTurn, gameEngine.playerHasPlayedCard, playMultiplayerCard);
-
-        gameEngine.playerTurn = false;
-        gameEngine.turn++;
-
-        if (gameEngine.checkVictory()) {
-            multiplayer.sendGameOver(multiplayer.playerId);
-        }
-    };
-
-    // Запустить игру
-    await gameEngine.startGame();
-
-    // Хост ходит первым
-    gameEngine.playerTurn = isHost;
-    uiManager.renderCards(gameEngine.player.cards, gameEngine.playerTurn, gameEngine.playerHasPlayedCard, playMultiplayerCard);
+    // Создать игровой движок в режиме мультиплеера
+    gameEngine = new GameEngine(cardManager, uiManager, visualManager, { isMultiplayer: true });
+    
+    // Инициализируем игру для мультиплеера
+    await gameEngine.initializeMultiplayerGame(isHost);
 
     console.log(`✅ Мультиплеер игра началась. ${isHost ? 'Ваш ход!' : 'Ход противника'}`);
 }
