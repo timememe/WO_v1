@@ -36,16 +36,28 @@ class UIManager {
             enemyDotsOverlay[i].className = 'dot' + (i < enemy.points ? ' active enemy' : '');
         }
 
-        // Обновить индикатор лимита руки и счетчик колоды
+        // Обновить индикаторы в плитках
         if (gameEngine) {
             const handLimit = gameEngine.getHandLimit(player);
-            const handInfo = document.getElementById('handInfo');
-            if (handInfo) {
-                const damageMultiplier = gameEngine.getDamageMultiplier(player);
-                const multiplierText = damageMultiplier !== 1.0 ? ` | Урон: x${damageMultiplier.toFixed(2)}` : '';
+            const handCount = document.getElementById('handCount');
+            const deckCountEl = document.getElementById('deckCount');
+            const discardCountEl = document.getElementById('discardCount');
+            const damageMultiplierEl = document.getElementById('damageMultiplier');
+
+            if (handCount) {
+                handCount.textContent = `${player.cards.length}/${handLimit}`;
+            }
+            if (deckCountEl) {
                 const deckCount = Array.isArray(player.deck) ? player.deck.length : 0;
+                deckCountEl.textContent = deckCount;
+            }
+            if (discardCountEl) {
                 const discardCount = player.discardCount ?? 0;
-                handInfo.textContent = `Рука: ${player.cards.length}/${handLimit} | Колода: ${deckCount} | Сброс: ${discardCount}${multiplierText}`;
+                discardCountEl.textContent = discardCount;
+            }
+            if (damageMultiplierEl) {
+                const damageMultiplier = gameEngine.getDamageMultiplier(player);
+                damageMultiplierEl.textContent = `x${damageMultiplier.toFixed(2)}`;
             }
         }
 

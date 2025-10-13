@@ -349,6 +349,46 @@
             text-overflow: ellipsis;
             text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
         }
+        .hand-stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
+            width: 100%;
+        }
+        .hand-stat-tile {
+            background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
+            border: 2px solid #444;
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            min-height: 50px;
+        }
+        .hand-stat-tile:hover {
+            border-color: #3498db;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
+        }
+        .hand-stat-label {
+            font-size: clamp(7px, 1.8vw, 9px);
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: bold;
+        }
+        .hand-stat-value {
+            font-size: clamp(11px, 3vw, 16px);
+            color: #fff;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
         #discardButton {
             padding: 10px 20px;
             background-color: #ff6600;
@@ -1062,7 +1102,24 @@
         </div>
 
         <div class="cards-container">
-            <div id="handInfo" style="text-align: center; font-size: 10px; color: #aaa; margin-bottom: 8px;">Карты: 0/5</div>
+            <div class="hand-stats-grid">
+                <div class="hand-stat-tile">
+                    <div class="hand-stat-label">Рука</div>
+                    <div class="hand-stat-value" id="handCount">0/5</div>
+                </div>
+                <div class="hand-stat-tile">
+                    <div class="hand-stat-label">Колода</div>
+                    <div class="hand-stat-value" id="deckCount">0</div>
+                </div>
+                <div class="hand-stat-tile">
+                    <div class="hand-stat-label">Сброс</div>
+                    <div class="hand-stat-value" id="discardCount">0</div>
+                </div>
+                <div class="hand-stat-tile">
+                    <div class="hand-stat-label">Урон</div>
+                    <div class="hand-stat-value" id="damageMultiplier">x1.0</div>
+                </div>
+            </div>
             <button id="discardButton" onclick="gameEngine.drawFromDiscard()" style="display: none;">Взять из колоды</button>
             <div class="cards-grid" id="cardDeck"></div>
         </div>
