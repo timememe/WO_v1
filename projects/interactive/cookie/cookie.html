@@ -216,7 +216,7 @@
                 try {
                     const gltf = await new Promise((resolve, reject) => {
                         loader.load(
-                            'https://cdn.jsdelivr.net/gh/timememe/o_files@719efb0dc18f04d14586f9adbb6c61a48c2c8d9f/oreo.glb',
+                            '../../../shared/assets/3d/oreo.glb',
                             resolve,
                             (xhr) => {
                                 console.log((xhr.loaded / xhr.total * 100) + '% loaded');

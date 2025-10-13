@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Диалоговая битва!</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background-color: #1a1a1a;
+            margin: 0;
+            padding: 10px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            box-sizing: border-box;
+            gap: 10px;
+        }
+        .game-wrapper {
+            width: 100%;
+            max-width: 450px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+        h1 {
+            font-size: clamp(12px, 3vw, 18px);
+            margin-bottom: 8px;
+            text-shadow: 1px 1px #000;
+            text-align: center;
+            line-height: 1.2;
+        }
+        .container {
+            width: 100%;
+            max-width: 450px;
+            display: flex;
+            flex-direction: column;
+            background-color: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 12px;
+            overflow: hidden;
+            box-sizing: border-box;
+            padding: 10px;
+        }
+        .visual-screen {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            background-color: #000;
+            margin-bottom: 10px;
+            overflow: hidden;
+            border: 3px solid #333;
+            border-radius: 8px;
+            box-shadow: 0 0 8px rgba(0,0,0,0.5);
+        }
+        .visual-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+        .visual-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 2;
+        }
+        .speech-bubble {
+            position: absolute;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 2px solid #fff;
+            font-size: clamp(8px, 2vw, 10px);
+            max-width: 85%;
+            text-align: center;
+            z-index: 3;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            word-wrap: break-word;
+            line-height: 1.2;
+        }
+        .speech-bubble.visible {
+            opacity: 1;
+        }
+        .stats-overlay {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            right: 5px;
+            display: flex;
+            justify-content: space-between;
+            gap: 6px;
+            z-index: 4;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .stats-overlay.visible {
+            opacity: 1;
+        }
+        .stat-panel {
+            flex: 1;
+            background-color: rgba(42, 42, 42, 0.9);
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: clamp(6px, 1.5vw, 8px);
+        }
+        .stat-title {
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #b9b9b9;
+        }
+        .stat-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .stat-name {
+            min-width: 48px;
+        }
+        .stat-bar {
+            flex: 1;
+            height: 6px;
+            background-color: #1a1a1a;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        .stat-bar-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 0;
+            transition: width 0.3s ease;
+        }
+        .stat-bar-fill.logic {
+            background: linear-gradient(90deg, #4aa3ff, #2357ff);
+        }
+        .stat-bar-fill.emotion {
+            background: linear-gradient(90deg, #ff7aa2, #ff3a64);
+        }
+        .stat-number {
+            min-width: 26px;
+            text-align: right;
+        }
+        .points-overlay {
+            position: absolute;
+            bottom: 5px;
+            left: 5px;
+            right: 5px;
+            display: flex;
+            justify-content: space-between;
+            z-index: 4;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .points-overlay.visible {
+            opacity: 1;
+        }
+        .points-overlay div {
+            display: flex;
+            gap: 6px;
+        }
+        .dot {
+            width: clamp(10px, 2.5vw, 12px);
+            height: clamp(10px, 2.5vw, 12px);
+            border-radius: 50%;
+            background-color: #555;
+            transition: background-color 0.3s;
+            border: 1px solid #333;
+        }
+        .dot.active.player {
+            background-color: #2317a6;
+        }
+        .dot.active.enemy {
+            background-color: #ff0000;
+        }
+        #dialog {
+            background-color: #2a2a2a;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            min-height: 120px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 2px solid #444;
+        }
+        .message {
+            margin: 6px 0;
+            padding: 6px 8px;
+            border-radius: 4px;
+            max-width: 80%;
+            font-size: clamp(8px, 2vw, 10px);
+            line-height: 1.2;
+            word-wrap: break-word;
+        }
+        .player {
+            background-color: #2317a6;
+            margin-left: auto;
+            text-align: right;
+        }
+        .enemy {
+            background-color: #4d0000;
+            margin-right: auto;
+            text-align: left;
+        }
+        .turn {
+            font-size: clamp(6px, 1.5vw, 8px);
+            color: #888;
+            margin-bottom: 3px;
+        }
+        .cards-container {
+            width: 100%;
+            max-width: 450px;
+            background-color: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 10px;
+            align-content: start;
+        }
+        .card {
+            position: relative;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 3px solid rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 6px;
+            aspect-ratio: 2.5/3.5;
+            min-height: 120px;
+            color: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            overflow: visible;
+        }
+        .card:hover:not(.used) {
+            transform: translateY(-4px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+        }
+        .card-uses {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background-color: rgba(0, 0, 0, 0.85);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(9px, 2vw, 11px);
+            font-weight: bold;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            z-index: 1;
+        }
+        .card.Атака {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            border-color: #c0392b;
+        }
+        .card.Атака:hover:not(.used) {
+            background: linear-gradient(135deg, #ff5c4c 0%, #d0493b 100%);
+        }
+        .card.Защита {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            border-color: #229954;
+        }
+        .card.Защита:hover:not(.used) {
+            background: linear-gradient(135deg, #37be70 0%, #32a964 100%);
+        }
+        .card.Уклонение {
+            background: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
+            border-color: #d68910;
+        }
+        .card.Уклонение:hover:not(.used) {
+            background: linear-gradient(135deg, #ffac22 0%, #e69920 100%);
+        }
+        .card.used, .card:disabled {
+            background: linear-gradient(135deg, #555 0%, #444 100%);
+            border-color: #333;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .card-title {
+            font-weight: bold;
+            font-size: clamp(9px, 2vw, 11px);
+            line-height: 1.3;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+            word-wrap: break-word;
+            hyphens: auto;
+        }
+        .card-desc {
+            font-size: clamp(7px, 1.6vw, 9px);
+            line-height: 1.4;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            word-wrap: break-word;
+            hyphens: auto;
+            opacity: 0.9;
+        }
+        .card-stats {
+            font-size: clamp(8px, 1.7vw, 10px);
+            font-weight: bold;
+            padding: 4px 6px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+        }
+        #discardButton {
+            padding: 10px 20px;
+            background-color: #ff6600;
+            color: #fff;
+            border: 2px solid #333;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            font-size: 12px;
+        }
+        #discardButton:hover {
+            background-color: #cc5200;
+        }
+        #discardButton:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+
+        /* Главное меню */
+        .menu-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            gap: 20px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .menu-screen.hidden {
+            display: none;
+        }
+        .menu-title {
+            font-size: clamp(24px, 8vw, 48px);
+            color: #fff;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.8);
+            margin-bottom: 20px;
+            text-align: center;
+            line-height: 1.2;
+        }
+        .menu-subtitle {
+            font-size: clamp(10px, 2.5vw, 14px);
+            color: #aaa;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            max-width: 300px;
+        }
+        .menu-button {
+            padding: 15px 30px;
+            font-size: clamp(12px, 3vw, 16px);
+            font-family: 'Press Start 2P', cursive;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: #fff;
+            border: 3px solid #2c3e50;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        .menu-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+            background: linear-gradient(135deg, #3ba3e8 0%, #2e8bc7 100%);
+        }
+        .menu-button:active {
+            transform: translateY(0);
+        }
+        .menu-button.secondary {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            border-color: #1e7e34;
+        }
+        .menu-button.secondary:hover {
+            background: linear-gradient(135deg, #2fc770 0%, #26a65e 100%);
+        }
+        .menu-button.disabled {
+            background: linear-gradient(135deg, #555 0%, #444 100%);
+            border-color: #333;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .menu-button.disabled:hover {
+            transform: none;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Селектор колоды */
+        .deck-selector {
+            width: 100%;
+            max-width: 400px;
+            margin-bottom: 20px;
+        }
+        .deck-label {
+            font-size: clamp(10px, 2.5vw, 14px);
+            color: #aaa;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        .deck-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .deck-card {
+            background-color: #2a2a2a;
+            border: 3px solid #444;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+        }
+        .deck-card:hover {
+            border-color: #3498db;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+        }
+        .deck-card.selected {
+            border-color: #27ae60;
+            background-color: rgba(39, 174, 96, 0.1);
+            box-shadow: 0 0 12px rgba(39, 174, 96, 0.4);
+        }
+        .deck-card-name {
+            font-size: clamp(11px, 2.5vw, 14px);
+            color: #fff;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        .deck-card-desc {
+            font-size: clamp(8px, 2vw, 10px);
+            color: #aaa;
+            line-height: 1.4;
+        }
+        .deck-card.selected .deck-card-name {
+            color: #27ae60;
+        }
+
+        /* Экран окончания игры */
+        .endgame-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .endgame-screen.hidden {
+            display: none;
+        }
+        .endgame-content {
+            background-color: #2a2a2a;
+            border: 3px solid #444;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+        }
+        .endgame-title {
+            font-size: clamp(18px, 5vw, 32px);
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+        .endgame-title.victory {
+            color: #2ecc71;
+        }
+        .endgame-title.defeat {
+            color: #e74c3c;
+        }
+        .endgame-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .stat-group {
+            background-color: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .stat-group-title {
+            font-size: clamp(10px, 2.5vw, 14px);
+            color: #aaa;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #333;
+            font-size: clamp(9px, 2vw, 12px);
+        }
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+        .stat-label {
+            color: #bbb;
+        }
+        .stat-value {
+            color: #fff;
+            font-weight: bold;
+        }
+        .endgame-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        .endgame-button {
+            padding: 12px 24px;
+            font-size: clamp(10px, 2.5vw, 14px);
+            font-family: 'Press Start 2P', cursive;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: #fff;
+            border: 3px solid #2c3e50;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        .endgame-button:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, #3ba3e8 0%, #2e8bc7 100%);
+        }
+
+        /* Экран паузы */
+        .pause-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .pause-screen.hidden {
+            display: none;
+        }
+        .pause-content {
+            background-color: #2a2a2a;
+            border: 3px solid #444;
+            border-radius: 12px;
+            padding: 40px 30px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+        .pause-title {
+            font-size: clamp(20px, 6vw, 36px);
+            text-align: center;
+            margin-bottom: 30px;
+            color: #f39c12;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+        .pause-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+        }
+        .pause-button {
+            padding: 15px 30px;
+            font-size: clamp(11px, 3vw, 15px);
+            font-family: 'Press Start 2P', cursive;
+            color: #fff;
+            border: 3px solid #2c3e50;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        .pause-button.continue {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            border-color: #1e7e34;
+        }
+        .pause-button.continue:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, #2fc770 0%, #26a65e 100%);
+        }
+        .pause-button.restart {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            border-color: #2c3e50;
+        }
+        .pause-button.restart:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, #3ba3e8 0%, #2e8bc7 100%);
+        }
+        .pause-button.menu {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            border-color: #a93226;
+        }
+        .pause-button.menu:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, #ff5c4c 0%, #d0493b 100%);
+        }
+
+        /* Кнопка паузы на игровом экране */
+        .pause-game-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
+            border: 3px solid #2c3e50;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #fff;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        .pause-game-button:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, #ffac22 0%, #e69920 100%);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+        }
+        .pause-game-button.hidden {
+            display: none;
+        }
+
+        /* Экран мультиплеера */
+        .multiplayer-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .multiplayer-screen.hidden {
+            display: none;
+        }
+        .multiplayer-content {
+            background-color: #2a2a2a;
+            border: 3px solid #444;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+        }
+        .multiplayer-title {
+            font-size: clamp(16px, 4vw, 24px);
+            text-align: center;
+            margin-bottom: 25px;
+            color: #27ae60;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        }
+        .multiplayer-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .multiplayer-tab {
+            flex: 1;
+            padding: 12px;
+            font-size: clamp(10px, 2.5vw, 13px);
+            font-family: 'Press Start 2P', cursive;
+            background: #1a1a1a;
+            color: #aaa;
+            border: 2px solid #333;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        .multiplayer-tab.active {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            color: #fff;
+            border-color: #1e7e34;
+        }
+        .multiplayer-tab:hover:not(.active) {
+            background: #2a2a2a;
+            border-color: #444;
+        }
+        .multiplayer-panel {
+            display: none;
+        }
+        .multiplayer-panel.active {
+            display: block;
+        }
+        .multiplayer-input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: clamp(10px, 2.5vw, 14px);
+            font-family: 'Press Start 2P', cursive;
+            background-color: #1a1a1a;
+            color: #fff;
+            border: 2px solid #444;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        .multiplayer-input:focus {
+            outline: none;
+            border-color: #27ae60;
+        }
+        .multiplayer-button {
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 10px;
+            font-size: clamp(11px, 3vw, 15px);
+            font-family: 'Press Start 2P', cursive;
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            color: #fff;
+            border: 3px solid #1e7e34;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .multiplayer-button:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, #2fc770 0%, #26a65e 100%);
+        }
+        .multiplayer-button.secondary {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            border-color: #a93226;
+        }
+        .multiplayer-button.secondary:hover {
+            background: linear-gradient(135deg, #ff5c4c 0%, #d0493b 100%);
+        }
+        .room-code {
+            background-color: #1a1a1a;
+            border: 2px solid #27ae60;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .room-code-label {
+            font-size: clamp(9px, 2vw, 12px);
+            color: #aaa;
+            margin-bottom: 10px;
+        }
+        .room-code-value {
+            font-size: clamp(16px, 5vw, 32px);
+            color: #27ae60;
+            letter-spacing: 4px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            word-break: break-all;
+        }
+        .waiting-message {
+            text-align: center;
+            font-size: clamp(10px, 2.5vw, 14px);
+            color: #f39c12;
+            margin: 20px 0;
+            line-height: 1.6;
+        }
+        .status-message {
+            text-align: center;
+            font-size: clamp(9px, 2vw, 12px);
+            color: #95a5a6;
+            margin-top: 15px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <!-- Главное меню -->
+    <div class="menu-screen" id="menuScreen">
+        <div class="menu-title">ДУЕЛОГ</div>
+        <div class="menu-subtitle">Словесная битва за истину</div>
+
+        <!-- Выбор колоды -->
+        <div class="deck-selector" id="deckSelector">
+            <div class="deck-label">Выбери колоду:</div>
+            <div class="deck-list" id="deckList">
+                <!-- Заполнится динамически -->
+            </div>
+        </div>
+
+        <div class="menu-buttons">
+            <button class="menu-button" onclick="startSinglePlayerGame()">Играть</button>
+            <button class="menu-button secondary" onclick="showMultiplayerScreen()">Сетевая игра</button>
+            <button class="menu-button" onclick="showRules()">Правила</button>
+        </div>
+    </div>
+
+    <!-- Экран мультиплеера -->
+    <div class="multiplayer-screen hidden" id="multiplayerScreen">
+        <div class="multiplayer-content">
+            <div class="multiplayer-title">🌐 Сетевая игра</div>
+
+            <div class="multiplayer-tabs">
+                <button class="multiplayer-tab active" id="tabCreate" onclick="switchMultiplayerTab('create')">Создать</button>
+                <button class="multiplayer-tab" id="tabJoin" onclick="switchMultiplayerTab('join')">Присоединиться</button>
+            </div>
+
+            <!-- Панель создания комнаты -->
+            <div class="multiplayer-panel active" id="panelCreate">
+                <button class="multiplayer-button" onclick="createRoom()">Создать комнату</button>
+
+                <div id="roomCreatedPanel" style="display: none;">
+                    <div class="room-code">
+                        <div class="room-code-label">Код комнаты:</div>
+                        <div class="room-code-value" id="roomCodeDisplay">------</div>
+                    </div>
+                    <div class="waiting-message">
+                        Ожидание противника...<br>
+                        Отправь код другу!
+                    </div>
+                    <button class="multiplayer-button secondary" onclick="cancelRoom()">Отменить</button>
+                </div>
+
+                <div class="status-message" id="createStatus"></div>
+            </div>
+
+            <!-- Панель присоединения к комнате -->
+            <div class="multiplayer-panel" id="panelJoin">
+                <input
+                    type="text"
+                    class="multiplayer-input"
+                    id="roomCodeInput"
+                    placeholder="Введи код комнаты"
+                    maxlength="6"
+                    style="text-transform: uppercase;">
+                <button class="multiplayer-button" onclick="joinRoom()">Присоединиться</button>
+                <div class="status-message" id="joinStatus"></div>
+            </div>
+
+            <button class="multiplayer-button secondary" onclick="cancelRoom()">Назад в меню</button>
+        </div>
+    </div>
+
+    <!-- Кнопка паузы -->
+    <button class="pause-game-button hidden" id="pauseButton" onclick="showPauseScreen()">⏸</button>
+
+    <!-- Экран паузы -->
+    <div class="pause-screen hidden" id="pauseScreen">
+        <div class="pause-content">
+            <div class="pause-title">⏸ ПАУЗА</div>
+            <div class="pause-buttons">
+                <button class="pause-button continue" onclick="resumeGame()">Продолжить</button>
+                <button class="pause-button restart" onclick="restartGame()">Перезапустить</button>
+                <button class="pause-button menu" onclick="exitToMenu()">Выйти в меню</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Экран окончания игры -->
+    <div class="endgame-screen hidden" id="endgameScreen">
+        <div class="endgame-content">
+            <div class="endgame-title" id="endgameTitle">Победа!</div>
+            <div class="endgame-stats">
+                <div class="stat-group">
+                    <div class="stat-group-title">Итоговый счет</div>
+                    <div class="stat-item">
+                        <span class="stat-label">Ты</span>
+                        <span class="stat-value" id="finalPlayerPoints">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Скептик</span>
+                        <span class="stat-value" id="finalEnemyPoints">0</span>
+                    </div>
+                </div>
+                <div class="stat-group">
+                    <div class="stat-group-title">Статистика игры</div>
+                    <div class="stat-item">
+                        <span class="stat-label">Ходов сыграно</span>
+                        <span class="stat-value" id="totalTurns">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Карт сыграно</span>
+                        <span class="stat-value" id="totalCards">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Урон нанесен</span>
+                        <span class="stat-value" id="totalDamage">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">HP восстановлено</span>
+                        <span class="stat-value" id="totalHealing">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="endgame-buttons">
+                <button class="endgame-button" onclick="restartGame()">Заново</button>
+                <button class="endgame-button" onclick="exitToMenu()">Меню</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-wrapper" id="gameWrapper">
+        <div class="container">
+            <h1>ДУЕЛОГ</h1>
+            <div class="visual-screen" id="visualScreen">
+                <img id="visualBackground" class="visual-background" src="" alt="Фон">
+                <img id="visualImage" class="visual-image" src="" alt="Сцена">
+                <div id="speechBubble" class="speech-bubble"></div>
+                <div id="statsOverlay" class="stats-overlay">
+                    <div id="playerStatsOverlay" class="stat-panel">
+                        <div class="stat-title">Ты</div>
+                        <div class="stat-row">
+                            <span class="stat-name">Логика</span>
+                            <div class="stat-bar">
+                                <div id="playerLogicBar" class="stat-bar-fill logic"></div>
+                            </div>
+                            <span id="playerLogicValue" class="stat-number">4</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-name">Эмоции</span>
+                            <div class="stat-bar">
+                                <div id="playerEmotionBar" class="stat-bar-fill emotion"></div>
+                            </div>
+                            <span id="playerEmotionValue" class="stat-number">4</span>
+                        </div>
+                    </div>
+                    <div id="enemyStatsOverlay" class="stat-panel">
+                        <div class="stat-title">Скептик</div>
+                        <div class="stat-row">
+                            <span class="stat-name">Логика</span>
+                            <div class="stat-bar">
+                                <div id="enemyLogicBar" class="stat-bar-fill logic"></div>
+                            </div>
+                            <span id="enemyLogicValue" class="stat-number">4</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-name">Эмоции</span>
+                            <div class="stat-bar">
+                                <div id="enemyEmotionBar" class="stat-bar-fill emotion"></div>
+                            </div>
+                            <span id="enemyEmotionValue" class="stat-number">4</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="pointsOverlay" class="points-overlay">
+                    <div id="playerPointsOverlay">
+                        <div class="dot" data-index="0"></div>
+                        <div class="dot" data-index="1"></div>
+                        <div class="dot" data-index="2"></div>
+                    </div>
+                    <div id="enemyPointsOverlay">
+                        <div class="dot" data-index="0"></div>
+                        <div class="dot" data-index="1"></div>
+                        <div class="dot" data-index="2"></div>
+                    </div>
+                </div>
+            </div>
+            <div id="dialog"></div>
+        </div>
+
+        <div class="cards-container">
+            <div id="handInfo" style="text-align: center; font-size: 10px; color: #aaa; margin-bottom: 8px;">Карты: 0/5</div>
+            <button id="discardButton" onclick="gameEngine.drawFromDiscard()" style="display: none;">Взять из колоды</button>
+            <div class="cards-grid" id="cardDeck"></div>
+        </div>
+    </div>
+
+    <!-- Модули игры -->
+    <script src="modules/cards.js"></script>
+    <script src="modules/visual.js"></script>
+    <script src="modules/ui.js"></script>
+    <script src="modules/engine.js"></script>
+    <script src="multiplayer.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
