@@ -1,3 +1,5 @@
+console.log('main.js: Script start');
+
 // ДУЕЛОГ - Главная точка входа и интеграция модулей
 // Этот файл связывает все модули игры вместе
 
@@ -55,7 +57,6 @@ async function initGame() {
         uiManager = new UIManager();
         visualManager = new VisualManager();
         
-        // Создаем единственный экземпляр MultiplayerManager
         multiplayer = new MultiplayerManager();
         multiplayer.playerId = 'player_' + Math.random().toString(36).substr(2, 9);
         console.log(`✅ Мультиплеер менеджер готов. ID игрока: ${multiplayer.playerId}`);
@@ -100,6 +101,7 @@ function showMainMenu() {
     document.getElementById('menuScreen').classList.remove('hidden');
     document.getElementById('endgameScreen').classList.add('hidden');
     document.getElementById('multiplayerScreen').classList.add('hidden');
+    document.getElementById('deckSelectorScreen').classList.add('hidden');
     document.getElementById('gameWrapper').style.display = 'none';
     document.getElementById('pauseButton').classList.add('hidden');
 }
@@ -107,8 +109,49 @@ function showMainMenu() {
 function showGameScreen() {
     document.getElementById('menuScreen').classList.add('hidden');
     document.getElementById('multiplayerScreen').classList.add('hidden');
+    document.getElementById('deckSelectorScreen').classList.add('hidden');
     document.getElementById('gameWrapper').style.display = 'flex';
     document.getElementById('pauseButton').classList.remove('hidden');
+}
+
+function showDeckSelector() {
+    document.getElementById('deckSelectorScreen').classList.remove('hidden');
+    document.getElementById('menuScreen').classList.add('hidden');
+}
+
+function closeDeckSelector() {
+    document.getElementById('deckSelectorScreen').classList.add('hidden');
+    document.getElementById('menuScreen').classList.remove('hidden');
+}
+
+function showRules() {
+    alert(`ПРАВИЛА ИГРЫ ДУЕЛОГ
+
+Цель: Первым набрать 3 очка.
+
+Механика:
+• У каждого игрока есть Логика и Эмоции (по 4 единицы на старте)
+• Карты делятся на три типа:
+  - Атака: наносит урон логике или эмоциям противника
+  - Защита: восстанавливает твою логику или эмоции
+  - Уклонение: отменяет, отражает или зеркалит карту противника
+
+Очки начисляются когда:
+• Логика противника падает до 0 → +1 очко
+• Эмоции противника падают до 0 → +1 очко
+• Противник находится в отрицательных значениях Логики И Эмоций 3 хода подряд → +1 очко
+
+Особенности:
+• Урон зависит от твоих Эмоций (множитель урона)
+• Логика определяет лимит карт в руке (выше логика = больше карт)
+• Атака пробивает Защиту с бонусом 50%
+• Защита ловит в ловушку Уклонение с бонусом 50%
+
+Удачи в битве!`);
+}
+
+function hideMultiplayerScreen() {
+    document.getElementById('multiplayerScreen').classList.add('hidden');
 }
 
 function showEndgameScreen(isVictory) {
@@ -121,7 +164,6 @@ function showEndgameScreen(isVictory) {
         endgameTitle.textContent = isVictory ? '🏆 Победа!' : '💀 Поражение';
         endgameTitle.className = isVictory ? 'endgame-title victory' : 'endgame-title defeat';
     }
-    // ... (статистика)
 }
 
 // ============= SINGLE PLAYER =============
@@ -158,8 +200,6 @@ function exitToMenu() {
     }
     if (multiplayer && multiplayer.connected) {
         multiplayer.disconnect();
-        multiplayer = new MultiplayerManager(); 
-        multiplayer.playerId = 'player_' + Math.random().toString(36).substr(2, 9);
     }
     isMultiplayerGame = false;
 }
@@ -280,6 +320,7 @@ async function startMultiplayerGame(isHost) {
     }
 }
 
+console.log('main.js: Assigning functions to window...');
 
 // ============= ЭКСПОРТ ФУНКЦИЙ В WINDOW =============
 
@@ -287,12 +328,15 @@ window.startSinglePlayerGame = startSinglePlayerGame;
 window.showMultiplayerScreen = showMultiplayerScreen;
 window.showDeckSelector = showDeckSelector;
 window.closeDeckSelector = closeDeckSelector;
+window.showRules = showRules;
 window.restartGame = restartGame;
 window.exitToMenu = exitToMenu;
 window.createRoom = createRoom;
 window.joinRoom = joinRoom;
 window.cancelRoom = cancelRoom;
 window.switchMultiplayerTab = switchMultiplayerTab;
+
+console.log('main.js: Functions assigned. Script end.');
 
 // ============= ЗАПУСК ИГРЫ =============
 
