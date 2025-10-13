@@ -71,15 +71,15 @@
 ﻿        await this.visualManager.setVisual('idle');
 ﻿    }
 ﻿
-﻿    async initializeMultiplayerGame(isHost) {
-﻿        this.playerTurn = isHost;
-﻿        this.uiManager.updateStats(this.player, this.enemy);
-﻿        this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
-﻿        
-﻿        const message = isHost ? "Комната создана. Вы ходите первым." : "Вы присоединились к игре. Ход противника.";
-﻿        this.uiManager.addMessage(message, 'system');
-﻿    }
-﻿
+﻿        async initializeMultiplayerGame(isHost) {
+﻿            this.playerTurn = isHost;
+﻿            await this.visualManager.setVisual('idle'); // Устанавливаем начальный визуальный стиль
+﻿            this.uiManager.updateStats(this.player, this.enemy);
+﻿            this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
+﻿            
+﻿            const message = isHost ? "Комната создана. Вы ходите первым." : "Вы присоединились к игре. Ход противника.";
+﻿            this.uiManager.addMessage(message, 'system');
+﻿        }﻿
 ﻿    // =============================================
 ﻿    // =========== ОСНОВНАЯ ЛОГИКА ХОДА ===========
 ﻿    // =============================================
