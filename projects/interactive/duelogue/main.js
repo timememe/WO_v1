@@ -90,8 +90,8 @@ function renderDeckSelector() {
         }
 
         deckCard.innerHTML = `
-            <div class="deck-name">${deck.name}</div>
-            <div class="deck-description">${deck.description}</div>
+            <div class="deck-card-name">${deck.name}</div>
+            <div class="deck-card-desc">${deck.description}</div>
         `;
 
         deckCard.addEventListener('click', () => selectDeck(deck.id));
@@ -190,6 +190,22 @@ function showMultiplayerScreen() {
 function hideMultiplayerScreen() {
     const multiplayerScreen = document.getElementById('multiplayerScreen');
     if (multiplayerScreen) multiplayerScreen.classList.add('hidden');
+}
+
+function showDeckSelector() {
+    const deckSelectorScreen = document.getElementById('deckSelectorScreen');
+    const menuScreen = document.getElementById('menuScreen');
+
+    if (deckSelectorScreen) deckSelectorScreen.classList.remove('hidden');
+    if (menuScreen) menuScreen.classList.add('hidden');
+}
+
+function closeDeckSelector() {
+    const deckSelectorScreen = document.getElementById('deckSelectorScreen');
+    const menuScreen = document.getElementById('menuScreen');
+
+    if (deckSelectorScreen) deckSelectorScreen.classList.add('hidden');
+    if (menuScreen) menuScreen.classList.remove('hidden');
 }
 
 // ============= SINGLE PLAYER =============
@@ -586,6 +602,8 @@ GameEngine.prototype.checkVictory = function() {
 
 window.startSinglePlayerGame = startSinglePlayerGame;
 window.showMultiplayerScreen = showMultiplayerScreen;
+window.showDeckSelector = showDeckSelector;
+window.closeDeckSelector = closeDeckSelector;
 window.showRules = showRules;
 window.restartGame = restartGame;
 window.exitToMenu = exitToMenu;

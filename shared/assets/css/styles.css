@@ -3,7 +3,7 @@ body, html {
     margin: 0;
     padding: 0;
     display: flex;
-    flex-direction: column; /* Указываем, что основная ось выравнивания - вертикальная */
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     background-color: #000;
@@ -11,15 +11,37 @@ body, html {
     font-family: 'Courier New', Courier, monospace;
 }
 
+.container-9-16 {
+    width: 100%;
+    max-width: 56.25vh; /* 9/16 = 0.5625, поэтому 56.25vh при 100vh высоте */
+    max-height: 100vh;
+    aspect-ratio: 9 / 16;
+    background-color: #000;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 20px;
+    box-sizing: border-box;
+    position: relative;
+}
+
 canvas {
     border: 1px solid black;
 }
 
-.header, .logo-container, main, footer {
+.container-9-16 header,
+.container-9-16 main,
+.container-9-16 footer {
     text-align: center;
     width: 100%;
-    max-width: 42%;
-    margin: 0 auto; /* Убедитесь, что центрирование применяется */
+}
+
+.container-9-16 main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
 }
 
 .logo-container {
@@ -56,7 +78,25 @@ footer {
 }
 
 @media (max-width: 600px) {
-    header, main, footer {
-        width: 100%;
+    .container-9-16 {
+        max-width: 100vw;
+        max-height: 177.78vw; /* 16/9 = 1.7778 */
+        padding: 10px;
+    }
+}
+
+/* Для очень широких экранов */
+@media (min-aspect-ratio: 9/16) {
+    .container-9-16 {
+        height: 100vh;
+        width: 56.25vh;
+    }
+}
+
+/* Для очень узких экранов */
+@media (max-aspect-ratio: 9/16) {
+    .container-9-16 {
+        width: 100vw;
+        height: 177.78vw;
     }
 }

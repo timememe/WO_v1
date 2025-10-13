@@ -447,22 +447,48 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
         }
 
-        /* Селектор колоды */
-        .deck-selector {
+        /* Экран селектора колоды */
+        .deck-selector-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
-            max-width: 400px;
-            margin-bottom: 20px;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+            box-sizing: border-box;
         }
-        .deck-label {
-            font-size: clamp(10px, 2.5vw, 14px);
-            color: #aaa;
-            margin-bottom: 12px;
+        .deck-selector-screen.hidden {
+            display: none;
+        }
+        .deck-selector-content {
+            background-color: #2a2a2a;
+            border: 3px solid #444;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+        }
+        .deck-selector-title {
+            font-size: clamp(16px, 4vw, 24px);
             text-align: center;
+            margin-bottom: 25px;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
         }
         .deck-list {
             display: flex;
             flex-direction: column;
             gap: 10px;
+            margin-bottom: 20px;
         }
         .deck-card {
             background-color: #2a2a2a;
@@ -853,18 +879,22 @@
         <div class="menu-title">ДУЕЛОГ</div>
         <div class="menu-subtitle">Словесная битва за истину</div>
 
-        <!-- Выбор колоды -->
-        <div class="deck-selector" id="deckSelector">
-            <div class="deck-label">Выбери колоду:</div>
+        <div class="menu-buttons">
+            <button class="menu-button" onclick="startSinglePlayerGame()">Играть</button>
+            <button class="menu-button secondary" onclick="showDeckSelector()">Выбрать колоду</button>
+            <button class="menu-button secondary" onclick="showMultiplayerScreen()">Сетевая игра</button>
+            <button class="menu-button" onclick="showRules()">Правила</button>
+        </div>
+    </div>
+
+    <!-- Экран выбора колоды -->
+    <div class="deck-selector-screen hidden" id="deckSelectorScreen">
+        <div class="deck-selector-content">
+            <div class="deck-selector-title">Выбери колоду</div>
             <div class="deck-list" id="deckList">
                 <!-- Заполнится динамически -->
             </div>
-        </div>
-
-        <div class="menu-buttons">
-            <button class="menu-button" onclick="startSinglePlayerGame()">Играть</button>
-            <button class="menu-button secondary" onclick="showMultiplayerScreen()">Сетевая игра</button>
-            <button class="menu-button" onclick="showRules()">Правила</button>
+            <button class="menu-button secondary" onclick="closeDeckSelector()">Назад</button>
         </div>
     </div>
 
