@@ -35,14 +35,17 @@ class UIManager {
             enemyDotsOverlay[i].className = 'dot' + (i < enemy.points ? ' active enemy' : '');
         }
 
-        // Обновить индикатор лимита руки
+        // Обновить индикатор лимита руки и счетчик колоды
         if (gameEngine) {
             const handLimit = gameEngine.getHandLimit(player);
             const handInfo = document.getElementById('handInfo');
             if (handInfo) {
                 const damageMultiplier = gameEngine.getDamageMultiplier(player);
                 const multiplierText = damageMultiplier !== 1.0 ? ` | Урон: x${damageMultiplier.toFixed(2)}` : '';
-                handInfo.textContent = `Карты: ${player.cards.length}/${handLimit}${multiplierText}`;
+                // Счетчик колоды = количество карт в руке + количество карт в колоде
+                const deckCount = (player.deck ? player.deck.length : 0);
+                const totalCards = player.cards.length + deckCount;
+                handInfo.textContent = `Рука: ${player.cards.length}/${handLimit} | Колода: ${totalCards}${multiplierText}`;
             }
         }
 
@@ -58,11 +61,31 @@ class UIManager {
             let div = document.createElement('div');
             div.className = `card ${card.category}` + (card.used ? ' used' : '');
             const usesBadge = card.usesLeft !== undefined ? `<div class="card-uses">${Math.max(0, card.usesLeft)}</div>` : '';
+
+            // Определить функциональное название для уникальных карт
+            let statsText = '';
+            if (card.damage) {
+                statsText = `-${card.damage} ${card.effect === 'random' ? 'рандом' : card.effect}`;
+            } else if (card.heal) {
+                statsText = `+${card.heal} ${card.effect}`;
+            } else if (card.shield) {
+                statsText = `Щит +${card.shield}`;
+            } else if (card.effect === 'cancel') {
+                statsText = 'Отменяет';
+            } else if (card.effect === 'mirror') {
+                statsText = 'Зеркало';
+            } else if (card.effect === 'reflect') {
+                statsText = 'Отражает';
+            } else {
+                statsText = card.effect || 'Особая';
+            }
+
             div.innerHTML = `
                 ${usesBadge}
                 <div class="card-title">${card.name}</div>
                 <div class="card-desc">${card.desc}</div>
-                <div class="card-stats">${card.damage ? `-${card.damage} ${card.effect === 'random' ? 'логика/эмоции' : card.effect}` : (card.heal ? `+${card.heal} ${card.effect}` : 'Обнуляет')}</div>
+                <div class="card-category">${card.category}</div>
+                <div class="card-stats">${statsText}</div>
             `;
             if (!card.used && isPlayerTurn && !hasPlayedCard) {
                 div.onclick = () => playCardCallback(card);

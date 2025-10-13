@@ -112,6 +112,34 @@ class CardManager {
         return result;
     }
 
+    // Создать полную колоду со всеми доступными картами
+    createFullDeck(isPlayer = true) {
+        const deck = [];
+        const attackPool = isPlayer ? this.basePlayerCards : this.baseEnemyCards;
+
+        // Добавить все базовые атаки
+        attackPool.forEach(template => {
+            deck.push(this.cloneCard(template));
+        });
+
+        // Добавить все защиты
+        this.defenseCards.forEach(template => {
+            deck.push(this.cloneCard(template));
+        });
+
+        // Добавить все уклонения
+        this.evasionCards.forEach(template => {
+            deck.push(this.cloneCard(template));
+        });
+
+        // Добавить редкие атаки
+        this.rareAttackCards.forEach(template => {
+            deck.push(this.cloneCard(template));
+        });
+
+        return deck;
+    }
+
     getInitialPlayerCards(player) {
         return this.getInitialCardsFor(player, this.basePlayerCards);
     }

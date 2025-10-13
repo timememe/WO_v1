@@ -13,8 +13,8 @@ class GameEngine {
         this.cardManager = cardManager;
         this.uiManager = uiManager;
         this.visualManager = visualManager;
-        this.player = { logic: PLAYER_START_LOGIC, maxLogic: PLAYER_START_LOGIC, emotion: PLAYER_START_EMOTION, maxEmotion: PLAYER_START_EMOTION, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], discardPile: [], lastCard: null };
-        this.enemy = { logic: ENEMY_START_LOGIC, maxLogic: ENEMY_START_LOGIC, emotion: ENEMY_START_EMOTION, maxEmotion: ENEMY_START_EMOTION, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], discardPile: [], lastCard: null };
+        this.player = { logic: PLAYER_START_LOGIC, maxLogic: PLAYER_START_LOGIC, emotion: PLAYER_START_EMOTION, maxEmotion: PLAYER_START_EMOTION, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], deck: [], discardPile: [], lastCard: null };
+        this.enemy = { logic: ENEMY_START_LOGIC, maxLogic: ENEMY_START_LOGIC, emotion: ENEMY_START_EMOTION, maxEmotion: ENEMY_START_EMOTION, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], deck: [], discardPile: [], lastCard: null };
         this.turn = 1;
         this.playerTurn = true;
         this.gameActive = true;
@@ -22,6 +22,12 @@ class GameEngine {
         this.enemyHasPlayedCard = false;
         this.lastVictorySpeechPromise = null;
         this.log = []; // Для экспорта логов
+
+        // Создать полные колоды для обоих игроков
+        this.player.deck = cardManager.createFullDeck(true);
+        this.enemy.deck = cardManager.createFullDeck(false);
+
+        // Взять стартовые карты в руку
         this.player.cards = cardManager.getInitialPlayerCards(this.player);
         this.enemy.cards = cardManager.getInitialEnemyCards(this.enemy);
 
@@ -68,9 +74,7 @@ class GameEngine {
                 const speechPromise = this.visualManager.setVisual('enemy', speechText);
                 const fullLogMessage = logText ? `${firstCardText} ${logText}` : firstCardText;
                 this.uiManager.addMessage(fullLogMessage, 'enemy', 1);
-                this.addCounterCard(firstEnemyCard, this.player, true);
                 this.checkPoints(this.enemy, this.player);
-                this.addDefenseWhenLow(this.player);
                 await speechPromise;
             }
 
@@ -296,6 +300,21 @@ class GameEngine {
         return 7;
     }
 
+    // Добрать карты из колоды до лимита руки
+    drawCardsToHandLimit(character) {
+        if (!character.deck || character.deck.length === 0) return;
+
+        const handLimit = this.getHandLimit(character);
+        const cardsToDraw = handLimit - character.cards.length;
+
+        for (let i = 0; i < cardsToDraw && character.deck.length > 0; i++) {
+            // Берем случайную карту из колоды
+            const randomIndex = Math.floor(Math.random() * character.deck.length);
+            const drawnCard = character.deck.splice(randomIndex, 1)[0];
+            character.cards.push(drawnCard);
+        }
+    }
+
     getDamageMultiplier(character) {
         const emotion = character.emotion ?? 0;
         if (emotion <= 0) return 0.5;
@@ -431,9 +450,9 @@ class GameEngine {
         }
 
         this.checkPoints(this.player, this.enemy);
-        this.addDefenseWhenLow(this.enemy);
-        this.addCounterCard(card, this.enemy, false);
-        this.ensureMinimumHandComposition(this.enemy, false);
+
+        // Добрать карты противнику из колоды
+        this.drawCardsToHandLimit(this.enemy);
 
         this.uiManager.updateStats(this.player, this.enemy);
         if (this.checkVictory()) {
@@ -518,8 +537,6 @@ class GameEngine {
                 this.enemy.discardPile.push(randomCard);
                 this.enemy.cards = this.enemy.cards.filter(c => !c.used);
             }
-
-            this.addCounterCard(randomCard, this.player, true);
         } else {
             speechText = "Мне нечего сказать...";
             logText = `Скептик: "${speechText}"`;
@@ -528,8 +545,9 @@ class GameEngine {
         const speechPromise = this.visualManager.setVisual('enemy', speechText);
         this.uiManager.addMessage(logText, 'enemy', this.turn);
         this.checkPoints(this.enemy, this.player);
-        this.addDefenseWhenLow(this.player);
-        this.ensureMinimumHandComposition(this.player, true);
+
+        // Добрать карты игроку из колоды
+        this.drawCardsToHandLimit(this.player);
 
         this.uiManager.updateStats(this.player, this.enemy);
         if (this.checkVictory()) {

@@ -99,6 +99,28 @@
       "usesLeft": 1,
       "used": false,
       "fromDiscard": false
+    },
+    {
+      "category": "Атака",
+      "name": "Упрямство",
+      "effect": "emotion",
+      "damage": 3,
+      "text": "Ты просто упрям, кофе — это жизнь!",
+      "desc": "Сильный урон эмоциям",
+      "usesLeft": 1,
+      "used": false,
+      "fromDiscard": false
+    },
+    {
+      "category": "Атака",
+      "name": "Бзик",
+      "effect": "logic",
+      "damage": 3,
+      "text": "Твой страх кофе — это бзик!",
+      "desc": "Сильный урон логике",
+      "usesLeft": 1,
+      "used": false,
+      "fromDiscard": false
     }
   ],
   "baseEnemyCards": [
@@ -158,6 +180,28 @@
       "usesLeft": 1,
       "used": false,
       "fromDiscard": false
+    },
+    {
+      "category": "Атака",
+      "name": "Манипуляция",
+      "effect": "emotion",
+      "damage": 3,
+      "text": "Тебя просто обманула реклама!",
+      "desc": "Сильный урон эмоциям",
+      "usesLeft": 1,
+      "used": false,
+      "fromDiscard": false
+    },
+    {
+      "category": "Атака",
+      "name": "Псевдонаука",
+      "effect": "logic",
+      "damage": 3,
+      "text": "Это не исследования, а проплаченные статьи!",
+      "desc": "Сильный урон логике",
+      "usesLeft": 1,
+      "used": false,
+      "fromDiscard": false
     }
   ],
   "defenseCards": [
@@ -166,8 +210,9 @@
       "name": "Переосмысление",
       "effect": "logic",
       "heal": 2,
-      "text": "Если подумать, есть и другие исследования...",
+      "text": "Дай-ка я подумаю...",
       "desc": "Восстанавливает логику +2",
+      "usesLeft": 2,
       "used": false,
       "fromDiscard": false
     },
@@ -178,6 +223,7 @@
       "heal": 2,
       "text": "Я сохраняю спокойствие...",
       "desc": "Восстанавливает эмоции +2",
+      "usesLeft": 2,
       "used": false,
       "fromDiscard": false
     },
@@ -189,6 +235,7 @@
       "shieldDuration": 1,
       "text": "Меня не проймёшь!",
       "desc": "Блокирует 3 урона на ход",
+      "usesLeft": 1,
       "used": false,
       "fromDiscard": false
     }
@@ -200,6 +247,7 @@
       "effect": "cancel",
       "text": "Это вообще не по теме!",
       "desc": "Отменяет последнюю карту врага",
+      "usesLeft": 1,
       "used": false,
       "fromDiscard": false
     },
@@ -210,15 +258,17 @@
       "modifier": 0.75,
       "text": "Твои же слова против тебя!",
       "desc": "Копирует 75% атаки врага",
+      "usesLeft": 1,
       "used": false,
       "fromDiscard": false
     },
     {
       "category": "Уклонение",
-      "name": "Ты уверен?",
+      "name": "Контратака",
       "effect": "reflect",
-      "text": "А ты сам-то в это веришь?",
+      "text": "Разверни это против него!",
       "desc": "Отражает урон обратно",
+      "usesLeft": 1,
       "used": false,
       "fromDiscard": false
     }
@@ -230,30 +280,10 @@
       "effect": "cancel",
       "text": "Ты уже это говорил!",
       "desc": "Отменяет карту из discard",
+      "usesLeft": 1,
       "used": false,
       "fromDiscard": false
     }
   },
-  "rareAttackCards": [
-    {
-      "category": "Атака",
-      "name": "Упрямство",
-      "effect": "emotion",
-      "damage": 3,
-      "text": "Ты просто упрям, кофе — это жизнь!",
-      "desc": "Сильный урон эмоциям",
-      "used": false,
-      "fromDiscard": false
-    },
-    {
-      "category": "Атака",
-      "name": "Бзик",
-      "effect": "logic",
-      "damage": 3,
-      "text": "Твой страх кофе — это бзик!",
-      "desc": "Сильный урон логике",
-      "used": false,
-      "fromDiscard": false
-    }
-  ]
+  "rareAttackCards": []
 }
