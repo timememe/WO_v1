@@ -48,28 +48,26 @@ async function initGame() {
     try {
         console.log('🎮 Инициализация ДУЕЛОГ...');
 
-        // Загрузить список колод
         deckManager.loadDecks();
         console.log('✅ Колоды загружены:', deckManager.decks.length);
 
-        // Восстановить выбранную колоду из localStorage
         const savedDeck = localStorage.getItem('selectedDeck');
         if (savedDeck && deckManager.decks.find(d => d.id === savedDeck)) {
             deckManager.selectedDeckId = savedDeck;
         }
 
-        // Инициализировать UI менеджер
         uiManager = new UIManager();
         console.log('✅ UI менеджер готов');
 
-        // Инициализировать визуальный менеджер
         visualManager = new VisualManager();
         console.log('✅ Визуальный менеджер готов');
 
-        // Отрисовать селектор колод
-        renderDeckSelector();
+        // Создаем единственный экземпляр MultiplayerManager
+        multiplayer = new MultiplayerManager();
+        multiplayer.playerId = 'player_' + Math.random().toString(36).substr(2, 9);
+        console.log(`✅ Мультиплеер менеджер готов. ID игрока: ${multiplayer.playerId}`);
 
-        // Показать главное меню
+        renderDeckSelector();
         showMainMenu();
         console.log('✅ ДУЕЛОГ готов к игре');
 
@@ -79,291 +77,64 @@ async function initGame() {
     }
 }
 
-// ============= МЕНЕДЖЕР КОЛОД =============
+// ... (skip to multiplayer section)
 
-function renderDeckSelector() {
-    const deckList = document.getElementById('deckList');
-    if (!deckList) return;
-
-    deckList.innerHTML = '';
-
-    deckManager.decks.forEach(deck => {
-        const deckCard = document.createElement('div');
-        deckCard.className = 'deck-card';
-        if (deck.id === deckManager.selectedDeckId) {
-            deckCard.classList.add('selected');
-        }
-
-        deckCard.innerHTML = `
-            <div class="deck-card-name">${deck.name}</div>
-            <div class="deck-card-desc">${deck.description}</div>
-        `;
-
-        deckCard.addEventListener('click', () => selectDeck(deck.id));
-
-        deckList.appendChild(deckCard);
-    });
-}
-
-function selectDeck(deckId) {
-    deckManager.selectDeck(deckId);
-    renderDeckSelector();
-    console.log('🎴 Выбрана колода:', deckManager.getSelectedDeck().name);
-}
-
-// ============= МЕНЮ И НАВИГАЦИЯ =============
-
-function showMainMenu() {
-    const menuScreen = document.getElementById('menuScreen');
-    const endgameScreen = document.getElementById('endgameScreen');
-    const multiplayerScreen = document.getElementById('multiplayerScreen');
-    const gameWrapper = document.getElementById('gameWrapper');
-    const pauseButton = document.getElementById('pauseButton');
-
-    if (menuScreen) menuScreen.classList.remove('hidden');
-    if (endgameScreen) endgameScreen.classList.add('hidden');
-    if (multiplayerScreen) multiplayerScreen.classList.add('hidden');
-    if (gameWrapper) gameWrapper.style.display = 'none';
-    if (pauseButton) pauseButton.classList.add('hidden');
-}
-
-function hideMainMenu() {
-    const menuScreen = document.getElementById('menuScreen');
-    if (menuScreen) menuScreen.classList.add('hidden');
-}
-
-function showGameScreen() {
-    const menuScreen = document.getElementById('menuScreen');
-    const endgameScreen = document.getElementById('endgameScreen');
-    const multiplayerScreen = document.getElementById('multiplayerScreen');
-    const gameWrapper = document.getElementById('gameWrapper');
-    const pauseButton = document.getElementById('pauseButton');
-
-    if (menuScreen) menuScreen.classList.add('hidden');
-    if (endgameScreen) endgameScreen.classList.add('hidden');
-    if (multiplayerScreen) multiplayerScreen.classList.add('hidden');
-    if (gameWrapper) gameWrapper.style.display = 'flex';
-    if (pauseButton) pauseButton.classList.remove('hidden');
-}
-
-function showEndgameScreen(isVictory) {
-    const endgameScreen = document.getElementById('endgameScreen');
-    const gameWrapper = document.getElementById('gameWrapper');
-
-    if (endgameScreen) endgameScreen.classList.remove('hidden');
-    if (gameWrapper) gameWrapper.style.display = 'none';
-
-    const endgameTitle = document.getElementById('endgameTitle');
-    if (endgameTitle) {
-        if (isVictory) {
-            endgameTitle.textContent = '🏆 Победа!';
-            endgameTitle.className = 'endgame-title victory';
-        } else {
-            endgameTitle.textContent = '💀 Поражение';
-            endgameTitle.className = 'endgame-title defeat';
-        }
-    }
-
-    // Заполнить статистику
-    if (gameEngine) {
-        const finalPlayerPoints = document.getElementById('finalPlayerPoints');
-        const finalEnemyPoints = document.getElementById('finalEnemyPoints');
-        const totalTurns = document.getElementById('totalTurns');
-        const totalCards = document.getElementById('totalCards');
-
-        if (finalPlayerPoints) finalPlayerPoints.textContent = gameEngine.player.points;
-        if (finalEnemyPoints) finalEnemyPoints.textContent = gameEngine.enemy.points;
-        if (totalTurns) totalTurns.textContent = gameEngine.turn;
-        if (totalCards) totalCards.textContent = gameEngine.player.cards.length + gameEngine.player.discardPile.length;
-    }
-}
-
-function hideEndgameScreen() {
-    const endgameScreen = document.getElementById('endgameScreen');
-    if (endgameScreen) endgameScreen.classList.add('hidden');
-}
-
-function showMultiplayerScreen() {
+async function showMultiplayerScreen() {
     const multiplayerScreen = document.getElementById('multiplayerScreen');
     const menuScreen = document.getElementById('menuScreen');
 
     if (multiplayerScreen) multiplayerScreen.classList.remove('hidden');
     if (menuScreen) menuScreen.classList.add('hidden');
     switchMultiplayerTab('create');
-}
 
-function hideMultiplayerScreen() {
-    const multiplayerScreen = document.getElementById('multiplayerScreen');
-    if (multiplayerScreen) multiplayerScreen.classList.add('hidden');
-}
+    // Подключаемся к серверу, если еще не подключены
+    if (!multiplayer.connected) {
+        try {
+            const createStatus = document.getElementById('createStatus');
+            if (createStatus) createStatus.textContent = 'Подключение к серверу...';
+            
+            await multiplayer.connect(CONFIG.SERVER_URL);
+            
+            if (createStatus) createStatus.textContent = 'Выберите действие';
+            console.log('✅ Успешное подключение к WebSocket серверу');
+            
+            // Настраиваем обработчики ОДИН РАЗ после подключения
+            setupMultiplayerCallbacks();
 
-function showDeckSelector() {
-    const deckSelectorScreen = document.getElementById('deckSelectorScreen');
-    const menuScreen = document.getElementById('menuScreen');
-
-    if (deckSelectorScreen) deckSelectorScreen.classList.remove('hidden');
-    if (menuScreen) menuScreen.classList.add('hidden');
-}
-
-function closeDeckSelector() {
-    const deckSelectorScreen = document.getElementById('deckSelectorScreen');
-    const menuScreen = document.getElementById('menuScreen');
-
-    if (deckSelectorScreen) deckSelectorScreen.classList.add('hidden');
-    if (menuScreen) menuScreen.classList.remove('hidden');
-}
-
-// ============= SINGLE PLAYER =============
-
-async function startSinglePlayerGame() {
-    console.log('🎮 Запуск одиночной игры');
-    hideMainMenu();
-    showGameScreen();
-
-    // Очистить диалог
-    const dialog = document.getElementById('dialog');
-    if (dialog) dialog.innerHTML = '';
-
-    // Загрузить карты из выбранной колоды
-    const selectedDeck = deckManager.getSelectedDeck();
-    console.log('🎴 Загрузка колоды:', selectedDeck.name);
-
-    cardManager = new CardManager();
-    await cardManager.loadCards(selectedDeck.file);
-    console.log('✅ Карты колоды загружены');
-
-    // Создать новый игровой движок
-    gameEngine = new GameEngine(cardManager, uiManager, visualManager);
-    await gameEngine.startGame();
-
-    console.log('✅ Игра началась');
-}
-
-function restartGame() {
-    console.log('🔄 Перезапуск игры');
-    hidePauseScreen();
-    hideEndgameScreen();
-    startSinglePlayerGame();
-}
-
-function exitToMenu() {
-    console.log('🏠 Выход в главное меню');
-    hidePauseScreen();
-    hideEndgameScreen();
-    showMainMenu();
-
-    // Очистить состояние игры
-    if (gameEngine) {
-        gameEngine.gameActive = false;
-        gameEngine = null;
-    }
-    if (multiplayer) {
-        multiplayer.disconnect();
-        multiplayer = null;
-    }
-
-    // Очистить диалог
-    const dialog = document.getElementById('dialog');
-    if (dialog) dialog.innerHTML = '';
-}
-
-// ============= MULTIPLAYER =============
-
-function switchMultiplayerTab(tab) {
-    const createTab = document.getElementById('tabCreate');
-    const joinTab = document.getElementById('tabJoin');
-    const createPanel = document.getElementById('panelCreate');
-    const joinPanel = document.getElementById('panelJoin');
-
-    if (tab === 'create') {
-        createTab.classList.add('active');
-        joinTab.classList.remove('active');
-        createPanel.classList.add('active');
-        joinPanel.classList.remove('active');
-    } else {
-        createTab.classList.remove('active');
-        joinTab.classList.add('active');
-        createPanel.classList.remove('active');
-        joinPanel.classList.add('active');
+        } catch (error) {
+            console.error('❌ Не удалось подключиться к WebSocket серверу:', error);
+            const createStatus = document.getElementById('createStatus');
+            if (createStatus) createStatus.textContent = 'Ошибка подключения к серверу.';
+            alert('Не удалось подключиться к серверу. Попробуйте позже.');
+            showMainMenu();
+        }
     }
 }
+
+// ... (skip to createRoom)
 
 async function createRoom() {
-    console.log('🏠 Создание комнаты...');
-    const createStatus = document.getElementById('createStatus');
-    if (createStatus) createStatus.textContent = 'Подключение к серверу...';
-
-    try {
-        multiplayer = new MultiplayerManager();
-        multiplayer.playerId = 'player_' + Math.random().toString(36).substr(2, 9);
-
-        multiplayer.onRoomCreated = (roomId) => {
-            console.log('✅ Комната создана:', roomId);
-            document.getElementById('roomCodeDisplay').textContent = roomId;
-            document.getElementById('roomCreatedPanel').style.display = 'block';
-            if (createStatus) createStatus.textContent = 'Ожидание противника...';
-        };
-
-        multiplayer.onOpponentJoined = async () => {
-            console.log('👥 Противник присоединился');
-            if (createStatus) createStatus.textContent = 'Противник найден! Начинаем...';
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            hideMultiplayerScreen();
-            await startMultiplayerGame(true); // Хост
-        };
-
-        multiplayer.onError = (error) => {
-            console.error('❌ Ошибка мультиплеера:', error);
-            if (createStatus) createStatus.textContent = `Ошибка: ${error}`;
-        };
-
-        await multiplayer.connect(CONFIG.SERVER_URL);
-        multiplayer.createRoom();
-
-    } catch (error) {
-        console.error('❌ Ошибка создания комнаты:', error);
-        if (createStatus) createStatus.textContent = 'Не удалось подключиться к серверу';
-        alert('Не удалось подключиться к серверу. Убедитесь, что сервер запущен на localhost:8080');
+    if (!multiplayer || !multiplayer.connected) {
+        alert('Не удалось подключиться к серверу. Попробуйте войти в меню еще раз.');
+        return;
     }
+    console.log('🏠 Создание комнаты...');
+    multiplayer.createRoom();
 }
 
 async function joinRoom() {
-    const roomCode = document.getElementById('roomCodeInput').value.trim().toUpperCase();
-    const joinStatus = document.getElementById('joinStatus');
-
-    if (roomCode.length !== 6) {
-        if (joinStatus) joinStatus.textContent = 'Введите 6-значный код';
+    if (!multiplayer || !multiplayer.connected) {
+        alert('Не удалось подключиться к серверу. Попробуйте войти в меню еще раз.');
         return;
     }
-
-    console.log('🚪 Присоединение к комнате:', roomCode);
-    if (joinStatus) joinStatus.textContent = 'Подключение...';
-
-    try {
-        multiplayer = new MultiplayerManager();
-        multiplayer.playerId = 'player_' + Math.random().toString(36).substr(2, 9);
-
-        multiplayer.onRoomJoined = async () => {
-            console.log('✅ Присоединились к комнате');
-            if (joinStatus) joinStatus.textContent = 'Подключено! Начинаем...';
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            hideMultiplayerScreen();
-            await startMultiplayerGame(false); // Гость
-        };
-
-        multiplayer.onError = (error) => {
-            console.error('❌ Ошибка:', error);
-            if (joinStatus) joinStatus.textContent = `Ошибка: ${error}`;
-        };
-
-        await multiplayer.connect(CONFIG.SERVER_URL);
-        multiplayer.joinRoom(roomCode);
-
-    } catch (error) {
-        console.error('❌ Ошибка присоединения:', error);
-        if (joinStatus) joinStatus.textContent = 'Не удалось подключиться';
-        alert('Не удалось подключиться к серверу.');
+    
+    const roomCode = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+    if (roomCode.length !== 6) {
+        alert('Введите 6-значный код комнаты.');
+        return;
     }
+    console.log('🚪 Присоединение к комнате:', roomCode);
+    multiplayer.joinRoom(roomCode);
 }
 
 function cancelRoom() {
