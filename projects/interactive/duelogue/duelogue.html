@@ -372,9 +372,7 @@
             min-height: 50px;
         }
         .hand-stat-tile:hover {
-            border-color: #3498db;
             transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
         }
         .hand-stat-label {
             font-size: clamp(7px, 1.8vw, 9px);
@@ -388,6 +386,38 @@
             color: #fff;
             font-weight: bold;
             text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+        /* Плитка "Рука" - цвет логики (синий) */
+        .hand-tile {
+            background: linear-gradient(135deg, rgba(74, 163, 255, 0.15) 0%, rgba(35, 87, 255, 0.15) 100%);
+            border-color: #4aa3ff;
+            box-shadow: 0 2px 6px rgba(74, 163, 255, 0.2);
+        }
+        .hand-tile:hover {
+            border-color: #2357ff;
+            box-shadow: 0 4px 10px rgba(74, 163, 255, 0.4);
+        }
+        .hand-tile .hand-stat-label {
+            color: #4aa3ff;
+        }
+        .hand-tile .hand-stat-value {
+            color: #4aa3ff;
+        }
+        /* Плитка "Урон" - цвет эмоций (красный) */
+        .damage-tile {
+            background: linear-gradient(135deg, rgba(255, 122, 162, 0.15) 0%, rgba(255, 58, 100, 0.15) 100%);
+            border-color: #ff7aa2;
+            box-shadow: 0 2px 6px rgba(255, 122, 162, 0.2);
+        }
+        .damage-tile:hover {
+            border-color: #ff3a64;
+            box-shadow: 0 4px 10px rgba(255, 122, 162, 0.4);
+        }
+        .damage-tile .hand-stat-label {
+            color: #ff7aa2;
+        }
+        .damage-tile .hand-stat-value {
+            color: #ff7aa2;
         }
         #discardButton {
             padding: 10px 20px;
@@ -1103,9 +1133,13 @@
 
         <div class="cards-container">
             <div class="hand-stats-grid">
-                <div class="hand-stat-tile">
+                <div class="hand-stat-tile hand-tile">
                     <div class="hand-stat-label">Рука</div>
                     <div class="hand-stat-value" id="handCount">0/5</div>
+                </div>
+                <div class="hand-stat-tile damage-tile">
+                    <div class="hand-stat-label">Урон</div>
+                    <div class="hand-stat-value" id="damageMultiplier">x1.0</div>
                 </div>
                 <div class="hand-stat-tile">
                     <div class="hand-stat-label">Колода</div>
@@ -1114,10 +1148,6 @@
                 <div class="hand-stat-tile">
                     <div class="hand-stat-label">Сброс</div>
                     <div class="hand-stat-value" id="discardCount">0</div>
-                </div>
-                <div class="hand-stat-tile">
-                    <div class="hand-stat-label">Урон</div>
-                    <div class="hand-stat-value" id="damageMultiplier">x1.0</div>
                 </div>
             </div>
             <button id="discardButton" onclick="gameEngine.drawFromDiscard()" style="display: none;">Взять из колоды</button>

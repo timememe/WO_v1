@@ -11,7 +11,8 @@
       "Bash(git -C \"D:\\NEUROMKA\\CODE\\world_order\\v1\\WO_v1\" push)",
       "Bash(dir:*)",
       "Bash(node:*)",
-      "Bash(del test_variants.js)"
+      "Bash(del test_variants.js)",
+      "Bash(start duelogue.html)"
     ],
     "deny": [],
     "ask": []
