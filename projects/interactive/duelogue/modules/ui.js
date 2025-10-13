@@ -4,16 +4,26 @@
 
 class UIManager {
     constructor() {
-        this.dialog = document.getElementById('dialog');
-        this.cardDeck = document.getElementById('cardDeck');
-        this.playerLogicBar = document.getElementById('playerLogicBar');
-        this.playerEmotionBar = document.getElementById('playerEmotionBar');
-        this.enemyLogicBar = document.getElementById('enemyLogicBar');
-        this.enemyEmotionBar = document.getElementById('enemyEmotionBar');
-        this.playerLogicValue = document.getElementById('playerLogicValue');
-        this.playerEmotionValue = document.getElementById('playerEmotionValue');
-        this.enemyLogicValue = document.getElementById('enemyLogicValue');
-        this.enemyEmotionValue = document.getElementById('enemyEmotionValue');
+        const elements = {
+            dialog: 'dialog',
+            cardDeck: 'cardDeck',
+            playerLogicBar: 'playerLogicBar',
+            playerEmotionBar: 'playerEmotionBar',
+            enemyLogicBar: 'enemyLogicBar',
+            enemyEmotionBar: 'enemyEmotionBar',
+            playerLogicValue: 'playerLogicValue',
+            playerEmotionValue: 'playerEmotionValue',
+            enemyLogicValue: 'enemyLogicValue',
+            enemyEmotionValue: 'enemyEmotionValue'
+        };
+
+        for (const [key, id] of Object.entries(elements)) {
+            const element = document.getElementById(id);
+            if (!element) {
+                throw new Error(`UI element with id '${id}' not found.`);
+            }
+            this[key] = element;
+        }
     }
 
     addMessage(text, sender, turn = null) {
