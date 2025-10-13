@@ -77,24 +77,24 @@ class MultiplayerManager {
         this.send({
             type: 'PLAYER_MOVE',
             roomId: this.roomId,
-            playerId: this.playerId,
             card: cardData
         });
     }
 
-    // Синхронизация состояния игры
-    syncGameState(gameState) {
+    // Отправить полное состояние игры
+    sendGameState(state) {
         if (!this.connected || !this.roomId || !this.isHost) return;
 
         this.send({
             type: 'SYNC_STATE',
             roomId: this.roomId,
-            state: gameState
+            state: state
         });
     }
 
     // Обработка входящих сообщений
     handleMessage(message) {
+        console.log('Получено сообщение:', message.type);
         switch (message.type) {
             case 'ROOM_CREATED':
                 this.roomId = message.roomId;
@@ -109,16 +109,16 @@ class MultiplayerManager {
                 this.onOpponentJoined(message.opponentId);
                 break;
 
-            case 'OPPONENT_MOVE':
-                this.onOpponentMove(message.card);
-                break;
-
             case 'GAME_START':
                 this.onGameStart(message);
                 break;
 
-            case 'GAME_STATE':
-                this.onGameStateUpdate(message.state);
+            case 'OPPONENT_MOVE':
+                this.onOpponentMove(message.card);
+                break;
+
+            case 'SYNC_STATE':
+                this.onGameStateSync(message.state);
                 break;
 
             case 'OPPONENT_DISCONNECTED':
@@ -152,82 +152,17 @@ class MultiplayerManager {
     }
 
     // Колбэки (переопределяются извне)
-    onConnect() {
-        console.log('MultiplayerManager: Connected');
-    }
-
-    onDisconnect() {
-        console.log('MultiplayerManager: Disconnected');
-    }
-
-    onRoomCreated(roomId) {
-        console.log('MultiplayerManager: Room created:', roomId);
-    }
-
-    onRoomJoined(roomId) {
-        console.log('MultiplayerManager: Room joined:', roomId);
-    }
-
-    onOpponentJoined(opponentId) {
-        console.log('MultiplayerManager: Opponent joined:', opponentId);
-    }
-
-    onOpponentMove(card) {
-        console.log('MultiplayerManager: Opponent played card:', card);
-    }
-
-    onGameStart(data) {
-        console.log('MultiplayerManager: Game starting:', data);
-    }
-
-    onGameStateUpdate(state) {
-        console.log('MultiplayerManager: Game state updated:', state);
-    }
-
-    onOpponentDisconnected() {
-        console.log('MultiplayerManager: Opponent disconnected');
-    }
-
-    onError(error) {
-        console.error('MultiplayerManager: Error:', error);
-    }
+    onConnect() { console.log('MultiplayerManager: Connected'); }
+    onDisconnect() { console.log('MultiplayerManager: Disconnected'); }
+    onRoomCreated(roomId) { console.log('MultiplayerManager: Room created:', roomId); }
+    onRoomJoined(roomId) { console.log('MultiplayerManager: Room joined:', roomId); }
+    onOpponentJoined(opponentId) { console.log('MultiplayerManager: Opponent joined:', opponentId); }
+    onGameStart(data) { console.log('MultiplayerManager: Game starting:', data); }
+    onOpponentMove(card) { console.log('MultiplayerManager: Opponent played card:', card); }
+    onGameStateSync(state) { console.log('MultiplayerManager: Game state synced:', state); }
+    onOpponentDisconnected() { console.log('MultiplayerManager: Opponent disconnected'); }
+    onError(error) { console.error('MultiplayerManager: Error:', error); }
 }
-
-// Пример использования:
-/*
-const multiplayer = new MultiplayerManager();
-
-// Настройка колбэков
-multiplayer.onConnect = () => {
-    console.log('Подключено!');
-};
-
-multiplayer.onRoomCreated = (roomId) => {
-    console.log('Комната создана, ID:', roomId);
-    // Показать ID комнаты пользователю для приглашения
-};
-
-multiplayer.onOpponentMove = (card) => {
-    console.log('Противник сыграл карту:', card);
-    // Обработать ход противника
-};
-
-// Подключение
-await multiplayer.connect('ws://your-server-url:port');
-
-// Создать комнату (для хоста)
-multiplayer.createRoom();
-
-// ИЛИ присоединиться к комнате
-multiplayer.joinRoom('ROOM123');
-
-// Отправить ход
-multiplayer.sendMove({
-    name: 'Факт о кофеине',
-    category: 'Атака',
-    damage: 2
-});
-*/
 
 // Экспорт для использования в других модулях
 if (typeof module !== 'undefined' && module.exports) {

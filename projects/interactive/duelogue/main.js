@@ -377,30 +377,80 @@ function cancelRoom() {
     showMainMenu();
 }
 
+function setupMultiplayerCallbacks() {
+    multiplayer.onRoomCreated = (roomId) => {
+        console.log('✅ Комната создана:', roomId);
+        document.getElementById('roomCodeDisplay').textContent = roomId;
+        document.getElementById('roomCreatedPanel').style.display = 'block';
+        const createStatus = document.getElementById('createStatus');
+        if (createStatus) createStatus.textContent = 'Ожидание противника...';
+    };
+
+    multiplayer.onGameStart = async (data) => {
+        console.log('🚀 Игра начинается! Данные:', data);
+        const isHost = multiplayer.playerId === data.hostId;
+        await startMultiplayerGame(isHost);
+    };
+
+    multiplayer.onGameStateSync = (state) => {
+        if (multiplayer.isHost) return; // Хост не должен синхронизироваться с самим собой
+
+        console.log('📥 Получено состояние от хоста');
+        // Гость создает движок, но пропускает инициализацию состояния
+        gameEngine = new GameEngine(cardManager, uiManager, visualManager, { isMultiplayer: true, isGuest: true });
+        // Применяем состояние от хоста
+        gameEngine.applyState(state);
+    };
+
+    multiplayer.onOpponentMove = (cardData) => {
+        if (gameEngine) {
+            gameEngine.handleOpponentMove(cardData);
+        }
+    };
+
+    multiplayer.onOpponentDisconnected = () => {
+        if (gameEngine && gameEngine.gameActive) {
+            alert('Противник отключился. Игра окончена.');
+            exitToMenu();
+        }
+    };
+
+    multiplayer.onError = (error) => {
+        console.error('❌ Ошибка мультиплеера:', error);
+        const createStatus = document.getElementById('createStatus');
+        const joinStatus = document.getElementById('joinStatus');
+        if (createStatus) createStatus.textContent = `Ошибка: ${error}`;
+        if (joinStatus) joinStatus.textContent = `Ошибка: ${error}`;
+        alert(`Произошла ошибка: ${error}`);
+    };
+}
+
 async function startMultiplayerGame(isHost) {
     console.log(`🎮 Запуск мультиплеер игры (${isHost ? 'Хост' : 'Гость'})`);
     isMultiplayerGame = true;
     showGameScreen();
 
-    // Очистить диалог
     const dialog = document.getElementById('dialog');
     if (dialog) dialog.innerHTML = '';
 
-    // Загрузить карты из выбранной колоды
     const selectedDeck = deckManager.getSelectedDeck();
-    console.log('🎴 Загрузка колоды:', selectedDeck.name);
-
     cardManager = new CardManager();
     await cardManager.loadCards(selectedDeck.file);
     console.log('✅ Карты колоды загружены');
 
-    // Создать игровой движок в режиме мультиплеера
-    gameEngine = new GameEngine(cardManager, uiManager, visualManager, { isMultiplayer: true });
-    
-    // Инициализируем игру для мультиплеера
-    await gameEngine.initializeMultiplayerGame(isHost);
-
-    console.log(`✅ Мультиплеер игра началась. ${isHost ? 'Ваш ход!' : 'Ход противника'}`);
+    if (isHost) {
+        // Хост создает игру и отправляет состояние гостю
+        gameEngine = new GameEngine(cardManager, uiManager, visualManager, { isMultiplayer: true });
+        await gameEngine.initializeMultiplayerGame(true);
+        const initialState = gameEngine.getState();
+        multiplayer.sendGameState(initialState);
+        console.log('📤 Начальное состояние отправлено гостю');
+    } else {
+        // Гость просто ждет состояния от хоста (onGameStateSync)
+        console.log('🧘 Гость ожидает состояние от хоста...');
+        const joinStatus = document.getElementById('joinStatus');
+        if(joinStatus) joinStatus.textContent = 'Синхронизация игры...';
+    }
 }
 
 // ============= ПАУЗА =============

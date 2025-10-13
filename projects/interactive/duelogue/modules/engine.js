@@ -10,33 +10,70 @@
 ﻿// Класс для управления игровой механикой
 ﻿class GameEngine {
 ﻿    constructor(cardManager, uiManager, visualManager, options = {}) {
-﻿        this.cardManager = cardManager;
-﻿        this.uiManager = uiManager;
-﻿        this.visualManager = visualManager;
-﻿        this.isMultiplayer = options.isMultiplayer || false;
-﻿
-﻿        this.player = { logic: PLAYER_START_LOGIC, maxLogic: PLAYER_START_LOGIC, emotion: PLAYER_START_EMOTION, maxEmotion: PLAYER_START_EMOTION, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], deck: [], discardPile: [], lastCard: null, usedTextVariants: {}, discardCount: 0 };
-﻿        this.enemy = { logic: ENEMY_START_LOGIC, maxLogic: ENEMY_START_LOGIC, emotion: ENEMY_START_EMOTION, maxEmotion: ENEMY_START_EMOTION, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], deck: [], discardPile: [], lastCard: null, usedTextVariants: {}, discardCount: 0 };
-﻿        
-﻿        this.turn = 1;
-﻿        this.playerTurn = true;
-﻿        this.gameActive = true;
-﻿        this.playerHasPlayedCard = false;
-﻿        this.lastVictorySpeechPromise = null;
-﻿        this.log = []; // Для экспорта логов
-﻿
-﻿        // Создать полные колоды для обоих игроков
-﻿        this.player.deck = cardManager.createFullDeck(true);
-﻿        this.enemy.deck = cardManager.createFullDeck(false);
-﻿
-﻿        // Взять стартовые карты в руку
-﻿        this.player.cards = cardManager.getInitialPlayerCards(this.player);
-﻿        this.enemy.cards = cardManager.getInitialEnemyCards(this.enemy);
-﻿
-﻿        // Убедиться что стартовые руки содержат минимум карт
-﻿        this.ensureMinimumHandComposition(this.player, true);
-﻿        this.ensureMinimumHandComposition(this.enemy, false);
-﻿    }
+        this.cardManager = cardManager;
+        this.uiManager = uiManager;
+        this.visualManager = visualManager;
+        this.isMultiplayer = options.isMultiplayer || false;
+
+        // Это состояние будет инициализировано или перезаписано
+        this.player = {};
+        this.enemy = {};
+        this.turn = 1;
+        this.playerTurn = true;
+        this.gameActive = true;
+        this.playerHasPlayedCard = false;
+        this.lastVictorySpeechPromise = null;
+        this.log = [];
+
+        // В мультиплеере гость не должен инициализировать состояние сам
+        if (!options.isGuest) {
+            this.initializeNewGameState();
+        }
+    }
+
+    initializeNewGameState() {
+        this.player = { logic: PLAYER_START_LOGIC, maxLogic: PLAYER_START_LOGIC, emotion: PLAYER_START_EMOTION, maxEmotion: PLAYER_START_EMOTION, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], deck: [], discardPile: [], lastCard: null, usedTextVariants: {}, discardCount: 0 };
+        this.enemy = { logic: ENEMY_START_LOGIC, maxLogic: ENEMY_START_LOGIC, emotion: ENEMY_START_EMOTION, maxEmotion: ENEMY_START_EMOTION, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], deck: [], discardPile: [], lastCard: null, usedTextVariants: {}, discardCount: 0 };
+        
+        this.player.deck = this.cardManager.createFullDeck(true);
+        this.enemy.deck = this.cardManager.createFullDeck(false);
+
+        this.player.cards = this.cardManager.getInitialPlayerCards(this.player);
+        this.enemy.cards = this.cardManager.getInitialEnemyCards(this.enemy);
+
+        this.ensureMinimumHandComposition(this.player, true);
+        this.ensureMinimumHandComposition(this.enemy, false);
+        console.log('New game state initialized');
+    }
+
+    getState() {
+        // Создаем копии, чтобы избежать проблем с мутабельностью
+        return JSON.parse(JSON.stringify({
+            player: this.player,
+            enemy: this.enemy,
+            turn: this.turn,
+            playerTurn: this.playerTurn,
+            gameActive: this.gameActive,
+            playerHasPlayedCard: this.playerHasPlayedCard
+        }));
+    }
+
+    applyState(state) {
+        // Применяем состояние, полученное от хоста
+        // Важно: для гостя player - это противник, а enemy - это он сам. Меняем их местами.
+        this.player = state.enemy;
+        this.enemy = state.player;
+        this.turn = state.turn;
+        this.playerTurn = !state.playerTurn; // Инвертируем ход
+
+        // Убедимся, что локальные свойства сброшены
+        this.gameActive = state.gameActive;
+        this.playerHasPlayedCard = false; 
+
+        console.log('Game state synced from host');
+        this.uiManager.updateStats(this.player, this.enemy);
+        this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
+    }
 ﻿
 ﻿    // =============================================
 ﻿    // =========== МЕТОДЫ ЗАПУСКА ИГРЫ ===========
@@ -116,16 +153,13 @@
 ﻿        }
 ﻿
 ﻿        // Если это мультиплеер, отправляем ход на сервер
-﻿        if (this.isMultiplayer) {
-﻿            multiplayer.sendMove({
-﻿                name: card.name,
-﻿                // ... другие данные карты при необходимости
-﻿            });
-﻿            this.playerTurn = false;
-﻿            this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
-﻿            await speechPromise;
-﻿            await this.visualManager.setVisual('idle');
-﻿        } else {
+        if (this.isMultiplayer) {
+            multiplayer.sendMove(card); // Отправляем весь объект карты
+            this.playerTurn = false;
+            this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
+            await speechPromise;
+            await this.visualManager.setVisual('idle');
+        } else {
 ﻿            // В одиночной игре передаем ход боту
 ﻿            this.playerTurn = false;
 ﻿            this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
