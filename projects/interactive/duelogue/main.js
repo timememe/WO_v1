@@ -38,7 +38,7 @@ let deckManager = {
 
 // Конфигурация
 const CONFIG = {
-    SERVER_URL: 'ws://localhost:8080',
+    SERVER_URL: 'wss://wo-server-v1.onrender.com', // Production server
     DECKS_PATH: 'decks.json'
 };
 
