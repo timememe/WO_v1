@@ -11,35 +11,40 @@ class MultiplayerManager {
     }
 
     // Подключение к серверу
-    async connect(serverUrl) {
-        try {
-            this.ws = new WebSocket(serverUrl);
+    connect(serverUrl) {
+        return new Promise((resolve, reject) => {
+            try {
+                this.ws = new WebSocket(serverUrl);
 
-            this.ws.onopen = () => {
-                console.log('Подключено к серверу');
-                this.connected = true;
-                this.onConnect();
-            };
+                this.ws.onopen = () => {
+                    console.log('Подключено к серверу');
+                    this.connected = true;
+                    this.onConnect();
+                    resolve(); // Resolve the promise on successful connection
+                };
 
-            this.ws.onmessage = (event) => {
-                const message = JSON.parse(event.data);
-                this.handleMessage(message);
-            };
+                this.ws.onmessage = (event) => {
+                    const message = JSON.parse(event.data);
+                    this.handleMessage(message);
+                };
 
-            this.ws.onerror = (error) => {
-                console.error('WebSocket ошибка:', error);
+                this.ws.onerror = (error) => {
+                    console.error('WebSocket ошибка:', error);
+                    this.onError(error);
+                    reject(error); // Reject the promise on error
+                };
+
+                this.ws.onclose = () => {
+                    console.log('Соединение закрыто');
+                    this.connected = false;
+                    this.onDisconnect();
+                };
+            } catch (error) {
+                console.error('Ошибка подключения:', error);
                 this.onError(error);
-            };
-
-            this.ws.onclose = () => {
-                console.log('Соединение закрыто');
-                this.connected = false;
-                this.onDisconnect();
-            };
-        } catch (error) {
-            console.error('Ошибка подключения:', error);
-            this.onError(error);
-        }
+                reject(error); // Reject the promise on error
+            }
+        });
     }
 
     // Создать комнату
