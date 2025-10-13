@@ -13,11 +13,16 @@ let deckManager = {
     decks: [],
     selectedDeckId: null,
 
-    async loadDecks() {
-        const response = await fetch('decks.json');
-        const data = await response.json();
-        this.decks = data.decks;
-        this.selectedDeckId = data.default;
+    loadDecks() {
+        // Используем встроенные данные вместо fetch
+        if (typeof DECKS_DATA !== 'undefined') {
+            this.decks = DECKS_DATA.decks;
+            this.selectedDeckId = DECKS_DATA.default;
+            console.log('✅ Колоды загружены из встроенных данных:', this.decks.length);
+        } else {
+            console.error('❌ DECKS_DATA не определен!');
+            throw new Error('Данные о колодах не загружены');
+        }
         return this.decks;
     },
 
@@ -44,7 +49,7 @@ async function initGame() {
         console.log('🎮 Инициализация ДУЕЛОГ...');
 
         // Загрузить список колод
-        await deckManager.loadDecks();
+        deckManager.loadDecks();
         console.log('✅ Колоды загружены:', deckManager.decks.length);
 
         // Восстановить выбранную колоду из localStorage

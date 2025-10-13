@@ -437,6 +437,134 @@
             cursor: not-allowed;
         }
 
+        /* Экран загрузки */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+        .loading-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .loading-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+            padding: 40px;
+        }
+        .loading-title {
+            font-size: clamp(32px, 10vw, 64px);
+            color: #fff;
+            text-shadow: 0 0 20px rgba(52, 152, 219, 0.8), 0 0 40px rgba(52, 152, 219, 0.4);
+            animation: pulse-glow 2s ease-in-out infinite;
+            letter-spacing: 4px;
+        }
+        @keyframes pulse-glow {
+            0%, 100% {
+                text-shadow: 0 0 20px rgba(52, 152, 219, 0.8), 0 0 40px rgba(52, 152, 219, 0.4);
+            }
+            50% {
+                text-shadow: 0 0 30px rgba(52, 152, 219, 1), 0 0 60px rgba(52, 152, 219, 0.6);
+            }
+        }
+        .loading-spinner {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .spinner-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 3px solid transparent;
+            border-top-color: #3498db;
+            border-radius: 50%;
+            animation: spin 1.5s linear infinite;
+        }
+        .spinner-ring:nth-child(2) {
+            width: 70%;
+            height: 70%;
+            border-top-color: #ff7aa2;
+            animation-duration: 1s;
+            animation-direction: reverse;
+        }
+        .spinner-ring:nth-child(3) {
+            width: 40%;
+            height: 40%;
+            border-top-color: #f39c12;
+            animation-duration: 0.75s;
+        }
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+        .loading-text {
+            font-size: clamp(14px, 3vw, 18px);
+            color: #3498db;
+            font-weight: bold;
+            animation: fade-pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes fade-pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+        .loading-progress {
+            width: 300px;
+            max-width: 80vw;
+            height: 8px;
+            background-color: #1a1a1a;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #333;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        .loading-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #3498db 0%, #2ecc71 50%, #f39c12 100%);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+            animation: progress-shimmer 2s linear infinite;
+        }
+        @keyframes progress-shimmer {
+            0% {
+                background-position: -300px 0;
+            }
+            100% {
+                background-position: 300px 0;
+            }
+        }
+        .loading-details {
+            font-size: clamp(10px, 2vw, 12px);
+            color: #888;
+            text-align: center;
+            min-height: 20px;
+        }
+
         /* Главное меню */
         .menu-screen {
             position: fixed;
@@ -944,8 +1072,25 @@
     </style>
 </head>
 <body>
+    <!-- Экран загрузки -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-content">
+            <div class="loading-title">ДУЕЛОГ</div>
+            <div class="loading-spinner">
+                <div class="spinner-ring"></div>
+                <div class="spinner-ring"></div>
+                <div class="spinner-ring"></div>
+            </div>
+            <div class="loading-text" id="loadingText">Загрузка...</div>
+            <div class="loading-progress">
+                <div class="loading-progress-bar" id="loadingProgressBar"></div>
+            </div>
+            <div class="loading-details" id="loadingDetails">Инициализация игры</div>
+        </div>
+    </div>
+
     <!-- Главное меню -->
-    <div class="menu-screen" id="menuScreen">
+    <div class="menu-screen hidden" id="menuScreen">
         <div class="menu-title">ДУЕЛОГ</div>
         <div class="menu-subtitle">Словесная битва за истину</div>
 
@@ -1155,7 +1300,12 @@
         </div>
     </div>
 
+    <!-- Система загрузки -->
+    <script src="loader.js"></script>
+
     <!-- Модули игры -->
+    <script src="modules/decks.js"></script>
+    <script src="modules/cards-data.js"></script>
     <script src="modules/cards.js"></script>
     <script src="modules/visual.js"></script>
     <script src="modules/ui.js"></script>

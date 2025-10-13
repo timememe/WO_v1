@@ -9,9 +9,9 @@ class VisualManager {
         this.statsOverlay = document.getElementById('statsOverlay');
         this.pointsOverlay = document.getElementById('pointsOverlay');
         this.assets = {
-            idle: { image: '../../../shared/assets/images/main.png', background: '../../../shared/assets/images/anim/exp_bg.gif' },
-            player: { image: '../../../shared/assets/images/anim/talk_blue.gif', background: '../../../shared/assets/images/anim/exp_bg.gif' },
-            enemy: { image: '../../../shared/assets/images/anim/talk_red.gif', background: '../../../shared/assets/images/anim/exp_bg.gif' }
+            idle: { image: 'images/main.png', background: 'images/anim/exp_bg.gif' },
+            player: { image: 'images/anim/talk_blue.gif', background: 'images/anim/exp_bg.gif' },
+            enemy: { image: 'images/anim/talk_red.gif', background: 'images/anim/exp_bg.gif' }
         };
         this.baseCharDelay = 55; // ~18 символов в секунду
         this.readingPauseMs = 3000;

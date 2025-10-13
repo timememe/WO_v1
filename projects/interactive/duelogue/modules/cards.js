@@ -12,11 +12,13 @@ class CardManager {
     }
 
     async loadCards(path) {
-        const response = await fetch(path, { cache: 'no-store' });
-        if (!response.ok) {
-            throw new Error(`Failed to load cards: ${response.status}`);
+        // Используем встроенные данные вместо fetch
+        if (typeof CARDS_DATA === 'undefined' || !CARDS_DATA[path]) {
+            throw new Error(`Card data not found for: ${path}`);
         }
-        const cardData = await response.json();
+
+        const cardData = CARDS_DATA[path];
+        console.log(`✅ Загружены карты из встроенных данных: ${path}`);
 
         this.basePlayerCards = cardData?.basePlayerCards ?? [];
         this.baseEnemyCards = cardData?.baseEnemyCards ?? [];
