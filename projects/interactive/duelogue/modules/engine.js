@@ -1,4 +1,4 @@
-// Игровой движок ДУЕЛОГ
+﻿// Игровой движок ДУЕЛОГ
 // Содержит основную игровую логику
 
 // Глобальные константы для стартовых характеристик
@@ -13,8 +13,8 @@ class GameEngine {
         this.cardManager = cardManager;
         this.uiManager = uiManager;
         this.visualManager = visualManager;
-        this.player = { logic: PLAYER_START_LOGIC, maxLogic: PLAYER_START_LOGIC, emotion: PLAYER_START_EMOTION, maxEmotion: PLAYER_START_EMOTION, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], deck: [], discardPile: [], lastCard: null };
-        this.enemy = { logic: ENEMY_START_LOGIC, maxLogic: ENEMY_START_LOGIC, emotion: ENEMY_START_EMOTION, maxEmotion: ENEMY_START_EMOTION, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], deck: [], discardPile: [], lastCard: null };
+        this.player = { logic: PLAYER_START_LOGIC, maxLogic: PLAYER_START_LOGIC, emotion: PLAYER_START_EMOTION, maxEmotion: PLAYER_START_EMOTION, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], deck: [], discardPile: [], lastCard: null, usedTextVariants: {}, discardCount: 0, discardCount: 0 };
+        this.enemy = { logic: ENEMY_START_LOGIC, maxLogic: ENEMY_START_LOGIC, emotion: ENEMY_START_EMOTION, maxEmotion: ENEMY_START_EMOTION, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], deck: [], discardPile: [], lastCard: null, usedTextVariants: {}, discardCount: 0, discardCount: 0 };
         this.turn = 1;
         this.playerTurn = true;
         this.gameActive = true;
@@ -56,7 +56,7 @@ class GameEngine {
 
             const firstEnemyCard = this.enemy.cards[0];
             if (firstEnemyCard) {
-                const firstCardText = this.cardManager.getCardText(firstEnemyCard);
+                const firstCardText = this.getCardSpeechText(firstEnemyCard, this.enemy);
 
                 if (firstEnemyCard.usesLeft !== undefined) {
                     firstEnemyCard.usesLeft--;
@@ -66,11 +66,11 @@ class GameEngine {
                 }
 
                 if (firstEnemyCard.used) {
-                    this.enemy.discardPile.push(firstEnemyCard);
+                    this.recordDiscard(firstEnemyCard, this.enemy);
                     this.enemy.cards = this.enemy.cards.filter(c => !c.used);
                 }
 
-                const { speechText, logText } = this.applyCard(firstEnemyCard, this.enemy, this.player);
+                const { speechText, logText } = this.applyCard(firstEnemyCard, this.enemy, this.player, firstCardText);
                 const speechPromise = this.visualManager.setVisual('enemy', speechText);
                 const fullLogMessage = logText ? `${firstCardText} ${logText}` : firstCardText;
                 this.uiManager.addMessage(fullLogMessage, 'enemy', 1);
@@ -86,7 +86,7 @@ class GameEngine {
         await this.visualManager.setVisual('idle');
     }
 
-    applyCard(card, source, target) {
+    applyCard(card, source, target, presetSpeechText = null) {
         // Сохранить состояние ПЕРЕД применением карты
         const sourceBefore = {
             logic: source.logic,
@@ -100,18 +100,12 @@ class GameEngine {
         };
 
         // Получить текущий вариант текста (для речи)
-        let speechText = this.cardManager.getCardText(card);
+        let speechText = presetSpeechText ?? this.getCardSpeechText(card, source);
 
         // Лог-детали будут содержать все числовые данные
         let logDetails = [];
 
         // Обновить индекс варианта для следующего использования
-        if (card.textVariants && card.textVariants.length > 0) {
-            card.currentVariantIndex = (card.currentVariantIndex ?? 0) + 1;
-            if (card.currentVariantIndex >= card.textVariants.length) {
-                card.currentVariantIndex = 0;
-            }
-        }
 
         let finalDamage = card.damage ?? 0;
         let finalHeal = card.heal ?? 0;
@@ -271,7 +265,10 @@ class GameEngine {
         if (character.cards.length < handLimit) {
             character.cards.push(card);
         } else {
-            character.discardPile.push(character.cards.shift());
+            const discarded = character.cards.shift();
+            if (discarded) {
+                this.recordDiscard(discarded, character);
+            }
             character.cards.push(card);
         }
     }
@@ -301,6 +298,39 @@ class GameEngine {
     }
 
     // Добрать карты из колоды до лимита руки
+    getCardSpeechText(card, owner) {
+        if (!card) return '';
+        if (!owner.usedTextVariants) owner.usedTextVariants = {};
+        const variants = Array.isArray(card.textVariants) ? card.textVariants : [];
+        if (variants.length > 0) {
+            let tracker = owner.usedTextVariants[card.name];
+            if (!tracker || !Array.isArray(tracker.used) || tracker.used.length !== variants.length) {
+                tracker = { used: new Array(variants.length).fill(false) };
+                owner.usedTextVariants[card.name] = tracker;
+            }
+            const used = tracker.used;
+            const nextIndex = used.findIndex(flag => !flag);
+            if (nextIndex !== -1) {
+                used[nextIndex] = true;
+                card.currentVariantIndex = nextIndex;
+                return variants[nextIndex];
+            }
+            card.currentVariantIndex = Math.min(card.currentVariantIndex ?? 0, variants.length - 1);
+            return variants[card.currentVariantIndex] ?? card.text ?? '';
+        }
+        if (card.currentVariantIndex === undefined || card.currentVariantIndex === null) {
+            card.currentVariantIndex = 0;
+        }
+        return this.cardManager.getCardText(card);
+    }
+
+    recordDiscard(card, owner) {
+        if (!card || !owner) return;
+        if (!owner.discardPile) owner.discardPile = [];
+        owner.discardPile.push(card);
+        owner.discardCount = (owner.discardCount ?? 0) + 1;
+    }
+
     drawCardsToHandLimit(character) {
         if (!character.deck || character.deck.length === 0) return;
 
@@ -438,14 +468,14 @@ class GameEngine {
             card.used = true;
         }
 
-        const cardText = this.cardManager.getCardText(card);
-        const { speechText, logText } = this.applyCard(card, this.player, this.enemy);
+        const cardText = this.getCardSpeechText(card, this.player);
+        const { speechText, logText } = this.applyCard(card, this.player, this.enemy, cardText);
         const speechPromise = this.visualManager.setVisual('player', speechText);
         const fullLogMessage = logText ? `${cardText} ${logText}` : cardText;
         this.uiManager.addMessage(fullLogMessage, 'player', this.turn);
 
         if (card.used) {
-            this.player.discardPile.push(card);
+            this.recordDiscard(card, this.player);
             this.player.cards = this.player.cards.filter(c => !c.used);
         }
 
@@ -513,7 +543,7 @@ class GameEngine {
                 speechText = this.cardManager.repeatCard.text;
                 logText = `${speechText} (Отменяет предыдущий ход)`;
                 this.enemy.cards = this.enemy.cards.filter(c => !c.used);
-                this.enemy.discardPile.push(cancelledCard);
+                this.recordDiscard(cancelledCard, this.enemy);
             } else {
                 availableCards.splice(repeatCardIndex, 1);
                 this.enemy.cards = availableCards;
@@ -528,13 +558,13 @@ class GameEngine {
                 randomCard.used = true;
             }
 
-            const cardText = this.cardManager.getCardText(randomCard);
-            const result = this.applyCard(randomCard, this.enemy, this.player);
+            const cardText = this.getCardSpeechText(randomCard, this.enemy);
+            const result = this.applyCard(randomCard, this.enemy, this.player, cardText);
             speechText = result.speechText;
             logText = result.logText ? `${cardText} ${result.logText}` : cardText;
 
             if (randomCard.used) {
-                this.enemy.discardPile.push(randomCard);
+                this.recordDiscard(randomCard, this.enemy);
                 this.enemy.cards = this.enemy.cards.filter(c => !c.used);
             }
         } else {
@@ -573,3 +603,5 @@ class GameEngine {
 }
 
 console.log('✅ Модуль engine.js загружен');
+
+

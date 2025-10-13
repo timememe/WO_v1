@@ -24,8 +24,26 @@ class CardManager {
         this.evasionCards = cardData?.evasionCards ?? [];
         this.rareAttackCards = cardData?.rareAttackCards ?? [];
 
+        this.initializeVariantTracking(this.basePlayerCards);
+        this.initializeVariantTracking(this.baseEnemyCards);
+        this.initializeVariantTracking(this.defenseCards);
+        this.initializeVariantTracking(this.evasionCards);
+        this.initializeVariantTracking(this.rareAttackCards);
+
         const specials = cardData?.specialCards ?? {};
         this.repeatCard = specials.repeatCard ?? null;
+        if (this.repeatCard) {
+            this.initializeVariantTracking([this.repeatCard]);
+        }
+    }
+
+    initializeVariantTracking(cardList = []) {
+        if (!Array.isArray(cardList)) return;
+        cardList.forEach(card => {
+            if (card && Array.isArray(card.textVariants) && card.textVariants.length > 0) {
+                card._nextVariantIndex = 0;
+            }
+        });
     }
 
     pickRandom(array) {
@@ -37,7 +55,14 @@ class CardManager {
         const clone = JSON.parse(JSON.stringify(template));
         clone.used = false;
         clone.fromDiscard = false;
-        if (!clone.currentVariantIndex) {
+
+        if (Array.isArray(template.textVariants) && template.textVariants.length > 0) {
+            const nextIndex = template._nextVariantIndex ?? 0;
+            clone.currentVariantIndex = nextIndex;
+            template._nextVariantIndex = (nextIndex + 1) % template.textVariants.length;
+        }
+
+        if (clone.currentVariantIndex === undefined || clone.currentVariantIndex === null) {
             clone.currentVariantIndex = 0;
         }
         return clone;

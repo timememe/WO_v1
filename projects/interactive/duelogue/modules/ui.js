@@ -1,3 +1,4 @@
+// @ts-nocheck
 // UI менеджер для ДУЕЛОГ
 // Управляет интерфейсом игры
 
@@ -42,10 +43,9 @@ class UIManager {
             if (handInfo) {
                 const damageMultiplier = gameEngine.getDamageMultiplier(player);
                 const multiplierText = damageMultiplier !== 1.0 ? ` | Урон: x${damageMultiplier.toFixed(2)}` : '';
-                // Счетчик колоды = количество карт в руке + количество карт в колоде
-                const deckCount = (player.deck ? player.deck.length : 0);
-                const totalCards = player.cards.length + deckCount;
-                handInfo.textContent = `Рука: ${player.cards.length}/${handLimit} | Колода: ${totalCards}${multiplierText}`;
+                const deckCount = Array.isArray(player.deck) ? player.deck.length : 0;
+                const discardCount = player.discardCount ?? 0;
+                handInfo.textContent = `Рука: ${player.cards.length}/${handLimit} | Колода: ${deckCount} | Сброс: ${discardCount}${multiplierText}`;
             }
         }
 
