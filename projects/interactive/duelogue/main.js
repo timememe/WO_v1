@@ -396,8 +396,13 @@ function setupMultiplayerCallbacks() {
         if (multiplayer.isHost) return; // Хост не должен синхронизироваться с самим собой
 
         console.log('📥 Получено состояние от хоста');
+        
+        // Показываем игровой экран
+        showGameScreen();
+
         // Гость создает движок, но пропускает инициализацию состояния
         gameEngine = new GameEngine(cardManager, uiManager, visualManager, { isMultiplayer: true, isGuest: true });
+        
         // Применяем состояние от хоста
         gameEngine.applyState(state);
     };
