@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Диалоговая битва!</title>
+    <title>DUELOGUE</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
         body {
@@ -1097,7 +1097,7 @@
         <div class="menu-buttons">
             <button class="menu-button" onclick="startSinglePlayerGame()">Играть</button>
             <button class="menu-button secondary" onclick="showDeckSelector()">Выбрать колоду</button>
-            <button class="menu-button secondary" onclick="showDeckEditor()">🤖 Создать колоду</button>
+            <button class="menu-button secondary" onclick="showDeckEditor()">Создать колоду</button>
             <button class="menu-button secondary" onclick="showMultiplayerScreen()">Сетевая игра</button>
             <button class="menu-button" onclick="showRules()">Правила</button>
         </div>
@@ -1117,7 +1117,7 @@
     <!-- Экран создания колоды с AI -->
     <div class="deck-selector-screen hidden" id="deckEditorScreen">
         <div class="deck-selector-content">
-            <div class="deck-selector-title">🤖 Создание колоды с AI</div>
+            <div class="deck-selector-title">Создание колоды с AI</div>
             <div style="margin-bottom: 20px;">
                 <div style="font-size: clamp(9px, 2vw, 11px); color: #aaa; margin-bottom: 10px; line-height: 1.4;">
                     Опиши тему дебатов, которую ты хочешь реализовать. AI создаст уникальную колоду карт с аргументами для обеих сторон.
@@ -1357,6 +1357,7 @@
     <!-- Модули игры -->
     <script src="modules/decks.js"></script>
     <script src="modules/cards-data.js"></script>
+    <script src="cards-ref.js"></script>
     <script src="modules/cards.js"></script>
     <script src="modules/visual.js"></script>
     <script src="modules/ui.js"></script>

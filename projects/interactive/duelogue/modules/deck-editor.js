@@ -59,6 +59,12 @@ class DeckEditorManager {
             return;
         }
 
+        if (typeof window.CARDS_REFERENCE_JSON === 'undefined') {
+            this.statusEl.textContent = '❌ Ошибка: Референс карт не найден.';
+            this.statusEl.style.color = '#e74c3c';
+            return;
+        }
+
         this.generateBtn.disabled = true;
         this.generateBtn.style.opacity = '0.6';
         this.generateBtn.style.cursor = 'not-allowed';
@@ -66,13 +72,8 @@ class DeckEditorManager {
         this.statusEl.textContent = '';
 
         try {
-            console.log('📚 Чтение локального файла cards.json...');
-            const cardsFileResponse = await fetch('../cards.json');
-            if (!cardsFileResponse.ok) {
-                throw new Error('Не удалось загрузить референс карт cards.json');
-            }
-            const cardsReference = await cardsFileResponse.text();
-            console.log('🤖 Отправка запроса на генерацию колоды с референсом...');
+            const cardsReference = JSON.stringify(window.CARDS_REFERENCE_JSON);
+            console.log('Отправка запроса на генерацию колоды с референсом из глобальной переменной...');
 
             const response = await fetch(this.serverUrl, {
                 method: 'POST',
