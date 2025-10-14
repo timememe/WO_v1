@@ -1097,6 +1097,7 @@
         <div class="menu-buttons">
             <button class="menu-button" onclick="startSinglePlayerGame()">Играть</button>
             <button class="menu-button secondary" onclick="showDeckSelector()">Выбрать колоду</button>
+            <button class="menu-button secondary" onclick="showDeckEditor()">🤖 Создать колоду</button>
             <button class="menu-button secondary" onclick="showMultiplayerScreen()">Сетевая игра</button>
             <button class="menu-button" onclick="showRules()">Правила</button>
         </div>
@@ -1110,6 +1111,45 @@
                 <!-- Заполнится динамически -->
             </div>
             <button class="menu-button secondary" onclick="closeDeckSelector()">Назад</button>
+        </div>
+    </div>
+
+    <!-- Экран создания колоды с AI -->
+    <div class="deck-selector-screen hidden" id="deckEditorScreen">
+        <div class="deck-selector-content">
+            <div class="deck-selector-title">🤖 Создание колоды с AI</div>
+            <div style="margin-bottom: 20px;">
+                <div style="font-size: clamp(9px, 2vw, 11px); color: #aaa; margin-bottom: 10px; line-height: 1.4;">
+                    Опиши тему дебатов, которую ты хочешь реализовать. AI создаст уникальную колоду карт с аргументами для обеих сторон.
+                </div>
+                <textarea
+                    id="deckPromptInput"
+                    class="multiplayer-input"
+                    style="min-height: 120px; resize: vertical; font-size: clamp(9px, 2vw, 12px); line-height: 1.4; font-family: Arial, sans-serif;"
+                    placeholder="Например: Дебаты о том, стоит ли переходить на возобновляемые источники энергии. Или: Спор о том, являются ли видеоигры искусством."
+                    maxlength="500"></textarea>
+                <div style="font-size: clamp(8px, 1.8vw, 10px); color: #666; text-align: right; margin-top: 5px;">
+                    <span id="promptCharCount">0</span>/500
+                </div>
+            </div>
+
+            <div id="deckEditorStatus" class="status-message" style="margin-bottom: 15px;"></div>
+
+            <div id="deckEditorLoading" style="display: none; text-align: center; margin-bottom: 20px;">
+                <div class="loading-spinner" style="width: 60px; height: 60px; margin: 0 auto;">
+                    <div class="spinner-ring"></div>
+                    <div class="spinner-ring"></div>
+                    <div class="spinner-ring"></div>
+                </div>
+                <div style="font-size: clamp(10px, 2.5vw, 13px); color: #f39c12; margin-top: 15px;">
+                    AI генерирует колоду...
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button class="menu-button" onclick="generateDeck()" id="generateDeckBtn" style="flex: 1;">Создать</button>
+                <button class="menu-button secondary" onclick="closeDeckEditor()">Отмена</button>
+            </div>
         </div>
     </div>
 
