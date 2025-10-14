@@ -9,6 +9,7 @@ let cardManager = null;
 let uiManager = null;
 let visualManager = null;
 let multiplayer = null;
+let deckEditorManager = null; // Добавлено
 let isMultiplayerGame = false;
 let playerNickname = '';
 let opponentNickname = '';
@@ -52,8 +53,9 @@ async function initGame() {
 
         deckManager.loadDecks();
 
-        // Load custom decks from localStorage
-        loadCustomDecks();
+        // Инициализация менеджера редактора колод и загрузка кастомных колод
+        deckEditorManager = new DeckEditorManager(deckManager);
+        deckEditorManager.loadCustomDecks();
 
         const savedDeck = localStorage.getItem('selectedDeck');
         if (savedDeck && deckManager.decks.find(d => d.id === savedDeck)) {
@@ -75,30 +77,6 @@ async function initGame() {
         console.error('❌ Ошибка инициализации игры:', error);
         alert('Ошибка загрузки игры. Проверьте консоль.');
     }
-}
-
-function loadCustomDecks() {
-    const customDecks = JSON.parse(localStorage.getItem('customDecks') || '[]');
-    console.log(`📦 Загружено ${customDecks.length} кастомных колод`);
-
-    customDecks.forEach(customDeck => {
-        // Add to CARDS_DATA
-        if (typeof CARDS_DATA === 'undefined') {
-            window.CARDS_DATA = {};
-        }
-        CARDS_DATA[`${customDeck.id}.json`] = customDeck.data;
-
-        // Add to deck manager if not already there
-        if (!deckManager.decks.find(d => d.id === customDeck.id)) {
-            deckManager.decks.push({
-                id: customDeck.id,
-                name: customDeck.name,
-                description: customDeck.description,
-                file: `${customDeck.id}.json`,
-                theme: 'custom'
-            });
-        }
-    });
 }
 
 // ============= МЕНЕДЖЕР КОЛОД =============
@@ -145,6 +123,7 @@ function showGameScreen() {
 }
 
 function showDeckSelector() {
+    renderDeckSelector(); // Обновляем список перед показом
     document.getElementById('deckSelectorScreen').classList.remove('hidden');
     document.getElementById('menuScreen').classList.add('hidden');
 }
@@ -152,139 +131,6 @@ function showDeckSelector() {
 function closeDeckSelector() {
     document.getElementById('deckSelectorScreen').classList.add('hidden');
     document.getElementById('menuScreen').classList.remove('hidden');
-}
-
-// ============= РЕДАКТОР КОЛОД С AI =============
-
-function showDeckEditor() {
-    document.getElementById('deckEditorScreen').classList.remove('hidden');
-    document.getElementById('menuScreen').classList.add('hidden');
-
-    // Setup character counter
-    const promptInput = document.getElementById('deckPromptInput');
-    const charCount = document.getElementById('promptCharCount');
-    promptInput.addEventListener('input', () => {
-        charCount.textContent = promptInput.value.length;
-    });
-}
-
-function closeDeckEditor() {
-    document.getElementById('deckEditorScreen').classList.add('hidden');
-    document.getElementById('menuScreen').classList.remove('hidden');
-
-    // Reset form
-    document.getElementById('deckPromptInput').value = '';
-    document.getElementById('promptCharCount').textContent = '0';
-    document.getElementById('deckEditorStatus').textContent = '';
-    document.getElementById('deckEditorLoading').style.display = 'none';
-}
-
-async function generateDeck() {
-    const promptInput = document.getElementById('deckPromptInput');
-    const prompt = promptInput.value.trim();
-    const statusEl = document.getElementById('deckEditorStatus');
-    const loadingEl = document.getElementById('deckEditorLoading');
-    const generateBtn = document.getElementById('generateDeckBtn');
-
-    if (!prompt) {
-        statusEl.textContent = '⚠️ Пожалуйста, опишите тему дебатов';
-        statusEl.style.color = '#f39c12';
-        return;
-    }
-
-    if (prompt.length < 20) {
-        statusEl.textContent = '⚠️ Описание слишком короткое. Добавьте больше деталей.';
-        statusEl.style.color = '#f39c12';
-        return;
-    }
-
-    // Disable button and show loading
-    generateBtn.disabled = true;
-    generateBtn.style.opacity = '0.6';
-    generateBtn.style.cursor = 'not-allowed';
-    loadingEl.style.display = 'block';
-    statusEl.textContent = '';
-
-    try {
-        console.log('🤖 Отправка запроса на генерацию колоды...');
-
-        const response = await fetch('https://wo-server-v1.onrender.com/api/generate-deck', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ prompt })
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        console.log('✅ Колода успешно сгенерирована');
-
-        // Add deck to manager
-        addGeneratedDeck(data.deck, data.deckName, data.description);
-
-        // Show success message
-        loadingEl.style.display = 'none';
-        statusEl.textContent = `✅ Колода "${data.deckName}" создана!`;
-        statusEl.style.color = '#27ae60';
-
-        // Switch to deck selector after 2 seconds
-        setTimeout(() => {
-            closeDeckEditor();
-            showDeckSelector();
-        }, 2000);
-
-    } catch (error) {
-        console.error('❌ Ошибка генерации колоды:', error);
-        loadingEl.style.display = 'none';
-        statusEl.textContent = `❌ Ошибка: ${error.message}. Попробуйте еще раз.`;
-        statusEl.style.color = '#e74c3c';
-    } finally {
-        // Re-enable button
-        generateBtn.disabled = false;
-        generateBtn.style.opacity = '1';
-        generateBtn.style.cursor = 'pointer';
-    }
-}
-
-function addGeneratedDeck(deckData, deckName, description) {
-    // Generate unique ID
-    const deckId = 'custom_' + Date.now();
-
-    // Add to CARDS_DATA
-    if (typeof CARDS_DATA === 'undefined') {
-        window.CARDS_DATA = {};
-    }
-    CARDS_DATA[`${deckId}.json`] = deckData;
-
-    // Add to deck manager
-    const newDeck = {
-        id: deckId,
-        name: deckName,
-        description: description,
-        file: `${deckId}.json`,
-        theme: 'custom'
-    };
-
-    deckManager.decks.push(newDeck);
-
-    // Save to localStorage
-    const customDecks = JSON.parse(localStorage.getItem('customDecks') || '[]');
-    customDecks.push({
-        id: deckId,
-        name: deckName,
-        description: description,
-        data: deckData
-    });
-    localStorage.setItem('customDecks', JSON.stringify(customDecks));
-
-    console.log(`✅ Колода "${deckName}" добавлена в менеджер`);
-
-    // Refresh deck selector
-    renderDeckSelector();
 }
 
 function showRules() {
@@ -534,9 +380,6 @@ window.startSinglePlayerGame = startSinglePlayerGame;
 window.showMultiplayerScreen = showMultiplayerScreen;
 window.showDeckSelector = showDeckSelector;
 window.closeDeckSelector = closeDeckSelector;
-window.showDeckEditor = showDeckEditor;
-window.closeDeckEditor = closeDeckEditor;
-window.generateDeck = generateDeck;
 window.showRules = showRules;
 window.restartGame = restartGame;
 window.exitToMenu = exitToMenu;
@@ -544,6 +387,14 @@ window.createRoom = createRoom;
 window.joinRoom = joinRoom;
 window.cancelRoom = cancelRoom;
 window.switchMultiplayerTab = switchMultiplayerTab;
+
+// Функции редактора колод
+window.showDeckEditor = () => deckEditorManager.showEditor();
+window.closeDeckEditor = () => deckEditorManager.closeEditor();
+window.generateDeck = () => deckEditorManager.generateDeck();
+
+// Сделать renderDeckSelector глобально доступным для модуля редактора
+window.renderDeckSelector = renderDeckSelector;
 
 console.log('main.js: Functions assigned. Script end.');
 
