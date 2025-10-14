@@ -133,6 +133,16 @@ function closeDeckSelector() {
     document.getElementById('menuScreen').classList.remove('hidden');
 }
 
+function showPauseScreen() {
+    const pauseScreen = document.getElementById('pauseScreen');
+    if (pauseScreen) pauseScreen.classList.remove('hidden');
+}
+
+function resumeGame() {
+    const pauseScreen = document.getElementById('pauseScreen');
+    if (pauseScreen) pauseScreen.classList.add('hidden');
+}
+
 function showRules() {
     alert(`ПРАВИЛА ИГРЫ ДУЕЛОГ
 
@@ -395,6 +405,10 @@ window.generateDeck = () => deckEditorManager.generateDeck();
 
 // Сделать renderDeckSelector глобально доступным для модуля редактора
 window.renderDeckSelector = renderDeckSelector;
+
+// Пауза
+window.showPauseScreen = showPauseScreen;
+window.resumeGame = resumeGame;
 
 console.log('main.js: Functions assigned. Script end.');
 
