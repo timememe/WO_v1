@@ -177,12 +177,42 @@ function showEndgameScreen(isVictory) {
     const endgameScreen = document.getElementById('endgameScreen');
     if (endgameScreen) endgameScreen.classList.remove('hidden');
     document.getElementById('gameWrapper').style.display = 'none';
+    document.getElementById('pauseButton').classList.add('hidden');
 
     const endgameTitle = document.getElementById('endgameTitle');
     if (endgameTitle) {
         endgameTitle.textContent = isVictory ? '🏆 Победа!' : '💀 Поражение';
         endgameTitle.className = isVictory ? 'endgame-title victory' : 'endgame-title defeat';
     }
+}
+
+// ============= ЛОГИРОВАНИЕ РЕЗУЛЬТАТОВ =============
+
+async function logSinglePlayerResult(result) {
+  console.log('Отправка результатов одиночной игры на сервер...', result);
+
+  // ВАЖНО: Замените URL на ваш реальный адрес сервера Render
+  const serverUrl = 'https://wo-server-v1.onrender.com'; 
+
+  try {
+    const response = await fetch(`${serverUrl}/api/log-sp-game`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(result),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Ошибка при отправке результатов:', errorData.error);
+    } else {
+      const successData = await response.json();
+      console.log('✅ Результаты успешно отправлены:', successData.message);
+    }
+  } catch (error) {
+    console.error('❌ Сетевая ошибка при отправке результатов:', error);
+  }
 }
 
 // ============= SINGLE PLAYER =============
@@ -405,6 +435,7 @@ window.generateDeck = () => deckEditorManager.generateDeck();
 
 // Сделать renderDeckSelector глобально доступным для модуля редактора
 window.renderDeckSelector = renderDeckSelector;
+window.logSinglePlayerResult = logSinglePlayerResult; // <-- Добавляем эту строку
 
 // Пауза
 window.showPauseScreen = showPauseScreen;

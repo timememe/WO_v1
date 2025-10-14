@@ -405,25 +405,44 @@ class GameEngine {
 ﻿    }
 ﻿
 ﻿    checkVictory() {
-﻿        // ... (без изменений)
-﻿        if (this.player.points >= 3) {
-﻿            this.uiManager.addMessage("Ты победил! Все 3 твои точки зажжены!", 'player');
-﻿            this.lastVictorySpeechPromise = this.visualManager.setVisual('player', "Победа!");
-﻿            this.endGame(true);
-﻿            return true;
-﻿        } else if (this.enemy.points >= 3) {
-﻿            this.uiManager.addMessage("Скептик победил! Ты проиграл!", 'enemy');
-﻿            this.lastVictorySpeechPromise = this.visualManager.setVisual('enemy', "Поражение!");
-﻿            this.endGame(false);
-﻿            return true;
-﻿        }
-﻿        this.lastVictorySpeechPromise = null;
-﻿        return false;
-﻿    }
-﻿
-﻿    endGame(victory) {
-﻿        this.gameActive = false;
-﻿    }
+        if (this.player.points >= 3) {
+            this.handleGameEnd(true);
+            return true;
+        } else if (this.enemy.points >= 3) {
+            this.handleGameEnd(false);
+            return true;
+        }
+        return false;
+    }
+
+    async handleGameEnd(isVictory) {
+        if (!this.gameActive) return; // Предотвратить двойное срабатывание
+        this.gameActive = false;
+
+        const message = isVictory ? "Ты победил! Все 3 твои точки зажжены!" : "Скептик победил! Ты проиграл!";
+        const visual = isVictory ? "player" : "enemy";
+        const speech = isVictory ? "Победа!" : "Поражение!";
+
+        this.uiManager.addMessage(message, visual);
+        await this.visualManager.setVisual(visual, speech);
+
+        // Показываем экран завершения игры
+        if (typeof showEndgameScreen === 'function') {
+            showEndgameScreen(isVictory);
+        }
+
+        // Логируем результат, если это одиночная игра
+        if (!this.isMultiplayer && typeof logSinglePlayerResult === 'function') {
+            const result = {
+                win: isVictory,
+                score: this.player.points, // или другая метрика счета
+                deck_name: deckManager.getSelectedDeck()?.name || 'Неизвестная колода',
+                opponent_name: 'Скептик' // Имя AI
+            };
+            logSinglePlayerResult(result);
+        }
+    }
+
 ﻿
 ﻿    // ... (остальные вспомогательные методы: getCardSpeechText, recordDiscard, drawCardsToHandLimit и т.d. остаются без изменений)
 ﻿    hasCardInHand(character, cardName) { return character.cards.some(c => c.name === cardName); }
