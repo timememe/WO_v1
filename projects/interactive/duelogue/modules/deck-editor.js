@@ -59,7 +59,6 @@ class DeckEditorManager {
             return;
         }
 
-        // Disable button and show loading
         this.generateBtn.disabled = true;
         this.generateBtn.style.opacity = '0.6';
         this.generateBtn.style.cursor = 'not-allowed';
@@ -67,14 +66,20 @@ class DeckEditorManager {
         this.statusEl.textContent = '';
 
         try {
-            console.log('🤖 Отправка запроса на генерацию колоды...');
+            console.log('📚 Чтение локального файла cards.json...');
+            const cardsFileResponse = await fetch('../cards.json');
+            if (!cardsFileResponse.ok) {
+                throw new Error('Не удалось загрузить референс карт cards.json');
+            }
+            const cardsReference = await cardsFileResponse.text();
+            console.log('🤖 Отправка запроса на генерацию колоды с референсом...');
 
             const response = await fetch(this.serverUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ prompt })
+                body: JSON.stringify({ prompt, cardsReference })
             });
 
             if (!response.ok) {
@@ -85,15 +90,12 @@ class DeckEditorManager {
             const data = await response.json();
             console.log('✅ Колода успешно сгенерирована');
 
-            // Add deck to manager
             this._addGeneratedDeck(data.deck, data.deckName, data.description);
 
-            // Show success message
             this.loadingEl.style.display = 'none';
             this.statusEl.textContent = `✅ Колода "${data.deckName}" создана!`;
             this.statusEl.style.color = '#27ae60';
 
-            // Switch to deck selector after 2 seconds
             setTimeout(() => {
                 this.closeEditor();
                 if (window.showDeckSelector) {
@@ -107,7 +109,6 @@ class DeckEditorManager {
             this.statusEl.textContent = `❌ Ошибка: ${error.message}. Попробуйте еще раз.`;
             this.statusEl.style.color = '#e74c3c';
         } finally {
-            // Re-enable button
             this.generateBtn.disabled = false;
             this.generateBtn.style.opacity = '1';
             this.generateBtn.style.cursor = 'pointer';
