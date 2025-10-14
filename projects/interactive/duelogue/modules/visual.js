@@ -18,6 +18,7 @@ class VisualManager {
         this.typingTimeout = null;
         this.pauseTimeout = null;
         this.currentSpeechResolve = null;
+        this.isDestroyed = false;
     }
 
     setVisual(state, text = '') {
@@ -46,6 +47,12 @@ class VisualManager {
         }
 
         return new Promise(resolve => {
+            // Check if destroyed before starting
+            if (this.isDestroyed) {
+                resolve();
+                return;
+            }
+
             this.currentSpeechResolve = () => {
                 resolve();
                 this.currentSpeechResolve = null;
@@ -53,6 +60,14 @@ class VisualManager {
             this.speechBubble.classList.add('visible');
             let index = 0;
             const typeNext = () => {
+                // Safety check: stop if destroyed
+                if (this.isDestroyed) {
+                    if (this.currentSpeechResolve) {
+                        this.currentSpeechResolve();
+                    }
+                    return;
+                }
+
                 if (index < text.length) {
                     this.speechBubble.textContent += text[index];
                     const delay = this.getCharDelay(text[index]);
@@ -62,7 +77,8 @@ class VisualManager {
                     this.typingTimeout = null;
                     this.pauseTimeout = setTimeout(() => {
                         this.pauseTimeout = null;
-                        if (this.currentSpeechResolve) {
+                        // Check if still valid before resolving
+                        if (this.currentSpeechResolve && !this.isDestroyed) {
                             this.currentSpeechResolve();
                         }
                     }, this.readingPauseMs);
@@ -101,6 +117,21 @@ class VisualManager {
     async showSpeech(text, who) {
         // Вспомогательный метод для показа речи с правильным визуалом
         return this.setVisual(who, text);
+    }
+
+    // Метод для полной очистки ресурсов
+    destroy() {
+        console.log('🧹 Destroying VisualManager');
+        this.isDestroyed = true;
+        this.cancelSpeech();
+
+        // Clear any references
+        this.visualImage = null;
+        this.visualBackground = null;
+        this.speechBubble = null;
+        this.statsOverlay = null;
+        this.pointsOverlay = null;
+        this.currentSpeechResolve = null;
     }
 }
 

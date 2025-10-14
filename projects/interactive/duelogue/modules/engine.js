@@ -1,15 +1,15 @@
-﻿// Игровой движок ДУЕЛОГ
-﻿// Содержит основную игровую логику
-﻿
-﻿// Глобальные константы для стартовых характеристик
-﻿const PLAYER_START_LOGIC = 4;
-﻿const PLAYER_START_EMOTION = 4;
-﻿const ENEMY_START_LOGIC = 4;
-﻿const ENEMY_START_EMOTION = 4;
-﻿
-﻿// Класс для управления игровой механикой
-﻿class GameEngine {
-﻿    constructor(cardManager, uiManager, visualManager, options = {}) {
+// Игровой движок ДУЕЛОГ
+// Содержит основную игровую логику
+
+// Глобальные константы для стартовых характеристик
+const PLAYER_START_LOGIC = 4;
+const PLAYER_START_EMOTION = 4;
+const ENEMY_START_LOGIC = 4;
+const ENEMY_START_EMOTION = 4;
+
+// Класс для управления игровой механикой
+class GameEngine {
+    constructor(cardManager, uiManager, visualManager, options = {}) {
         this.cardManager = cardManager;
         this.uiManager = uiManager;
         this.visualManager = visualManager;
