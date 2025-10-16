@@ -209,9 +209,9 @@
       "category": "Защита",
       "name": "Переосмысление",
       "effect": "logic",
-      "heal": 2,
+      "heal": 3,
       "text": "Дай-ка я подумаю...",
-      "desc": "Восстанавливает логику +2",
+      "desc": "Восстанавливает логику +3",
       "usesLeft": 2,
       "used": false,
       "fromDiscard": false
@@ -220,9 +220,9 @@
       "category": "Защита",
       "name": "Глубокий вдох",
       "effect": "emotion",
-      "heal": 2,
+      "heal": 3,
       "text": "Я сохраняю спокойствие...",
-      "desc": "Восстанавливает эмоции +2",
+      "desc": "Восстанавливает эмоции +3",
       "usesLeft": 2,
       "used": false,
       "fromDiscard": false

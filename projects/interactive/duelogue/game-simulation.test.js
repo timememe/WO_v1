@@ -24,6 +24,9 @@ class GameSimulator {
             totalHealingDone: 0,
             totalShieldCreated: 0,
 
+            // Статистика по событиям
+            eventTriggers: {},
+
             // Взаимодействия карт
             cardInteractions: {
                 'Атака-Защита': 0,
@@ -81,6 +84,10 @@ class GameSimulator {
                 usedTextVariants: {},
                 discardCount: 0
             },
+
+            // Система событий
+            eventManager: typeof EventManager !== 'undefined' ? new EventManager() : null,
+            currentTurnCards: { player: null, enemy: null },
 
             // Копируем логику из реального движка
             getDamageMultiplier(character) {
@@ -300,6 +307,38 @@ class GameSimulator {
                 if (this.player.points >= 3) return 'player';
                 if (this.enemy.points >= 3) return 'enemy';
                 return null;
+            },
+
+            processEvents(metrics) {
+                if (!this.eventManager) return;
+                this.eventManager.recordTurn(this.currentTurnCards.player, this.currentTurnCards.enemy);
+                const event = this.eventManager.checkForEvents(this.player, this.enemy);
+                if (event && !event.ended && this.eventManager.activeEvent.duration === 0) {
+                    if (metrics) {
+                        if (!metrics.eventTriggers[event.name]) {
+                            metrics.eventTriggers[event.name] = 0;
+                        }
+                        metrics.eventTriggers[event.name]++;
+                    }
+                    const effects = this.eventManager.applyEventEffects(this.player, this.enemy);
+                    if (effects) {
+                        this.applyEventEffectsToCharacters(effects);
+                    }
+                }
+                this.currentTurnCards = { player: null, enemy: null };
+            },
+
+            applyEventEffectsToCharacters(effects) {
+                if (effects.player) {
+                    if (effects.player.logic) this.player.logic += effects.player.logic;
+                    if (effects.player.emotion) this.player.emotion += effects.player.emotion;
+                    if (effects.player.maxLogicPenalty) this.player.maxLogic += effects.player.maxLogicPenalty;
+                }
+                if (effects.enemy) {
+                    if (effects.enemy.logic) this.enemy.logic += effects.enemy.logic;
+                    if (effects.enemy.emotion) this.enemy.emotion += effects.enemy.emotion;
+                    if (effects.enemy.maxLogicPenalty) this.enemy.maxLogic += effects.enemy.maxLogicPenalty;
+                }
             }
         };
 
@@ -333,7 +372,8 @@ class GameSimulator {
                 },
                 negativeStats: 0,
                 shieldBreaks: 0,
-                duplicateCardsAttempted: 0
+                duplicateCardsAttempted: 0,
+                eventTriggers: {}
             }
         };
 
@@ -414,6 +454,7 @@ class GameSimulator {
                     engine.player.discardPile.push(randomCard);
                     engine.player.cards = engine.player.cards.filter(c => !c.used);
                 }
+                engine.currentTurnCards.player = randomCard;
             }
 
             engine.checkPoints(engine.player, engine.enemy);
@@ -455,7 +496,11 @@ class GameSimulator {
                     engine.enemy.discardPile.push(randomCard);
                     engine.enemy.cards = engine.enemy.cards.filter(c => !c.used);
                 }
+                engine.currentTurnCards.enemy = randomCard;
             }
+
+            // Обработка событий в конце хода
+            engine.processEvents(gameLog.metrics);
 
             engine.checkPoints(engine.enemy, engine.player);
             const victory2 = engine.checkVictory();
@@ -544,6 +589,14 @@ class GameSimulator {
                 this.globalMetrics.cardInteractions[interaction] += count;
             }
 
+            // События
+            for (const [eventName, count] of Object.entries(gameLog.metrics.eventTriggers)) {
+                if (!this.globalMetrics.eventTriggers[eventName]) {
+                    this.globalMetrics.eventTriggers[eventName] = 0;
+                }
+                this.globalMetrics.eventTriggers[eventName] += count;
+            }
+
             console.log(`  ✓ Победитель: ${gameLog.winner === 'player' ? 'Игрок' : 'Враг'}, Ходов: ${gameLog.finalStats.totalTurns}`);
         }
 
@@ -612,7 +665,20 @@ class GameSimulator {
         }
         console.log('');
 
-        // 6. Анализ баланса
+        // 6. Статистика по событиям
+        console.log('%c⚡️ СТАТИСТИКА СРАБАТЫВАНИЯ СОБЫТИЙ', 'color: #f1c40f; font-size: 14px; font-weight: bold');
+        const sortedEvents = Object.entries(this.globalMetrics.eventTriggers).sort(([, a], [, b]) => b - a);
+
+        if (sortedEvents.length > 0) {
+            sortedEvents.forEach(([eventName, count]) => {
+                console.log(`  ${eventName.padEnd(30)} ${count} раз`);
+            });
+        } else {
+            console.log('  Событий не зафиксировано.');
+        }
+        console.log('');
+
+        // 7. Анализ баланса
         console.log('%c⚖️  АНАЛИЗ БАЛАНСА', 'color: #27ae60; font-size: 14px; font-weight: bold');
 
         const winRateDiff = Math.abs(this.globalMetrics.playerWins - this.globalMetrics.enemyWins);

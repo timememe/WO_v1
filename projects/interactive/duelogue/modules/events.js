@@ -6,9 +6,7 @@ class EventManager {
         this.turnHistory = [];
         this.activeEvent = null;
         this.eventCooldown = 0; // Кулдаун между событиями
-        this.consecutiveDefense = 0;
-        this.consecutiveAttack = 0;
-        this.consecutiveTactical = 0; // Атака-Уклонение паттерн
+        this.consecutiveEmptyDecks = 0;
     }
 
     // Записываем ход в историю
@@ -55,111 +53,89 @@ class EventManager {
         const mindGamesEvent = this.checkMindGames();
         if (mindGamesEvent) return mindGamesEvent;
 
+        // 5. Усталость (когда кончились колоды)
+        const fatigueEvent = this.checkFatigue(player, enemy);
+        if (fatigueEvent) return fatigueEvent;
+
         return null;
     }
 
     // ========== СОБЫТИЕ 1: МЕДИТАЦИЯ ==========
     checkMeditation() {
-        if (this.turnHistory.length < 3) return null;
+        if (this.turnHistory.length < 2) return null;
 
-        const last3 = this.turnHistory.slice(-3);
-        const allDefense = last3.every(turn =>
-            turn.playerCategory === 'Защита' &&
-            turn.enemyCategory === 'Защита'
+        const last2 = this.turnHistory.slice(-2);
+        const isMeditating = last2.every(turn =>
+            turn.playerCategory === 'Защита' || turn.enemyCategory === 'Защита'
         );
 
-        if (allDefense) {
-            this.consecutiveDefense++;
-
-            if (this.consecutiveDefense === 3) {
-                this.activeEvent = {
-                    type: 'meditation',
-                    name: '🧘 МЕДИТАЦИЯ',
-                    duration: 0,
-                    maxDuration: 999, // Пока не атакуют
-                    message: 'Оба оппонента погрузились в глубокие размышления. Аудитория начинает скучать...'
-                };
-                return this.activeEvent;
-            }
-        } else {
-            this.consecutiveDefense = 0;
+        if (isMeditating) {
+            this.activeEvent = {
+                type: 'meditation',
+                name: '🧘 МЕДИТАЦИЯ',
+                duration: 0,
+                maxDuration: 999, // Пока не атакуют
+                message: 'Оппоненты сосредоточились на защите. Темп игры замедлился...'
+            };
+            return this.activeEvent;
         }
-
         return null;
     }
 
     // ========== СОБЫТИЕ 2: ПЕРЕПАЛКА ==========
     checkHeatedExchange() {
-        if (this.turnHistory.length < 4) return null;
+        if (this.turnHistory.length < 3) return null;
 
-        const last4 = this.turnHistory.slice(-4);
-        const allAttack = last4.every(turn =>
-            turn.playerCategory === 'Атака' &&
-            turn.enemyCategory === 'Атака'
+        const last3 = this.turnHistory.slice(-3);
+        const isHeated = last3.every(turn =>
+            turn.playerCategory === 'Атака' || turn.enemyCategory === 'Атака'
         );
 
-        if (allAttack) {
-            this.consecutiveAttack++;
-
-            if (this.consecutiveAttack === 4) {
-                this.activeEvent = {
-                    type: 'heated_exchange',
-                    name: '🔥 ПЕРЕПАЛКА',
-                    duration: 0,
-                    maxDuration: 999, // Пока не прекратят
-                    message: 'Споры накаляются! Эмоции зашкаливают, но логика страдает от ярости...'
-                };
-                return this.activeEvent;
-            }
-        } else {
-            this.consecutiveAttack = 0;
+        if (isHeated) {
+            this.activeEvent = {
+                type: 'heated_exchange',
+                name: '🔥 ПЕРЕПАЛКА',
+                duration: 0,
+                maxDuration: 999, // Пока не прекратят
+                message: 'Споры накаляются! Эмоции зашкаливают, но логика страдает от ярости...'
+            };
+            return this.activeEvent;
         }
-
         return null;
     }
 
     // ========== СОБЫТИЕ 3: ИНТЕЛЛЕКТУАЛЬНЫЙ СПАРРИНГ ==========
     checkMindGames() {
-        if (this.turnHistory.length < 3) return null;
+        if (this.turnHistory.length < 2) return null;
 
-        const last3 = this.turnHistory.slice(-3);
-
-        // Проверяем паттерн: чередование Атака и Уклонение у обоих
-        const tacticalPlay = last3.every(turn => {
+        const last2 = this.turnHistory.slice(-2);
+        const isSparring = last2.every(turn => {
             const playerTactical = turn.playerCategory === 'Атака' || turn.playerCategory === 'Уклонение';
             const enemyTactical = turn.enemyCategory === 'Атака' || turn.enemyCategory === 'Уклонение';
             return playerTactical && enemyTactical;
         });
 
-        if (tacticalPlay) {
-            this.consecutiveTactical++;
-
-            if (this.consecutiveTactical === 3) {
-                this.activeEvent = {
-                    type: 'mind_games',
-                    name: '🧠 ИНТЕЛЛЕКТУАЛЬНЫЙ СПАРРИНГ',
-                    duration: 0,
-                    maxDuration: 999,
-                    message: 'Оба оппонента играют в тактические игры! Логика обостряется, но урон снижается...'
-                };
-                return this.activeEvent;
-            }
-        } else {
-            this.consecutiveTactical = 0;
+        if (isSparring) {
+            this.activeEvent = {
+                type: 'mind_games',
+                name: '🧠 ИНТЕЛЛЕКТУАЛЬНЫЙ СПАРРИНГ',
+                duration: 0,
+                maxDuration: 999,
+                message: 'Оба оппонента играют в тактические игры! Логика обостряется, но урон снижается...'
+            };
+            return this.activeEvent;
         }
-
         return null;
     }
 
     // ========== СОБЫТИЕ 4: ПЕРЕЛОМНЫЙ МОМЕНТ ==========
     checkCriticalTurningPoint(player, enemy) {
-        // Считаем суммарные характеристики
         const playerTotal = (player.logic ?? 0) + (player.emotion ?? 0);
         const enemyTotal = (enemy.logic ?? 0) + (enemy.emotion ?? 0);
         const gap = Math.abs(playerTotal - enemyTotal);
 
-        // Если разрыв >= 6 и один из игроков в критическом состоянии
-        if (gap >= 6) {
+        // Снижаем порог разрыва до 5
+        if (gap >= 5) {
             const loser = playerTotal < enemyTotal ? player : enemy;
             const winner = playerTotal < enemyTotal ? enemy : player;
             const loserName = loser === player ? 'Игрок' : 'Противник';
@@ -177,6 +153,30 @@ class EventManager {
                 };
                 return this.activeEvent;
             }
+        }
+
+        return null;
+    }
+
+    // ========== СОБЫТИЕ 5: УСТАЛОСТЬ ==========
+    checkFatigue(player, enemy) {
+        const decksEmpty = (player.deck?.length === 0) && (enemy.deck?.length === 0);
+
+        if (decksEmpty) {
+            this.consecutiveEmptyDecks++;
+
+            if (this.consecutiveEmptyDecks >= 2) {
+                this.activeEvent = {
+                    type: 'fatigue',
+                    name: '😩 УСТАЛОСТЬ',
+                    duration: 0,
+                    maxDuration: 999, // Пока не появятся карты
+                    message: 'Колоды пусты! Игроки истощены и начинают терять концентрацию...'
+                };
+                return this.activeEvent;
+            }
+        } else {
+            this.consecutiveEmptyDecks = 0;
         }
 
         return null;
@@ -230,6 +230,10 @@ class EventManager {
             case 'critical_turning_point':
                 // Одноразовое событие
                 return this.activeEvent.duration >= this.activeEvent.maxDuration;
+
+            case 'fatigue':
+                // Завершается, если у кого-то появились карты в колоде (маловероятно, но возможно)
+                return player.deck?.length > 0 || enemy.deck?.length > 0;
 
             default:
                 return false;
@@ -287,6 +291,15 @@ class EventManager {
                     effects.message = `(Последний шанс: ${this.activeEvent.loserName} +3 эмоции!)`;
                 }
                 break;
+
+            case 'fatigue':
+                // Эффект: -1 случайная характеристика каждый ход
+                const playerStat = Math.random() < 0.5 ? 'logic' : 'emotion';
+                const enemyStat = Math.random() < 0.5 ? 'logic' : 'emotion';
+                effects.player[playerStat] = -1;
+                effects.enemy[enemyStat] = -1;
+                effects.message = `(Усталость: -1 ${playerStat} игроку, -1 ${enemyStat} врагу)`;
+                break;
         }
 
         return effects;
@@ -300,7 +313,8 @@ class EventManager {
             meditation: '🧘 Медитация прервана! Дебаты возобновляются.',
             heated_exchange: '🔥 Страсти улеглись. Оппоненты остывают.',
             mind_games: '🧠 Тактическая дуэль окончена.',
-            critical_turning_point: '⚡ Напряжение спадает.'
+            critical_turning_point: '⚡ Напряжение спадает.',
+            fatigue: '😩 В колодах снова появились карты! Усталость прошла.'
         };
 
         return messages[this.activeEvent.type] || 'Событие завершено.';
@@ -316,9 +330,7 @@ class EventManager {
         this.turnHistory = [];
         this.activeEvent = null;
         this.eventCooldown = 0;
-        this.consecutiveDefense = 0;
-        this.consecutiveAttack = 0;
-        this.consecutiveTactical = 0;
+        this.consecutiveEmptyDecks = 0;
     }
 }
 

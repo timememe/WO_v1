@@ -129,6 +129,11 @@ class GameEngine {
 ﻿        if (!this.playerTurn || card.used || this.playerHasPlayedCard || !this.gameActive) return;
 ﻿        
 ﻿        this.playerHasPlayedCard = true;
+
+        // Записываем карту для событий
+        if (this.eventManager) {
+            this.currentTurnCards.player = card;
+        }
 ﻿
 ﻿        // Применяем карту локально
 ﻿        const { speechText, logText } = this.applyCard(card, this.player, this.enemy);
@@ -185,6 +190,11 @@ class GameEngine {
 ﻿
 ﻿        if (availableCards.length > 0) {
 ﻿            let randomCard = availableCards[Math.floor(Math.random() * availableCards.length)];
+
+            // Записываем карту для событий
+            if (this.eventManager) {
+                this.currentTurnCards.enemy = randomCard;
+            }
 ﻿
 ﻿            if (randomCard.usesLeft !== undefined) {
 ﻿                randomCard.usesLeft--;
@@ -210,6 +220,9 @@ class GameEngine {
 ﻿        const speechPromise = this.visualManager.setVisual('enemy', speechText);
 ﻿        this.uiManager.addMessage(logText, 'enemy', this.turn);
 ﻿        this.checkPoints(this.enemy, this.player);
+
+        // Обрабатываем события
+        this.processEvents();
 
 ﻿        // Тянем карты обоим игрокам после хода
 ﻿        this.drawCardsToHandLimit(this.player);
@@ -502,7 +515,60 @@ class GameEngine {
     }
 ﻿    getDamageMultiplier(character) { const emotion = character.emotion ?? 0; if (emotion <= 0) return 0.5; if (emotion <= 2) return 0.75; if (emotion <= 4) return 1.0; if (emotion <= 6) return 1.25; return 1.5; }
 ﻿    ensureMinimumHandComposition(character, isPlayer = true) { const handLimit = this.getHandLimit(character); const cardsByCategory = { 'Атака': character.cards.filter(c => c.category === 'Атака').length, 'Защита': character.cards.filter(c => c.category === 'Защита').length, 'Уклонение': character.cards.filter(c => c.category === 'Уклонение').length }; const missingTypes = []; if (cardsByCategory['Атака'] === 0 && character.cards.length < handLimit) { missingTypes.push('Атака'); } if (cardsByCategory['Защита'] === 0 && character.cards.length < handLimit) { missingTypes.push('Защита'); } if (cardsByCategory['Уклонение'] === 0 && character.cards.length < handLimit) { missingTypes.push('Уклонение'); } for (const type of missingTypes) { let card = null; if (type === 'Атака') { const attackPool = isPlayer ? this.cardManager.basePlayerCards : this.cardManager.baseEnemyCards; card = this.cardManager.getWeightedCard(character, attackPool); } else if (type === 'Защита') { card = this.cardManager.getDefenseCard(character); } else if (type === 'Уклонение') { if (this.cardManager.evasionCards.length) { card = this.cardManager.getUniqueCard(this.cardManager.evasionCards, character); } } if (card) { this.addCardsToHand(card, character); } } }
-﻿    addDefenseWhenLow(character) { if ((character.logic < 0 && !character.logicNegative) || (character.emotion < 0 && !character.emotionNegative)) { const defenseCard = this.cardManager.getDefenseCard(character); if (defenseCard) { this.addCardsToHand(defenseCard, character); } if (character.logic < 0) character.logicNegative = true; if (character.emotion < 0) character.emotionNegative = true; } if (character.logic >= 0) character.logicNegative = false; if (character.emotion >= 0) character.emotionNegative = false; }
-﻿}
-﻿
-﻿console.log('✅ Модуль engine.js загружен');
+﻿        addDefenseWhenLow(character) { if ((character.logic < 0 && !character.logicNegative) || (character.emotion < 0 && !character.emotionNegative)) { const defenseCard = this.cardManager.getDefenseCard(character); if (defenseCard) { this.addCardsToHand(defenseCard, character); } if (character.logic < 0) character.logicNegative = true; if (character.emotion < 0) character.emotionNegative = true; } if (character.logic >= 0) character.logicNegative = false; if (character.emotion >= 0) character.emotionNegative = false; }
+﻿    
+﻿        processEvents() {
+﻿            if (!this.eventManager) return;
+﻿    
+﻿            // Записываем ход в историю
+﻿            this.eventManager.recordTurn(this.currentTurnCards.player, this.currentTurnCards.enemy);
+﻿    
+﻿            // Проверяем события
+﻿            const event = this.eventManager.checkForEvents(this.player, this.enemy);
+﻿    
+﻿            if (event) {
+﻿                if (event.ended) {
+﻿                    // Событие завершилось
+﻿                    this.uiManager.addMessage(event.message, 'system');
+﻿                } else {
+﻿                    // Новое событие или продолжение активного
+﻿                    if (this.eventManager.activeEvent.duration === 0) {
+﻿                        // Только что началось
+﻿                        this.uiManager.addMessage(`⚡ СОБЫТИЕ: ${event.name}`, 'system');
+﻿                        this.uiManager.addMessage(event.message, 'system');
+﻿                    }
+﻿    
+﻿                    // Применяем эффекты события
+﻿                    const effects = this.eventManager.applyEventEffects(this.player, this.enemy);
+﻿                    if (effects && effects.message) {
+﻿                        this.applyEventEffectsToCharacters(effects);
+﻿                        this.uiManager.addMessage(effects.message, 'system');
+﻿                    }
+﻿                }
+﻿            }
+﻿    
+﻿            // Сбрасываем карты хода
+﻿            this.currentTurnCards = { player: null, enemy: null };
+﻿        }
+﻿    
+﻿        applyEventEffectsToCharacters(effects) {
+﻿            // Применяем эффекты к игроку
+﻿            if (effects.player) {
+﻿                if (effects.player.logic) this.player.logic += effects.player.logic;
+﻿                if (effects.player.emotion) this.player.emotion += effects.player.emotion;
+﻿                if (effects.player.maxLogicPenalty) this.player.maxLogic += effects.player.maxLogicPenalty;
+﻿            }
+﻿    
+﻿            // Применяем эффекты к противнику
+﻿            if (effects.enemy) {
+﻿                if (effects.enemy.logic) this.enemy.logic += effects.enemy.logic;
+﻿                if (effects.enemy.emotion) this.enemy.emotion += effects.enemy.emotion;
+﻿                if (effects.enemy.maxLogicPenalty) this.enemy.maxLogic += effects.enemy.maxLogicPenalty;
+﻿            }
+﻿    
+﻿            // Обновляем статы после применения эффектов
+﻿            this.uiManager.updateStats(this.player, this.enemy);
+﻿        }
+﻿    }
+﻿    
+﻿    console.log('✅ Модуль engine.js загружен');
