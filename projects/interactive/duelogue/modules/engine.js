@@ -25,6 +25,10 @@ class GameEngine {
         this.lastVictorySpeechPromise = null;
         this.log = [];
 
+        // Система событий
+        this.eventManager = typeof EventManager !== 'undefined' ? new EventManager() : null;
+        this.currentTurnCards = { player: null, enemy: null };
+
         // В мультиплеере гость не должен инициализировать состояние сам
         if (!options.isGuest) {
             this.initializeNewGameState();
@@ -171,10 +175,11 @@ class GameEngine {
 ﻿
 ﻿    async enemyTurn() {
 ﻿        if (this.isMultiplayer || !this.gameActive) return;
-﻿        
+
 ﻿        this.turn++;
-﻿
+
 ﻿        let availableCards = this.enemy.cards.filter(card => !card.used);
+﻿        console.log(`🤖 Enemy turn ${this.turn}: ${availableCards.length} available cards из ${this.enemy.cards.length} total, ${this.enemy.deck.length} left in deck`);
 ﻿        let speechText = '';
 ﻿        let logText = '';
 ﻿
@@ -205,7 +210,11 @@ class GameEngine {
 ﻿        const speechPromise = this.visualManager.setVisual('enemy', speechText);
 ﻿        this.uiManager.addMessage(logText, 'enemy', this.turn);
 ﻿        this.checkPoints(this.enemy, this.player);
+
+﻿        // Тянем карты обоим игрокам после хода
 ﻿        this.drawCardsToHandLimit(this.player);
+﻿        this.drawCardsToHandLimit(this.enemy);
+
 ﻿        this.uiManager.updateStats(this.player, this.enemy);
 ﻿
 ﻿        if (this.checkVictory()) {
@@ -452,7 +461,45 @@ class GameEngine {
 ﻿    getHandLimit(character) { const logic = character.logic ?? 0; if (logic <= 0) return 3; if (logic <= 2) return 4; if (logic <= 4) return 5; if (logic <= 6) return 6; return 7; }
 ﻿    getCardSpeechText(card, owner) { if (!card) return ''; if (!owner.usedTextVariants) owner.usedTextVariants = {}; const variants = Array.isArray(card.textVariants) ? card.textVariants : []; if (variants.length > 0) { let tracker = owner.usedTextVariants[card.name]; if (!tracker || !Array.isArray(tracker.used) || tracker.used.length !== variants.length) { tracker = { used: new Array(variants.length).fill(false) }; owner.usedTextVariants[card.name] = tracker; } const used = tracker.used; const nextIndex = used.findIndex(flag => !flag); if (nextIndex !== -1) { used[nextIndex] = true; card.currentVariantIndex = nextIndex; return variants[nextIndex]; } card.currentVariantIndex = Math.min(card.currentVariantIndex ?? 0, variants.length - 1); return variants[card.currentVariantIndex] ?? card.text ?? ''; } if (card.currentVariantIndex === undefined || card.currentVariantIndex === null) { card.currentVariantIndex = 0; } return this.cardManager.getCardText(card); }
 ﻿    recordDiscard(card, owner) { if (!card || !owner) return; if (!owner.discardPile) owner.discardPile = []; owner.discardPile.push(card); owner.discardCount = (owner.discardCount ?? 0) + 1; }
-﻿    drawCardsToHandLimit(character) { if (!character.deck || character.deck.length === 0) return; const handLimit = this.getHandLimit(character); const cardsToDraw = handLimit - character.cards.length; for (let i = 0; i < cardsToDraw && character.deck.length > 0; i++) { const randomIndex = Math.floor(Math.random() * character.deck.length); const drawnCard = character.deck.splice(randomIndex, 1)[0]; character.cards.push(drawnCard); } }
+﻿    drawCardsToHandLimit(character) {
+        if (!character.deck || character.deck.length === 0) return;
+        const handLimit = this.getHandLimit(character);
+        const cardsToDraw = handLimit - character.cards.length;
+
+        // Создаем Set существующих имен карт в руке для быстрой проверки
+        const existingCardNames = new Set(character.cards.map(c => c.name));
+
+        for (let i = 0; i < cardsToDraw && character.deck.length > 0; i++) {
+            // Пытаемся найти карту, которой нет в руке
+            let attempts = 0;
+            let drawnCard = null;
+            const maxAttempts = character.deck.length;
+
+            while (attempts < maxAttempts) {
+                const randomIndex = Math.floor(Math.random() * character.deck.length);
+                const candidate = character.deck[randomIndex];
+
+                // Если карты с таким именем нет в руке - берем её
+                if (!existingCardNames.has(candidate.name)) {
+                    drawnCard = character.deck.splice(randomIndex, 1)[0];
+                    existingCardNames.add(drawnCard.name);
+                    character.cards.push(drawnCard);
+                    break;
+                }
+
+                attempts++;
+            }
+
+            // Если не нашли уникальную карту после всех попыток, значит в колоде только дубли
+            // В этом случае просто берем случайную карту
+            if (!drawnCard && character.deck.length > 0) {
+                const randomIndex = Math.floor(Math.random() * character.deck.length);
+                drawnCard = character.deck.splice(randomIndex, 1)[0];
+                character.cards.push(drawnCard);
+                console.warn(`⚠️ Пришлось взять дубликат карты "${drawnCard.name}", т.к. в колоде нет уникальных`);
+            }
+        }
+    }
 ﻿    getDamageMultiplier(character) { const emotion = character.emotion ?? 0; if (emotion <= 0) return 0.5; if (emotion <= 2) return 0.75; if (emotion <= 4) return 1.0; if (emotion <= 6) return 1.25; return 1.5; }
 ﻿    ensureMinimumHandComposition(character, isPlayer = true) { const handLimit = this.getHandLimit(character); const cardsByCategory = { 'Атака': character.cards.filter(c => c.category === 'Атака').length, 'Защита': character.cards.filter(c => c.category === 'Защита').length, 'Уклонение': character.cards.filter(c => c.category === 'Уклонение').length }; const missingTypes = []; if (cardsByCategory['Атака'] === 0 && character.cards.length < handLimit) { missingTypes.push('Атака'); } if (cardsByCategory['Защита'] === 0 && character.cards.length < handLimit) { missingTypes.push('Защита'); } if (cardsByCategory['Уклонение'] === 0 && character.cards.length < handLimit) { missingTypes.push('Уклонение'); } for (const type of missingTypes) { let card = null; if (type === 'Атака') { const attackPool = isPlayer ? this.cardManager.basePlayerCards : this.cardManager.baseEnemyCards; card = this.cardManager.getWeightedCard(character, attackPool); } else if (type === 'Защита') { card = this.cardManager.getDefenseCard(character); } else if (type === 'Уклонение') { if (this.cardManager.evasionCards.length) { card = this.cardManager.getUniqueCard(this.cardManager.evasionCards, character); } } if (card) { this.addCardsToHand(card, character); } } }
 ﻿    addDefenseWhenLow(character) { if ((character.logic < 0 && !character.logicNegative) || (character.emotion < 0 && !character.emotionNegative)) { const defenseCard = this.cardManager.getDefenseCard(character); if (defenseCard) { this.addCardsToHand(defenseCard, character); } if (character.logic < 0) character.logicNegative = true; if (character.emotion < 0) character.emotionNegative = true; } if (character.logic >= 0) character.logicNegative = false; if (character.emotion >= 0) character.emotionNegative = false; }
