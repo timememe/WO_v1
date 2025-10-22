@@ -155,12 +155,12 @@ class GameEngine {
 ﻿
 ﻿        this.checkPoints(this.player, this.enemy);
 ﻿        this.uiManager.updateStats(this.player, this.enemy);
-﻿
+
 ﻿        if (this.checkVictory()) {
 ﻿            await speechPromise;
 ﻿            return;
 ﻿        }
-﻿
+
 ﻿        // Если это мультиплеер, отправляем ход на сервер
         if (this.isMultiplayer) {
             multiplayer.sendMove(card); // Отправляем весь объект карты
@@ -269,7 +269,7 @@ class GameEngine {
 
 ﻿        this.checkPoints(this.enemy, this.player);
 
-﻿        // Обрабатываем события (как в сингле)
+﻿        // Обрабатываем события (как в сингле) после получения хода противника
 ﻿        this.processEvents();
 
 ﻿        // Раздаем карты обоим игрокам (как в сингле)
