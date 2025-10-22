@@ -250,32 +250,32 @@ class GameEngine {
 ﻿        console.log('📨 Получен ход противника:', cardData.name);
 ﻿        this.turn++;
 ﻿
-﻿        const opponentCard = this.enemy.cards.find(c => c.name === cardData.name);
-﻿        if (!opponentCard) {
-﻿            console.error('❌ Карта противника не найдена в руке:', cardData.name);
-﻿            // Можно запросить синхронизацию состояния у хоста
-﻿            return;
+﻿        // В мультиплеере используем полученные данные карты напрямую,
+﻿        // т.к. рука противника (enemy.cards) не синхронизируется между клиентами
+﻿        const opponentCard = cardData;
+
+﻿        // Записываем карту для системы событий
+﻿        if (this.eventManager) {
+﻿            this.currentTurnCards.enemy = opponentCard;
 ﻿        }
-﻿
+
 ﻿        const { speechText, logText } = this.applyCard(opponentCard, this.enemy, this.player);
 ﻿        const fullLogMessage = logText ? `${speechText} ${logText}` : speechText;
 ﻿        this.uiManager.addMessage(fullLogMessage, 'enemy', this.turn);
 ﻿        const speechPromise = this.visualManager.setVisual('enemy', speechText);
-﻿
-﻿        if (opponentCard.usesLeft !== undefined) {
-﻿            opponentCard.usesLeft--;
-﻿            if (opponentCard.usesLeft <= 0) opponentCard.used = true;
-﻿        } else {
-﻿            opponentCard.used = true;
-﻿        }
-﻿
-﻿        if (opponentCard.used) {
-﻿            this.recordDiscard(opponentCard, this.enemy);
-﻿            this.enemy.cards = this.enemy.cards.filter(c => !c.used);
-﻿        }
-﻿
+
+﻿        // Обновляем lastCard противника для механик зеркала/отмены
+﻿        this.enemy.lastCard = opponentCard;
+
 ﻿        this.checkPoints(this.enemy, this.player);
+
+﻿        // Обрабатываем события (как в сингле)
+﻿        this.processEvents();
+
+﻿        // Раздаем карты обоим игрокам (как в сингле)
 ﻿        this.drawCardsToHandLimit(this.player);
+﻿        this.drawCardsToHandLimit(this.enemy);
+
 ﻿        this.uiManager.updateStats(this.player, this.enemy);
 ﻿
 ﻿        if (this.checkVictory()) {
