@@ -279,11 +279,11 @@ class EventManager {
                 break;
 
             case 'critical_turning_point':
-                // Эффект: Проигрывающий получает +3 эмоции
+                // Эффект: Проигрывающий получает +3 эмоции, победитель -1 логика
                 if (this.activeEvent.loser) {
                     if (this.activeEvent.loser === player) {
                         effects.player.emotion = 3;
-                        effects.winner.logic = -1;
+                        effects.enemy.logic = -1;
                     } else {
                         effects.enemy.emotion = 3;
                         effects.player.logic = -1;

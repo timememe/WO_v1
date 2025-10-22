@@ -88,7 +88,7 @@ class VisualManager {
 
     /**
      * Единая точка перехода между состояниями
-     * Гарантирует: отмену предыдущей анимации → загрузку визуала → показ текста
+     * Гарантирует: отмену предыдущей анимации → одновременный запуск GIF и текста
      */
     async transitionToState(newState, speechText = '') {
         // 1. Отменяем любую текущую анимацию
@@ -99,13 +99,13 @@ class VisualManager {
         this.isAnimating = true;
 
         try {
-            // 3. Загружаем визуальные ассеты для нового состояния
-            await this.loadVisualAssets(newState);
+            // 3. Загружаем визуальные ассеты (синхронно, без ожидания)
+            this.loadVisualAssets(newState);
 
             // 4. Обновляем оверлеи (статистика/очки)
             this.updateOverlays(newState);
 
-            // 5. Если есть текст - показываем анимацию текста
+            // 5. Запускаем анимацию текста ПАРАЛЛЕЛЬНО с GIF
             if (speechText && speechText.trim() !== '') {
                 await this.animateText(speechText);
             }
@@ -123,7 +123,7 @@ class VisualManager {
     /**
      * Загрузка визуальных ассетов для состояния
      */
-    async loadVisualAssets(state) {
+    loadVisualAssets(state) {
         const assets = this.assets[state];
         if (!assets) {
             console.warn(`Нет ассетов для состояния: ${state}`);
@@ -133,16 +133,13 @@ class VisualManager {
         // Форсируем перезагрузку GIF через timestamp для рестарта анимации
         const timestamp = Date.now();
 
-        // Обновляем источники изображений
+        // Обновляем источники изображений (синхронно)
         if (assets.image) {
             this.visualImage.src = `${assets.image}?t=${timestamp}`;
         }
         if (assets.background) {
             this.visualBackground.src = `${assets.background}?t=${timestamp}`;
         }
-
-        // Небольшая задержка для гарантии загрузки
-        await this.delay(50);
     }
 
     /**
@@ -169,8 +166,8 @@ class VisualManager {
         this.speechBubble.textContent = '';
         this.speechBubble.classList.remove('visible');
 
-        // Небольшая задержка перед показом текста (синхронизация с анимацией)
-        await this.delay(100);
+        // Минимальная задержка для синхронизации с началом GIF
+        await this.delay(50);
 
         return new Promise((resolve) => {
             if (this.isDestroyed) {
