@@ -95,9 +95,9 @@ class GameEngine {
 ﻿            : "Монетка упала на сторону Скептика. Он начинает первым.";
 ﻿
 ﻿        this.uiManager.addMessage(message, 'enemy');
-﻿        await this.visualManager.setVisual('idle');
+﻿        await this.visualManager.showIdle();
 ﻿        await new Promise(resolve => setTimeout(resolve, 1500));
-﻿
+
 ﻿        if (playerStarts) {
 ﻿            this.playerTurn = true;
 ﻿            this.turn = 1;
@@ -106,18 +106,18 @@ class GameEngine {
 ﻿            this.turn = 1;
 ﻿            await this.enemyTurn(); // Ход бота
 ﻿        }
-﻿
+
 ﻿        this.uiManager.updateStats(this.player, this.enemy);
 ﻿        this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
-﻿        await this.visualManager.setVisual('idle');
+﻿        await this.visualManager.showIdle();
 ﻿    }
 ﻿
 ﻿        async initializeMultiplayerGame(isHost) {
 ﻿            this.playerTurn = isHost;
-﻿            await this.visualManager.setVisual('idle'); // Устанавливаем начальный визуальный стиль
+﻿            await this.visualManager.showIdle(); // Устанавливаем начальный визуальный стиль
 ﻿            this.uiManager.updateStats(this.player, this.enemy);
 ﻿            this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
-﻿            
+
 ﻿            const message = isHost ? "Комната создана. Вы ходите первым." : "Вы присоединились к игре. Ход противника.";
 ﻿            this.uiManager.addMessage(message, 'system');
 ﻿        }﻿
@@ -139,7 +139,7 @@ class GameEngine {
 ﻿        const { speechText, logText } = this.applyCard(card, this.player, this.enemy);
 ﻿        const fullLogMessage = logText ? `${speechText} ${logText}` : speechText;
 ﻿        this.uiManager.addMessage(fullLogMessage, 'player', this.turn);
-﻿        const speechPromise = this.visualManager.setVisual('player', speechText);
+﻿        const speechPromise = this.visualManager.showPlayerTurn(speechText);
 ﻿
 ﻿        if (card.usesLeft !== undefined) {
 ﻿            card.usesLeft--;
@@ -167,13 +167,13 @@ class GameEngine {
             this.playerTurn = false;
             this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
             await speechPromise;
-            await this.visualManager.setVisual('idle');
+            await this.visualManager.showIdle();
         } else {
 ﻿            // В одиночной игре передаем ход боту
 ﻿            this.playerTurn = false;
 ﻿            this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
 ﻿            await speechPromise;
-﻿            await this.visualManager.setVisual('enemy');
+﻿            // Переходим к ходу противника (анимация загрузится в enemyTurn)
 ﻿            await this.enemyTurn();
 ﻿        }
 ﻿    }
@@ -217,7 +217,7 @@ class GameEngine {
 ﻿            logText = `Скептик: "${speechText}"`;
 ﻿        }
 ﻿
-﻿        const speechPromise = this.visualManager.setVisual('enemy', speechText);
+﻿        const speechPromise = this.visualManager.showEnemyTurn(speechText);
 ﻿        this.uiManager.addMessage(logText, 'enemy', this.turn);
 ﻿        this.checkPoints(this.enemy, this.player);
 
@@ -229,19 +229,19 @@ class GameEngine {
 ﻿        this.drawCardsToHandLimit(this.enemy);
 
 ﻿        this.uiManager.updateStats(this.player, this.enemy);
-﻿
+
 ﻿        if (this.checkVictory()) {
 ﻿            await speechPromise;
 ﻿            return;
 ﻿        }
-﻿
+
 ﻿        await speechPromise;
-﻿
+
 ﻿        this.playerTurn = true;
 ﻿        this.playerHasPlayedCard = false;
 ﻿        this.uiManager.updateStats(this.player, this.enemy);
 ﻿        this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
-﻿        await this.visualManager.setVisual('idle');
+﻿        await this.visualManager.showIdle();
 ﻿    }
 ﻿
 ﻿    async handleOpponentMove(cardData) {
@@ -262,7 +262,7 @@ class GameEngine {
 ﻿        const { speechText, logText } = this.applyCard(opponentCard, this.enemy, this.player);
 ﻿        const fullLogMessage = logText ? `${speechText} ${logText}` : speechText;
 ﻿        this.uiManager.addMessage(fullLogMessage, 'enemy', this.turn);
-﻿        const speechPromise = this.visualManager.setVisual('enemy', speechText);
+﻿        const speechPromise = this.visualManager.showEnemyTurn(speechText);
 
 ﻿        // Обновляем lastCard противника для механик зеркала/отмены
 ﻿        this.enemy.lastCard = opponentCard;
@@ -284,12 +284,12 @@ class GameEngine {
 ﻿        }
 ﻿
 ﻿        await speechPromise;
-﻿
+
 ﻿        this.playerTurn = true;
 ﻿        this.playerHasPlayedCard = false;
 ﻿        this.uiManager.updateStats(this.player, this.enemy);
 ﻿        this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
-﻿        await this.visualManager.setVisual('idle');
+﻿        await this.visualManager.showIdle();
 ﻿    }
 ﻿
 ﻿
@@ -442,11 +442,14 @@ class GameEngine {
         this.gameActive = false;
 
         const message = isVictory ? "Ты победил! Все 3 твои точки зажжены!" : "Скептик победил! Ты проиграл!";
-        const visual = isVictory ? "player" : "enemy";
         const speech = isVictory ? "Победа!" : "Поражение!";
 
-        this.uiManager.addMessage(message, visual);
-        await this.visualManager.setVisual(visual, speech);
+        this.uiManager.addMessage(message, isVictory ? 'player' : 'enemy');
+        if (isVictory) {
+            await this.visualManager.showPlayerTurn(speech);
+        } else {
+            await this.visualManager.showEnemyTurn(speech);
+        }
 
         // Показываем экран завершения игры
         if (typeof showEndgameScreen === 'function') {

@@ -1,97 +1,198 @@
 // Визуальный менеджер для ДУЕЛОГ
 // Управляет анимациями, речевыми пузырями и визуальными эффектами
+// Архитектура: жёсткие состояния с чёткими переходами
+
+// ============================================
+// ВИЗУАЛЬНЫЕ СОСТОЯНИЯ
+// ============================================
+const VisualState = {
+    IDLE: 'idle',           // Ожидание хода игрока (статичная картинка)
+    PLAYER_TURN: 'player',  // Ход игрока (анимация игрока)
+    ENEMY_TURN: 'enemy'     // Ход противника (анимация противника)
+};
 
 class VisualManager {
     constructor() {
+        // DOM элементы
         this.visualImage = document.getElementById('visualImage');
         this.visualBackground = document.getElementById('visualBackground');
         this.speechBubble = document.getElementById('speechBubble');
         this.statsOverlay = document.getElementById('statsOverlay');
         this.pointsOverlay = document.getElementById('pointsOverlay');
+
+        // Визуальные ассеты для каждого состояния
         this.assets = {
-            idle: { image: 'images/main.png', background: 'images/anim/exp_bg.gif' },
-            player: { image: 'images/anim/talk_blue.gif', background: 'images/anim/exp_bg.gif' },
-            enemy: { image: 'images/anim/talk_red.gif', background: 'images/anim/exp_bg.gif' }
+            [VisualState.IDLE]: {
+                image: 'images/main.png',
+                background: 'images/anim/exp_bg.gif',
+                showStats: true
+            },
+            [VisualState.PLAYER_TURN]: {
+                image: 'images/anim/talk_blue.gif',
+                background: 'images/anim/exp_bg.gif',
+                showStats: false
+            },
+            [VisualState.ENEMY_TURN]: {
+                image: 'images/anim/talk_red.gif',
+                background: 'images/anim/exp_bg.gif',
+                showStats: false
+            }
         };
-        this.baseCharDelay = 55; // ~18 символов в секунду
-        this.readingPauseMs = 3000;
+
+        // Настройки анимации текста
+        this.baseCharDelay = 55;        // ~18 символов в секунду
+        this.textPauseMs = 1500;        // Пауза после завершения печати текста
+
+        // Внутреннее состояние
+        this.currentState = VisualState.IDLE;
+        this.isAnimating = false;       // Флаг активной анимации
         this.typingTimeout = null;
         this.pauseTimeout = null;
-        this.currentSpeechResolve = null;
+        this.currentAnimationResolve = null;
         this.isDestroyed = false;
-        this.currentState = 'idle'; // Отслеживаем текущее состояние
-        this.pendingVisualChange = null; // Очередь изменений визуала
     }
 
-    async setVisual(state, text = '') {
-        // Отменяем предыдущую анимацию и речь
-        this.cancelSpeech();
+    // ============================================
+    // ОСНОВНОЙ ПУБЛИЧНЫЙ API
+    // ============================================
 
-        // Сохраняем текущее состояние
-        this.currentState = state;
+    /**
+     * Переход в состояние IDLE (ожидание хода игрока)
+     * Показывает статичную картинку и статистику
+     */
+    async showIdle() {
+        return this.transitionToState(VisualState.IDLE, '');
+    }
 
-        const assets = this.assets[state] ?? this.assets.idle;
+    /**
+     * Показ хода игрока
+     * @param {string} speechText - Текст для отображения
+     * @returns {Promise} - Резолвится после завершения анимации + текста + паузы
+     */
+    async showPlayerTurn(speechText) {
+        return this.transitionToState(VisualState.PLAYER_TURN, speechText);
+    }
 
-        // Сначала скрываем речевой пузырь
-        this.speechBubble.classList.remove('visible');
+    /**
+     * Показ хода противника
+     * @param {string} speechText - Текст для отображения
+     * @returns {Promise} - Резолвится после завершения анимации + текста + паузы
+     */
+    async showEnemyTurn(speechText) {
+        return this.transitionToState(VisualState.ENEMY_TURN, speechText);
+    }
 
-        // Обновляем визуал с небольшой задержкой для синхронизации
-        if (assets) {
-            // Форсируем перезагрузку GIF добавлением таймстампа
-            const timestamp = new Date().getTime();
+    // ============================================
+    // ВНУТРЕННЯЯ ЛОГИКА ПЕРЕХОДОВ
+    // ============================================
+
+    /**
+     * Единая точка перехода между состояниями
+     * Гарантирует: отмену предыдущей анимации → загрузку визуала → показ текста
+     */
+    async transitionToState(newState, speechText = '') {
+        // 1. Отменяем любую текущую анимацию
+        this.cancelCurrentAnimation();
+
+        // 2. Обновляем текущее состояние
+        this.currentState = newState;
+        this.isAnimating = true;
+
+        try {
+            // 3. Загружаем визуальные ассеты для нового состояния
+            await this.loadVisualAssets(newState);
+
+            // 4. Обновляем оверлеи (статистика/очки)
+            this.updateOverlays(newState);
+
+            // 5. Если есть текст - показываем анимацию текста
+            if (speechText && speechText.trim() !== '') {
+                await this.animateText(speechText);
+            }
+
+            // 6. Помечаем анимацию как завершённую
+            this.isAnimating = false;
+
+        } catch (error) {
+            console.error('Ошибка при переходе в состояние:', newState, error);
+            this.isAnimating = false;
+            throw error;
+        }
+    }
+
+    /**
+     * Загрузка визуальных ассетов для состояния
+     */
+    async loadVisualAssets(state) {
+        const assets = this.assets[state];
+        if (!assets) {
+            console.warn(`Нет ассетов для состояния: ${state}`);
+            return;
+        }
+
+        // Форсируем перезагрузку GIF через timestamp для рестарта анимации
+        const timestamp = Date.now();
+
+        // Обновляем источники изображений
+        if (assets.image) {
             this.visualImage.src = `${assets.image}?t=${timestamp}`;
+        }
+        if (assets.background) {
             this.visualBackground.src = `${assets.background}?t=${timestamp}`;
         }
 
-        // Обновляем видимость оверлеев
-        if (state === 'idle') {
+        // Небольшая задержка для гарантии загрузки
+        await this.delay(50);
+    }
+
+    /**
+     * Обновление видимости оверлеев (статистика/очки)
+     */
+    updateOverlays(state) {
+        const assets = this.assets[state];
+        const showStats = assets?.showStats ?? false;
+
+        if (showStats) {
             this.statsOverlay.classList.add('visible');
             this.pointsOverlay.classList.add('visible');
         } else {
             this.statsOverlay.classList.remove('visible');
             this.pointsOverlay.classList.remove('visible');
         }
-
-        // Небольшая задержка перед показом текста для синхронизации с анимацией
-        if (text) {
-            await this.delay(100);
-        }
-
-        // Показываем речевой пузырь
-        return this.showSpeechBubble(text);
     }
 
-    showSpeechBubble(text) {
-        // Очищаем и прячем пузырь
+    /**
+     * Анимация текста с эффектом печати + пауза после завершения
+     */
+    async animateText(text) {
+        // Очищаем и скрываем пузырь перед началом
         this.speechBubble.textContent = '';
         this.speechBubble.classList.remove('visible');
 
-        if (!text || text.trim() === '') {
-            return Promise.resolve();
-        }
+        // Небольшая задержка перед показом текста (синхронизация с анимацией)
+        await this.delay(100);
 
-        return new Promise(resolve => {
-            // Проверяем, не уничтожен ли менеджер
+        return new Promise((resolve) => {
             if (this.isDestroyed) {
                 resolve();
                 return;
             }
 
             // Сохраняем resolve для возможной отмены
-            this.currentSpeechResolve = () => {
+            this.currentAnimationResolve = () => {
                 resolve();
-                this.currentSpeechResolve = null;
+                this.currentAnimationResolve = null;
             };
 
             // Показываем пузырь
             this.speechBubble.classList.add('visible');
 
+            // Печать текста посимвольно
             let index = 0;
             const typeNext = () => {
-                // Проверка безопасности: останавливаемся если уничтожено
                 if (this.isDestroyed) {
-                    if (this.currentSpeechResolve) {
-                        this.currentSpeechResolve();
+                    if (this.currentAnimationResolve) {
+                        this.currentAnimationResolve();
                     }
                     return;
                 }
@@ -103,17 +204,17 @@ class VisualManager {
                     index++;
                     this.typingTimeout = setTimeout(typeNext, delay);
                 } else {
-                    // Печать завершена, ждём перед скрытием
+                    // Печать завершена - ждём паузу перед скрытием
                     this.typingTimeout = null;
                     this.pauseTimeout = setTimeout(() => {
                         this.pauseTimeout = null;
                         // Скрываем пузырь
                         this.speechBubble.classList.remove('visible');
-                        // Резолвим промис если всё ещё активно
-                        if (this.currentSpeechResolve && !this.isDestroyed) {
-                            this.currentSpeechResolve();
+                        // Резолвим промис
+                        if (this.currentAnimationResolve && !this.isDestroyed) {
+                            this.currentAnimationResolve();
                         }
-                    }, this.readingPauseMs);
+                    }, this.textPauseMs);
                 }
             };
 
@@ -121,6 +222,13 @@ class VisualManager {
         });
     }
 
+    // ============================================
+    // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
+    // ============================================
+
+    /**
+     * Вычисление задержки для символа (пунктуация = дольше)
+     */
     getCharDelay(char) {
         if (!char) return this.baseCharDelay;
         if (char === ' ') return Math.max(20, Math.floor(this.baseCharDelay * 0.6));
@@ -130,7 +238,11 @@ class VisualManager {
         return this.baseCharDelay;
     }
 
-    cancelSpeech() {
+    /**
+     * Отмена текущей анимации
+     */
+    cancelCurrentAnimation() {
+        // Очищаем все таймауты
         if (this.typingTimeout) {
             clearTimeout(this.typingTimeout);
             this.typingTimeout = null;
@@ -139,39 +251,93 @@ class VisualManager {
             clearTimeout(this.pauseTimeout);
             this.pauseTimeout = null;
         }
-        if (this.currentSpeechResolve) {
-            this.currentSpeechResolve();
-            this.currentSpeechResolve = null;
+
+        // Резолвим текущий промис если есть
+        if (this.currentAnimationResolve) {
+            this.currentAnimationResolve();
+            this.currentAnimationResolve = null;
         }
+
+        // Очищаем речевой пузырь
         this.speechBubble.textContent = '';
         this.speechBubble.classList.remove('visible');
     }
 
-    async showSpeech(text, who) {
-        // Вспомогательный метод для показа речи с правильным визуалом
-        return this.setVisual(who, text);
-    }
-
-    // Вспомогательный метод для задержки
+    /**
+     * Промис-обёртка для задержки
+     */
     delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    // Метод для полной очистки ресурсов
+    /**
+     * Получить текущее состояние
+     */
+    getCurrentState() {
+        return this.currentState;
+    }
+
+    /**
+     * Проверка активной анимации
+     */
+    isCurrentlyAnimating() {
+        return this.isAnimating;
+    }
+
+    // ============================================
+    // УСТАРЕВШИЕ МЕТОДЫ (для обратной совместимости)
+    // ============================================
+
+    /**
+     * @deprecated Используйте showIdle(), showPlayerTurn(), showEnemyTurn()
+     */
+    async setVisual(state, text = '') {
+        console.warn('setVisual() устарел, используйте showIdle/showPlayerTurn/showEnemyTurn');
+
+        switch(state) {
+            case 'idle':
+                return this.showIdle();
+            case 'player':
+                return this.showPlayerTurn(text);
+            case 'enemy':
+                return this.showEnemyTurn(text);
+            default:
+                return this.showIdle();
+        }
+    }
+
+    /**
+     * @deprecated Используйте showPlayerTurn() или showEnemyTurn()
+     */
+    async showSpeech(text, who) {
+        console.warn('showSpeech() устарел, используйте showPlayerTurn/showEnemyTurn');
+        if (who === 'player') {
+            return this.showPlayerTurn(text);
+        } else {
+            return this.showEnemyTurn(text);
+        }
+    }
+
+    // ============================================
+    // ОЧИСТКА РЕСУРСОВ
+    // ============================================
+
+    /**
+     * Полное уничтожение менеджера
+     */
     destroy() {
         console.log('🧹 Destroying VisualManager');
         this.isDestroyed = true;
-        this.cancelSpeech();
+        this.cancelCurrentAnimation();
 
-        // Clear any references
+        // Очищаем ссылки на DOM
         this.visualImage = null;
         this.visualBackground = null;
         this.speechBubble = null;
         this.statsOverlay = null;
         this.pointsOverlay = null;
-        this.currentSpeechResolve = null;
-        this.pendingVisualChange = null;
+        this.currentAnimationResolve = null;
     }
 }
 
-console.log('✅ Модуль visual.js загружен');
+console.log('✅ Модуль visual.js загружен (v2.0 - State Machine Architecture)');
