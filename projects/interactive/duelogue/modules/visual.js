@@ -19,16 +19,31 @@ class VisualManager {
         this.pauseTimeout = null;
         this.currentSpeechResolve = null;
         this.isDestroyed = false;
+        this.currentState = 'idle'; // Отслеживаем текущее состояние
+        this.pendingVisualChange = null; // Очередь изменений визуала
     }
 
-    setVisual(state, text = '') {
-        const assets = this.assets[state] ?? this.assets.idle;
+    async setVisual(state, text = '') {
+        // Отменяем предыдущую анимацию и речь
         this.cancelSpeech();
+
+        // Сохраняем текущее состояние
+        this.currentState = state;
+
+        const assets = this.assets[state] ?? this.assets.idle;
+
+        // Сначала скрываем речевой пузырь
+        this.speechBubble.classList.remove('visible');
+
+        // Обновляем визуал с небольшой задержкой для синхронизации
         if (assets) {
-            this.visualImage.src = assets.image;
-            this.visualBackground.src = assets.background;
+            // Форсируем перезагрузку GIF добавлением таймстампа
+            const timestamp = new Date().getTime();
+            this.visualImage.src = `${assets.image}?t=${timestamp}`;
+            this.visualBackground.src = `${assets.background}?t=${timestamp}`;
         }
-        const speechPromise = this.showSpeechBubble(text);
+
+        // Обновляем видимость оверлеев
         if (state === 'idle') {
             this.statsOverlay.classList.add('visible');
             this.pointsOverlay.classList.add('visible');
@@ -36,31 +51,44 @@ class VisualManager {
             this.statsOverlay.classList.remove('visible');
             this.pointsOverlay.classList.remove('visible');
         }
-        return speechPromise;
+
+        // Небольшая задержка перед показом текста для синхронизации с анимацией
+        if (text) {
+            await this.delay(100);
+        }
+
+        // Показываем речевой пузырь
+        return this.showSpeechBubble(text);
     }
 
     showSpeechBubble(text) {
+        // Очищаем и прячем пузырь
         this.speechBubble.textContent = '';
         this.speechBubble.classList.remove('visible');
-        if (!text) {
+
+        if (!text || text.trim() === '') {
             return Promise.resolve();
         }
 
         return new Promise(resolve => {
-            // Check if destroyed before starting
+            // Проверяем, не уничтожен ли менеджер
             if (this.isDestroyed) {
                 resolve();
                 return;
             }
 
+            // Сохраняем resolve для возможной отмены
             this.currentSpeechResolve = () => {
                 resolve();
                 this.currentSpeechResolve = null;
             };
+
+            // Показываем пузырь
             this.speechBubble.classList.add('visible');
+
             let index = 0;
             const typeNext = () => {
-                // Safety check: stop if destroyed
+                // Проверка безопасности: останавливаемся если уничтожено
                 if (this.isDestroyed) {
                     if (this.currentSpeechResolve) {
                         this.currentSpeechResolve();
@@ -69,21 +97,26 @@ class VisualManager {
                 }
 
                 if (index < text.length) {
+                    // Добавляем следующий символ
                     this.speechBubble.textContent += text[index];
                     const delay = this.getCharDelay(text[index]);
                     index++;
                     this.typingTimeout = setTimeout(typeNext, delay);
                 } else {
+                    // Печать завершена, ждём перед скрытием
                     this.typingTimeout = null;
                     this.pauseTimeout = setTimeout(() => {
                         this.pauseTimeout = null;
-                        // Check if still valid before resolving
+                        // Скрываем пузырь
+                        this.speechBubble.classList.remove('visible');
+                        // Резолвим промис если всё ещё активно
                         if (this.currentSpeechResolve && !this.isDestroyed) {
                             this.currentSpeechResolve();
                         }
                     }, this.readingPauseMs);
                 }
             };
+
             typeNext();
         });
     }
@@ -119,6 +152,11 @@ class VisualManager {
         return this.setVisual(who, text);
     }
 
+    // Вспомогательный метод для задержки
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
     // Метод для полной очистки ресурсов
     destroy() {
         console.log('🧹 Destroying VisualManager');
@@ -132,6 +170,7 @@ class VisualManager {
         this.statsOverlay = null;
         this.pointsOverlay = null;
         this.currentSpeechResolve = null;
+        this.pendingVisualChange = null;
     }
 }
 

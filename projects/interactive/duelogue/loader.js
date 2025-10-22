@@ -58,9 +58,55 @@ class GameLoader {
     }
 
     async preloadVisuals() {
-        // Проверка визуальных ресурсов (необязательно)
-        // Изображения не критичны для игры, используются цветные фоны
-        console.log('✅ Визуальная система готова (используются градиентные фоны)');
+        // Предзагрузка всех визуальных ресурсов (изображения и гифки)
+        const imageAssets = [
+            // Анимации
+            'images/anim/exp_bg.gif',
+            'images/anim/idel_blue.gif',
+            'images/anim/rage_red.gif',
+            'images/anim/talk_blue.gif',
+            'images/anim/talk_blueG.gif',
+            'images/anim/talk_red.gif',
+            'images/anim/win_blue.gif',
+            'images/anim/win_red.gif',
+            // Статичные изображения
+            'images/blue1.png',
+            'images/blue2.png',
+            'images/expression_bg.png',
+            'images/idle_bluetalk.gif',
+            'images/idle_redtalk.gif',
+            'images/logo.png',
+            'images/main.png',
+            'images/main2.png',
+            'images/red1.png',
+            'images/red2.png'
+        ];
+
+        let loadedCount = 0;
+        const totalAssets = imageAssets.length;
+
+        const preloadPromises = imageAssets.map(src => {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+
+                img.onload = () => {
+                    loadedCount++;
+                    console.log(`✅ Загружено: ${src} (${loadedCount}/${totalAssets})`);
+                    resolve(src);
+                };
+
+                img.onerror = () => {
+                    console.warn(`⚠️ Не удалось загрузить: ${src}`);
+                    loadedCount++;
+                    resolve(src); // Resolve anyway to not block loading
+                };
+
+                img.src = src;
+            });
+        });
+
+        await Promise.all(preloadPromises);
+        console.log(`✅ Визуальные ассеты загружены: ${loadedCount}/${totalAssets}`);
         return Promise.resolve();
     }
 
