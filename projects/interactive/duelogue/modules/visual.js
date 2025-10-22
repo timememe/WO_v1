@@ -88,7 +88,7 @@ class VisualManager {
 
     /**
      * Единая точка перехода между состояниями
-     * Гарантирует: отмену предыдущей анимации → одновременный запуск GIF и текста
+     * Гарантирует: отмену предыдущей анимации → синхронный показ GIF и текста
      */
     async transitionToState(newState, speechText = '') {
         // 1. Отменяем любую текущую анимацию
@@ -99,13 +99,13 @@ class VisualManager {
         this.isAnimating = true;
 
         try {
-            // 3. Загружаем визуальные ассеты (синхронно, без ожидания)
-            this.loadVisualAssets(newState);
-
-            // 4. Обновляем оверлеи (статистика/очки)
+            // 3. Обновляем оверлеи (статистика/очки)
             this.updateOverlays(newState);
 
-            // 5. Запускаем анимацию текста ПАРАЛЛЕЛЬНО с GIF
+            // 4. Загружаем GIF (мгновенно из кэша)
+            this.loadVisualAssets(newState);
+
+            // 5. Запускаем анимацию текста параллельно с GIF
             if (speechText && speechText.trim() !== '') {
                 await this.animateText(speechText);
             }
@@ -122,6 +122,7 @@ class VisualManager {
 
     /**
      * Загрузка визуальных ассетов для состояния
+     * Использует предзагруженные из loader.js ассеты (из кэша браузера)
      */
     loadVisualAssets(state) {
         const assets = this.assets[state];
@@ -131,9 +132,10 @@ class VisualManager {
         }
 
         // Форсируем перезагрузку GIF через timestamp для рестарта анимации
+        // GIF уже в кэше браузера благодаря loader.js, поэтому загрузка мгновенная
         const timestamp = Date.now();
 
-        // Обновляем источники изображений (синхронно)
+        // Обновляем источники (мгновенно из кэша)
         if (assets.image) {
             this.visualImage.src = `${assets.image}?t=${timestamp}`;
         }
