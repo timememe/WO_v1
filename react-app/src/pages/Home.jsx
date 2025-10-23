@@ -16,7 +16,13 @@ export default function Home() {
       <div className="container-9-16">
         <header>
           <div className="logo-container">
-            <img src="/shared/assets/images/logo.png" alt="Логотип Мирового Правительства" id="logo" />
+            <img
+              src="/shared/assets/images/logo.png"
+              alt="Логотип Мирового Правительства"
+              id="logo"
+              loading="eager"
+              fetchpriority="high"
+            />
           </div>
         </header>
         <main>
