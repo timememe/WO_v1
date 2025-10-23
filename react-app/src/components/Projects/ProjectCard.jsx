@@ -5,7 +5,11 @@ export default function ProjectCard({ project }) {
     <div className="project-card">
       <div className="project-card-image">
         {project.image ? (
-          <img src={project.image} alt={project.title} />
+          <img
+            src={project.image}
+            alt={project.title}
+            loading="lazy"
+          />
         ) : (
           <div className="project-card-placeholder">{project.title[0]}</div>
         )}

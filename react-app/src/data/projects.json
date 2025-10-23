@@ -5,7 +5,7 @@
     "category": "games",
     "description": "Карточная игра с уникальной механикой боя",
     "path": "/projects/interactive/duelogue/duelogue.html",
-    "image": "/projects/interactive/duelogue/images/anim/talk_red.gif",
+    "image": "/projects/interactive/duelogue/images/red1.png",
     "type": "embedded",
     "visible": true
   },
