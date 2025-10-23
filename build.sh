@@ -11,6 +11,7 @@ cd ..
 cp -r projects react-app/dist/
 cp -r shared react-app/dist/
 cp -r port_assets react-app/dist/
+cp landing.html react-app/dist/
 cp hellothere.html react-app/dist/
 cp port_script.js react-app/dist/
 cp port_styles.css react-app/dist/

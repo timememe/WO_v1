@@ -5,9 +5,9 @@ export default function Home() {
   return (
     <Layout showHeader={false}>
       <div className="home-container">
-        {/* Оригинальный index.html с логотипом и кнопкой */}
+        {/* Оригинальная главная страница с логотипом и кнопкой */}
         <iframe
-          src="/index.html"
+          src="/landing.html"
           title="WORLD ORDER"
           className="home-iframe"
         />
