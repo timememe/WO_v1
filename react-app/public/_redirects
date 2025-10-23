@@ -4,5 +4,11 @@
 /duelogue.html   /duelogue.html   200
 /wewatching.html   /wewatching.html   200
 
-# Redirect all other routes to React app
+# Don't redirect static assets and project files
+/assets/*   /assets/:splat   200
+/projects/*   /projects/:splat   200
+/shared/*   /shared/:splat   200
+/port_assets/*   /port_assets/:splat   200
+
+# Redirect all other routes to React app (SPA fallback)
 /*    /index.html   200
