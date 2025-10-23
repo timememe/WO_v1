@@ -1,0 +1,74 @@
+[
+  {
+    "id": "duelogue",
+    "title": "Duelogue",
+    "category": "interactive",
+    "description": "Карточная игра с уникальной механикой боя",
+    "path": "/projects/interactive/duelogue/duelogue.html",
+    "thumbnail": "/projects/interactive/duelogue/images/logo.png",
+    "type": "embedded"
+  },
+  {
+    "id": "crazy-snake",
+    "title": "Crazy Snake",
+    "category": "games",
+    "description": "Классическая игра змейка с твистом",
+    "path": "/projects/games/crazy-snake/crazy_snake.html",
+    "thumbnail": null,
+    "type": "embedded"
+  },
+  {
+    "id": "fractal",
+    "title": "Fractal",
+    "category": "interactive",
+    "description": "Интерактивная визуализация фракталов",
+    "path": "/projects/interactive/fractal/fractal.html",
+    "thumbnail": null,
+    "type": "embedded"
+  },
+  {
+    "id": "beauty-mira",
+    "title": "Beauty Mira",
+    "category": "interactive",
+    "description": "Интерактивный опыт",
+    "path": "/projects/interactive/beauty-mira/beautymira.html",
+    "thumbnail": null,
+    "type": "embedded"
+  },
+  {
+    "id": "cookie",
+    "title": "Cookie",
+    "category": "interactive",
+    "description": "Интерактивный проект",
+    "path": "/projects/interactive/cookie/cookie.html",
+    "thumbnail": null,
+    "type": "embedded"
+  },
+  {
+    "id": "idea-generator",
+    "title": "Idea Generator",
+    "category": "interactive",
+    "description": "Генератор идей",
+    "path": "/projects/interactive/idea-generator/ideaGen.html",
+    "thumbnail": null,
+    "type": "embedded"
+  },
+  {
+    "id": "parasitector",
+    "title": "Parasitector",
+    "category": "interactive",
+    "description": "Интерактивный проект",
+    "path": "/projects/interactive/parasitector/parasitector.html",
+    "thumbnail": null,
+    "type": "embedded"
+  },
+  {
+    "id": "truth",
+    "title": "Truth",
+    "category": "interactive",
+    "description": "Интерактивный опыт",
+    "path": "/projects/interactive/truth/truth.html",
+    "thumbnail": null,
+    "type": "embedded"
+  }
+]

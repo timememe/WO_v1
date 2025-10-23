@@ -1,0 +1,25 @@
+/* Container with 9:16 aspect ratio */
+.container-9-16 {
+  width: 100%;
+  max-width: 100vw;
+  height: 100vh;
+  margin: 0 auto;
+  background-color: #000;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Responsive breakpoints */
+@media (min-width: 600px) {
+  .container-9-16 {
+    max-width: calc(100vh * 9 / 16);
+  }
+}
+
+@media (max-width: 480px) {
+  .container-9-16 {
+    max-width: 100vw;
+  }
+}
