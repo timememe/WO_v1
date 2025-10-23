@@ -23,7 +23,7 @@
     "id": "fractal",
     "title": "Fractal",
     "category": "interactive",
-    "description": "Интерактивная визуализация фракталов",
+    "description": "Чисто по приколу сделал визуализацию фракталов",
     "path": "/projects/interactive/fractal/fractal.html",
     "image": "/projects/interactive/fractal/prev.png",
     "type": "embedded",
@@ -61,11 +61,11 @@
   },
   {
     "id": "parasitector",
-    "title": "Parasitector",
+    "title": "Parasitector 3000",
     "category": "interactive",
-    "description": "Интерактивный проект",
+    "description": "Простой помощник по фиксации слов-паразитов в речи",
     "path": "/projects/interactive/parasitector/parasitector.html",
-    "image": null,
+    "image": "/projects/interactive/parasitector/prev.png",
     "type": "embedded",
     "visible": true
   },
