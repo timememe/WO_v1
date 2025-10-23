@@ -6,6 +6,9 @@ cd react-app
 npm install
 npm run build
 
+echo "Creating 404.html fallback for SPA routing..."
+cp dist/index.html dist/404.html
+
 echo "Copying old projects and files to dist..."
 cd ..
 cp -r projects react-app/dist/
