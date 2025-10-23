@@ -1,12 +1,11 @@
-import { Link } from 'react-router-dom';
 import './ProjectCard.css';
 
 export default function ProjectCard({ project }) {
   return (
-    <Link to={`/project/${project.id}`} className="project-card">
+    <div className="project-card">
       <div className="project-card-image">
-        {project.thumbnail ? (
-          <img src={project.thumbnail} alt={project.title} />
+        {project.image ? (
+          <img src={project.image} alt={project.title} />
         ) : (
           <div className="project-card-placeholder">{project.title[0]}</div>
         )}
@@ -16,6 +15,6 @@ export default function ProjectCard({ project }) {
         <p className="project-card-description">{project.description}</p>
         <span className="project-card-category">{project.category}</span>
       </div>
-    </Link>
+    </div>
   );
 }
