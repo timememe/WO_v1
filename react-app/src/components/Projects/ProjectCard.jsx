@@ -1,8 +1,9 @@
+import { Link } from 'react-router-dom';
 import './ProjectCard.css';
 
 export default function ProjectCard({ project }) {
   return (
-    <div className="project-card">
+    <Link to={`/project/${project.id}`} className="project-card">
       <div className="project-card-image">
         {project.image ? (
           <img
@@ -19,6 +20,6 @@ export default function ProjectCard({ project }) {
         <p className="project-card-description">{project.description}</p>
         <span className="project-card-category">{project.category}</span>
       </div>
-    </div>
+    </Link>
   );
 }
