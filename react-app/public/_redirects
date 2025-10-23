@@ -1,1 +1,8 @@
+# Don't redirect static HTML files
+/landing.html   /landing.html   200
+/hellothere.html   /hellothere.html   200
+/duelogue.html   /duelogue.html   200
+/wewatching.html   /wewatching.html   200
+
+# Redirect all other routes to React app
 /*    /index.html   200
