@@ -40,7 +40,13 @@ class GameSimulator {
             // Крайние случаи
             negativeStats: 0,
             shieldBreaks: 0,
-            duplicateCardsAttempted: 0
+            duplicateCardsAttempted: 0,
+
+            // Метрики весов
+            totalScalesChange: 0,
+            avgFinalScales: 0,
+            scalesVictories: 0,
+            pointsVictories: 0
         };
     }
 
@@ -85,6 +91,13 @@ class GameSimulator {
                 discardCount: 0
             },
 
+            // Система весов убеждённости
+            scales: 0,
+            SCALES_MAX: 10,
+            SCALES_MIN: -10,
+            SCALES_THRESHOLDS: [4, 7, 10],
+            scalesPointsEarned: { player: 0, enemy: 0 },
+
             // Система событий
             eventManager: typeof EventManager !== 'undefined' ? new EventManager() : null,
             currentTurnCards: { player: null, enemy: null },
@@ -106,6 +119,25 @@ class GameSimulator {
                 if (logic <= 4) return 5;
                 if (logic <= 6) return 6;
                 return 7;
+            },
+
+            applyDamageWithScales(target, targetStat, damage) {
+                if (damage <= 0) return;
+                const currentHP = target[targetStat] ?? 0;
+
+                if (currentHP > 0) {
+                    const actualDamage = Math.min(damage, currentHP);
+                    const overflow = damage - actualDamage;
+                    target[targetStat] = currentHP - actualDamage;
+
+                    if (overflow > 0) {
+                        const scalesShift = (target === this.player) ? -overflow : overflow;
+                        this.scales = Math.max(this.SCALES_MIN, Math.min(this.SCALES_MAX, this.scales + scalesShift));
+                    }
+                } else {
+                    const scalesShift = (target === this.player) ? -damage : damage;
+                    this.scales = Math.max(this.SCALES_MIN, Math.min(this.SCALES_MAX, this.scales + scalesShift));
+                }
             },
 
             drawCardsToHandLimit(character, metrics) {
@@ -223,7 +255,7 @@ class GameSimulator {
                         }
 
                         if (finalDamage > 0) {
-                            target[targetStat] -= finalDamage;
+                            this.applyDamageWithScales(target, targetStat, finalDamage);
                             logDetails.push(`-${finalDamage} ${targetStat}`);
                             if (!target.lastCardEffects) target.lastCardEffects = {};
                             if (targetStat === 'logic') target.lastCardEffects.logicDamage = finalDamage;
@@ -281,29 +313,35 @@ class GameSimulator {
                 return { logText: logDetails.join(' ') };
             },
 
-            checkPoints(winner, loser) {
-                if (loser.logic <= 0 && !loser.logicDepleted) {
-                    winner.points += 1;
-                    loser.logicDepleted = true;
-                }
-                if (loser.emotion <= 0 && !loser.emotionDepleted) {
-                    winner.points += 1;
-                    loser.emotionDepleted = true;
-                }
-                if (loser.logic < 0 && loser.emotion < 0) {
-                    loser.negativeTurns += 1;
-                    if (loser.negativeTurns >= 3) {
-                        winner.points += 1;
-                        loser.negativeTurns = 0;
+            checkPoints() {
+                // Новая система: точки зажигаются по достижению порогов весов
+                if (this.scales > 0) {
+                    for (let i = 0; i < this.SCALES_THRESHOLDS.length; i++) {
+                        const threshold = this.SCALES_THRESHOLDS[i];
+                        if (this.scales >= threshold && this.scalesPointsEarned.player < (i + 1)) {
+                            this.player.points = i + 1;
+                            this.scalesPointsEarned.player = i + 1;
+                            break;
+                        }
                     }
-                } else {
-                    loser.negativeTurns = 0;
+                } else if (this.scales < 0) {
+                    for (let i = 0; i < this.SCALES_THRESHOLDS.length; i++) {
+                        const threshold = -this.SCALES_THRESHOLDS[i];
+                        if (this.scales <= threshold && this.scalesPointsEarned.enemy < (i + 1)) {
+                            this.enemy.points = i + 1;
+                            this.scalesPointsEarned.enemy = i + 1;
+                            break;
+                        }
+                    }
                 }
-                if (loser.logic > 0) loser.logicDepleted = false;
-                if (loser.emotion > 0) loser.emotionDepleted = false;
             },
 
             checkVictory() {
+                // Проверка победы через весы
+                if (this.scales >= this.SCALES_MAX) return 'player';
+                if (this.scales <= this.SCALES_MIN) return 'enemy';
+
+                // Проверка победы через очки
                 if (this.player.points >= 3) return 'player';
                 if (this.enemy.points >= 3) return 'enemy';
                 return null;
@@ -373,7 +411,9 @@ class GameSimulator {
                 negativeStats: 0,
                 shieldBreaks: 0,
                 duplicateCardsAttempted: 0,
-                eventTriggers: {}
+                eventTriggers: {},
+                finalScales: 0,
+                scalesPointsEarned: { player: 0, enemy: 0 }
             }
         };
 
@@ -457,7 +497,7 @@ class GameSimulator {
                 engine.currentTurnCards.player = randomCard;
             }
 
-            engine.checkPoints(engine.player, engine.enemy);
+            engine.checkPoints();
             const victory = engine.checkVictory();
             if (victory) {
                 engine.gameActive = false;
@@ -502,7 +542,7 @@ class GameSimulator {
             // Обработка событий в конце хода
             engine.processEvents(gameLog.metrics);
 
-            engine.checkPoints(engine.enemy, engine.player);
+            engine.checkPoints();
             const victory2 = engine.checkVictory();
             if (victory2) {
                 engine.gameActive = false;
@@ -535,8 +575,12 @@ class GameSimulator {
                 cardsRemaining: engine.enemy.cards.length,
                 deckRemaining: engine.enemy.deck.length,
                 discarded: engine.enemy.discardPile.length
-            }
+            },
+            finalScales: engine.scales
         };
+
+        gameLog.metrics.finalScales = engine.scales;
+        gameLog.metrics.scalesPointsEarned = { ...engine.scalesPointsEarned };
 
         return gameLog;
     }
@@ -597,10 +641,24 @@ class GameSimulator {
                 this.globalMetrics.eventTriggers[eventName] += count;
             }
 
-            console.log(`  ✓ Победитель: ${gameLog.winner === 'player' ? 'Игрок' : 'Враг'}, Ходов: ${gameLog.finalStats.totalTurns}`);
+            // Метрики весов
+            this.globalMetrics.totalScalesChange += Math.abs(gameLog.finalStats.finalScales);
+
+            // Определяем тип победы
+            if (gameLog.winner === 'player' || gameLog.winner === 'enemy') {
+                if (gameLog.metrics.scalesPointsEarned.player === 3 || gameLog.metrics.scalesPointsEarned.enemy === 3) {
+                    this.globalMetrics.pointsVictories++;
+                }
+                if (Math.abs(gameLog.finalStats.finalScales) >= 10) {
+                    this.globalMetrics.scalesVictories++;
+                }
+            }
+
+            console.log(`  ✓ Победитель: ${gameLog.winner === 'player' ? 'Игрок' : 'Враг'}, Ходов: ${gameLog.finalStats.totalTurns}, Весы: ${gameLog.finalStats.finalScales}`);
         }
 
         this.globalMetrics.averageTurns = this.globalMetrics.totalTurns / this.globalMetrics.totalGames;
+        this.globalMetrics.avgFinalScales = this.globalMetrics.totalScalesChange / this.globalMetrics.totalGames;
 
         // Генерируем отчёт
         this.generateReport();
@@ -712,6 +770,23 @@ class GameSimulator {
             console.log(`  ✅ Система предотвращения дублей работает идеально!`);
         } else {
             console.log(`  ⚠️  Обнаружены попытки взять дубликаты (но это ожидаемо когда колода истощена)`);
+        }
+
+        console.log('');
+
+        // 8. Статистика весов убеждённости
+        console.log('%c⚖️  СИСТЕМА ВЕСОВ УБЕЖДЁННОСТИ', 'color: #e67e22; font-size: 14px; font-weight: bold');
+        console.log(`  Среднее финальное значение весов: ${this.globalMetrics.avgFinalScales.toFixed(2)}`);
+        console.log(`  Побед через весы (±10):           ${this.globalMetrics.scalesVictories} (${(this.globalMetrics.scalesVictories / this.globalMetrics.totalGames * 100).toFixed(1)}%)`);
+        console.log(`  Побед через точки (3 точки):      ${this.globalMetrics.pointsVictories} (${(this.globalMetrics.pointsVictories / this.globalMetrics.totalGames * 100).toFixed(1)}%)`);
+
+        const scalesVsPoints = this.globalMetrics.scalesVictories / Math.max(this.globalMetrics.pointsVictories, 1);
+        if (scalesVsPoints > 2) {
+            console.log(`  ⚠️  Слишком много побед через весы (${scalesVsPoints.toFixed(2)}x)`);
+        } else if (scalesVsPoints < 0.5) {
+            console.log(`  ⚠️  Слишком мало побед через весы (${scalesVsPoints.toFixed(2)}x)`);
+        } else {
+            console.log(`  ✅ Баланс между весами и точками хороший (${scalesVsPoints.toFixed(2)}x)`);
         }
 
         console.log('');

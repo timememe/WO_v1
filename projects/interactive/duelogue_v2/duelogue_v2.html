@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DUELOGUE v2 - Scales System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background-color: #1a1a1a;
+            margin: 0;
+            padding: 10px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            box-sizing: border-box;
+            gap: 10px;
+        }
+        .game-wrapper {
+            width: 100%;
+            max-width: 450px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+        h1 {
+            font-size: clamp(12px, 3vw, 18px);
+            margin-bottom: 8px;
+            text-shadow: 1px 1px #000;
+            text-align: center;
+            line-height: 1.2;
+        }
+        .version-badge {
+            font-size: 8px;
+            color: #f39c12;
+            margin-top: -5px;
+        }
+        .container {
+            width: 100%;
+            max-width: 450px;
+            display: flex;
+            flex-direction: column;
+            background-color: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 12px;
+            overflow: hidden;
+            box-sizing: border-box;
+            padding: 10px;
+        }
+
+        /* ========== SCALES VISUALIZATION ========== */
+        .scales-container {
+            background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
+            border: 3px solid #444;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+        .scales-title {
+            text-align: center;
+            font-size: 10px;
+            color: #888;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .scales-bar {
+            position: relative;
+            height: 40px;
+            background: linear-gradient(90deg, #e74c3c 0%, #2a2a2a 50%, #3498db 100%);
+            border-radius: 20px;
+            border: 2px solid #555;
+            margin-bottom: 10px;
+        }
+        .scales-marker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 8px;
+            height: 60px;
+            background: #fff;
+            border-radius: 4px;
+            transition: left 0.5s ease-out;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+        }
+        .scales-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+        .scales-value {
+            text-align: center;
+            font-size: 14px;
+            color: #fff;
+            margin-top: 8px;
+        }
+        .zone-indicator {
+            text-align: center;
+            font-size: 8px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-top: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .zone-contested { background: rgba(255, 255, 255, 0.1); color: #aaa; }
+        .zone-winning { background: rgba(52, 152, 219, 0.2); color: #3498db; }
+        .zone-losing { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
+        .zone-critical-win { background: rgba(52, 152, 219, 0.4); color: #3498db; animation: pulse 1s infinite; }
+        .zone-critical-lose { background: rgba(231, 76, 60, 0.4); color: #e74c3c; animation: pulse 1s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        /* ========== RESOURCES DISPLAY ========== */
+        .resources-container {
+            background: rgba(42, 42, 42, 0.8);
+            border: 2px solid #444;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+        .resources-player, .resources-enemy {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .resources-enemy {
+            align-items: flex-end;
+        }
+        .resource-label {
+            font-size: 7px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
+        }
+        .resource-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+        }
+        .resource-icon {
+            font-size: 14px;
+        }
+        .resource-value {
+            font-weight: bold;
+            color: #fff;
+            min-width: 12px;
+            text-align: right;
+        }
+        .resource-max {
+            color: #666;
+            font-size: 9px;
+        }
+        .round-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 16px;
+            background: rgba(52, 152, 219, 0.1);
+            border: 2px solid #3498db;
+            border-radius: 8px;
+        }
+        .round-label {
+            font-size: 7px;
+            color: #3498db;
+            letter-spacing: 1px;
+        }
+        .round-number {
+            font-size: 18px;
+            font-weight: bold;
+            color: #3498db;
+            line-height: 1;
+        }
+
+        /* ========== MOMENTUM INDICATOR ========== */
+        .momentum-container {
+            background: rgba(243, 156, 18, 0.1);
+            border: 2px solid #f39c12;
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 9px;
+            color: #f39c12;
+            display: none;
+        }
+        .momentum-container.active {
+            display: block;
+        }
+
+        /* Visual screen (reusing from v1) */
+        .visual-screen {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            background-color: #000;
+            margin-bottom: 10px;
+            overflow: hidden;
+            border: 3px solid #333;
+            border-radius: 8px;
+            box-shadow: 0 0 8px rgba(0,0,0,0.5);
+        }
+        .visual-background, .visual-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .visual-background { z-index: 1; }
+        .visual-image { z-index: 2; }
+        .speech-bubble {
+            position: absolute;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 2px solid #fff;
+            font-size: clamp(8px, 2vw, 10px);
+            max-width: 85%;
+            text-align: center;
+            z-index: 3;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            word-wrap: break-word;
+            line-height: 1.2;
+        }
+        .speech-bubble.visible {
+            opacity: 1;
+        }
+
+        #dialog {
+            background-color: #2a2a2a;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            min-height: 100px;
+            max-height: 150px;
+            overflow-y: auto;
+            border: 2px solid #444;
+            margin-bottom: 10px;
+        }
+        .message {
+            margin: 6px 0;
+            padding: 6px 8px;
+            border-radius: 4px;
+            max-width: 80%;
+            font-size: clamp(8px, 2vw, 10px);
+            line-height: 1.2;
+            word-wrap: break-word;
+        }
+        .player {
+            background-color: #2317a6;
+            margin-left: auto;
+            text-align: right;
+        }
+        .enemy {
+            background-color: #4d0000;
+            margin-right: auto;
+            text-align: left;
+        }
+        .turn {
+            font-size: clamp(6px, 1.5vw, 8px);
+            color: #888;
+            margin-bottom: 3px;
+        }
+
+        /* Cards container */
+        .cards-container {
+            width: 100%;
+            max-width: 450px;
+            background-color: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 10px;
+            align-content: start;
+        }
+        .card {
+            position: relative;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 3px solid rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 6px;
+            aspect-ratio: 2.5/3.5;
+            min-height: 120px;
+            color: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            overflow: visible;
+        }
+        .card:hover:not(.used) {
+            transform: translateY(-4px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+        }
+        .card-uses {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background-color: rgba(0, 0, 0, 0.85);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(9px, 2vw, 11px);
+            font-weight: bold;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            z-index: 1;
+        }
+        .card.Атака {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            border-color: #c0392b;
+        }
+        .card.Атака:hover:not(.used) {
+            background: linear-gradient(135deg, #ff5c4c 0%, #d0493b 100%);
+        }
+        .card.Защита {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            border-color: #229954;
+        }
+        .card.Защита:hover:not(.used) {
+            background: linear-gradient(135deg, #37be70 0%, #32a964 100%);
+        }
+        .card.Уклонение {
+            background: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
+            border-color: #d68910;
+        }
+        .card.Уклонение:hover:not(.used) {
+            background: linear-gradient(135deg, #ffac22 0%, #e69920 100%);
+        }
+        .card.used {
+            background: linear-gradient(135deg, #555 0%, #444 100%);
+            border-color: #333;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .card.unaffordable {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(50%);
+            position: relative;
+        }
+        .card.unaffordable::after {
+            content: '🔒';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 32px;
+            opacity: 0.7;
+        }
+        .card-title {
+            font-weight: bold;
+            font-size: clamp(9px, 2vw, 11px);
+            line-height: 1.3;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+            word-wrap: break-word;
+        }
+        .card-desc {
+            font-size: clamp(7px, 1.6vw, 9px);
+            line-height: 1.4;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            word-wrap: break-word;
+            opacity: 0.9;
+        }
+        .card-category {
+            font-size: clamp(7px, 1.5vw, 9px);
+            font-weight: bold;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.8;
+            margin-bottom: 2px;
+        }
+        .card-stats {
+            font-size: clamp(8px, 1.7vw, 10px);
+            font-weight: bold;
+            padding: 4px 6px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            text-align: center;
+            white-space: nowrap;
+            text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
+        }
+        .vulnerability-indicator {
+            position: absolute;
+            top: -6px;
+            left: -6px;
+            background-color: #f39c12;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            z-index: 1;
+            animation: pulse 1.5s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-wrapper" id="gameWrapper">
+        <div class="container">
+            <h1>ДУЕЛОГ v2
+                <div class="version-badge">SCALES SYSTEM</div>
+            </h1>
+
+            <!-- Scales Visualization -->
+            <div class="scales-container">
+                <div class="scales-title">Весы убеждённости</div>
+                <div class="scales-labels">
+                    <span>Скептик</span>
+                    <span>Ты</span>
+                </div>
+                <div class="scales-bar">
+                    <div class="scales-marker" id="scalesMarker"></div>
+                </div>
+                <div class="scales-value" id="scalesValue">0</div>
+                <div class="zone-indicator zone-contested" id="zoneIndicator">CONTESTED</div>
+            </div>
+
+            <!-- Resources Display -->
+            <div class="resources-container">
+                <div class="resources-player">
+                    <div class="resource-label">ТЫ</div>
+                    <div class="resource-item">
+                        <span class="resource-icon">🧠</span>
+                        <span id="playerLogic" class="resource-value">6</span>/<span class="resource-max">6</span>
+                    </div>
+                    <div class="resource-item">
+                        <span class="resource-icon">❤️</span>
+                        <span id="playerEmotion" class="resource-value">6</span>/<span class="resource-max">6</span>
+                    </div>
+                </div>
+                <div class="round-display">
+                    <div class="round-label">РАУНД</div>
+                    <div id="roundNumber" class="round-number">1</div>
+                </div>
+                <div class="resources-enemy">
+                    <div class="resource-label">СКЕПТИК</div>
+                    <div class="resource-item">
+                        <span class="resource-icon">🧠</span>
+                        <span id="enemyLogic" class="resource-value">6</span>/<span class="resource-max">6</span>
+                    </div>
+                    <div class="resource-item">
+                        <span class="resource-icon">❤️</span>
+                        <span id="enemyEmotion" class="resource-value">6</span>/<span class="resource-max">6</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Momentum Indicator -->
+            <div class="momentum-container" id="momentumIndicator">
+                🔥 MOMENTUM: <span id="momentumText">Логика x2</span>
+            </div>
+
+            <!-- Visual Screen -->
+            <div class="visual-screen" id="visualScreen">
+                <img id="visualBackground" class="visual-background" src="../duelogue/images/anim/exp_bg.gif" alt="Фон">
+                <img id="visualImage" class="visual-image" src="../duelogue/images/anim/idle2.gif" alt="Сцена">
+                <div id="speechBubble" class="speech-bubble"></div>
+            </div>
+
+            <!-- Dialog -->
+            <div id="dialog"></div>
+        </div>
+
+        <!-- Cards Container -->
+        <div class="cards-container">
+            <div class="cards-grid" id="cardDeck"></div>
+        </div>
+    </div>
+
+    <!-- Modules -->
+    <script src="modules/cards_v2.js?v=7"></script>
+    <script src="modules/narrative_v2.js?v=7"></script>
+    <script src="modules/visual_v2.js?v=7"></script>
+    <script src="modules/ui_v2.js?v=7"></script>
+    <script src="modules/engine_v2.js?v=7"></script>
+    <script src="main_v2.js?v=7"></script>
+
+    <!-- Test utilities -->
+    <script>
+        // ============================================
+        // КОНСОЛЬНЫЕ КОМАНДЫ ДЛЯ ТЕСТИРОВАНИЯ
+        // ============================================
+
+        // ИИ для симуляции (глобальная функция)
+        function chooseCard(engine, isPlayer) {
+                const deck = isPlayer ? playerCards : enemyCards;
+                const usedCards = isPlayer ? engine.usedPlayerCards : engine.usedEnemyCards;
+
+                const availableCards = deck.filter(card => !usedCards.includes(card));
+
+                if (availableCards.length === 0) return null;
+
+                // Приоритет 1: vulnerability
+                const lastTurn = engine.getLastTurn(!isPlayer);
+                if (lastTurn) {
+                    const vulnCard = availableCards.find(
+                        card => card.type === lastTurn.card.vulnerability
+                    );
+                    if (vulnCard) return vulnCard;
+                }
+
+                // Приоритет 2: momentum
+                if (engine.momentum.chain > 0) {
+                    const chainCard = availableCards.find(
+                        card => card.type === engine.momentum.type
+                    );
+                    if (chainCard && Math.random() > 0.3) return chainCard;
+                }
+
+                // Случайная карта
+                return availableCards[Math.floor(Math.random() * availableCards.length)];
+        }
+
+        window.runBalanceTests = function(gamesCount = 100) {
+            console.log(`\n🎮 === ЗАПУСК СИМУЛЯЦИИ ${gamesCount} ИГР ===\n`);
+
+            const results = {
+                totalGames: gamesCount,
+                playerWins: 0,
+                enemyWins: 0,
+                draws: 0,
+                winReasons: {},
+                loseReasons: {},
+                totalTurns: 0,
+                totalScales: 0,
+                totalVulnerabilities: 0,
+                totalMomentumChains: 0,
+                maxMomentumSeen: 0
+            };
+
+            const startTime = Date.now();
+
+            // Симуляция одной игры
+            function simulateGame() {
+                const engine = new GameEngine();
+                engine.initGame(playerCards, enemyCards);
+
+                const gameData = {
+                    turns: 0,
+                    vulnerabilities: 0,
+                    momentumChains: 0,
+                    maxMomentum: 0
+                };
+
+                let infiniteLoopProtection = 0;
+                const MAX_TURNS = 100;
+
+                while (engine.gameState === 'playing' && infiniteLoopProtection < MAX_TURNS) {
+                    infiniteLoopProtection++;
+
+                    // Ход игрока
+                    const playerCard = chooseCard(engine, true);
+                    if (!playerCard) break;
+
+                    const playerTurn = engine.playCard(playerCard, true);
+                    if (!playerTurn) break;
+
+                    gameData.turns++;
+                    if (playerTurn.vulnerabilityTriggered) gameData.vulnerabilities++;
+                    if (playerTurn.momentumBonus > 0) {
+                        gameData.momentumChains++;
+                        gameData.maxMomentum = Math.max(gameData.maxMomentum, engine.momentum.chain);
+                    }
+
+                    if (engine.gameState !== 'playing') break;
+
+                    // Ход противника
+                    const enemyCard = chooseCard(engine, false);
+                    if (!enemyCard) break;
+
+                    const enemyTurn = engine.playCard(enemyCard, false);
+                    if (!enemyTurn) break;
+
+                    gameData.turns++;
+                    if (enemyTurn.vulnerabilityTriggered) gameData.vulnerabilities++;
+                    if (enemyTurn.momentumBonus > 0) {
+                        gameData.momentumChains++;
+                        gameData.maxMomentum = Math.max(gameData.maxMomentum, engine.momentum.chain);
+                    }
+                }
+
+                return {
+                    ...gameData,
+                    finalScales: engine.scalesValue,
+                    winner: engine.gameState,
+                    reason: engine.winReason || engine.loseReason || 'timeout'
+                };
+            }
+
+            // Запуск игр
+            for (let i = 0; i < gamesCount; i++) {
+                const gameData = simulateGame();
+
+                if (gameData.winner === 'won') {
+                    results.playerWins++;
+                    results.winReasons[gameData.reason] = (results.winReasons[gameData.reason] || 0) + 1;
+                } else if (gameData.winner === 'lost') {
+                    results.enemyWins++;
+                    results.loseReasons[gameData.reason] = (results.loseReasons[gameData.reason] || 0) + 1;
+                } else {
+                    results.draws++;
+                }
+
+                results.totalTurns += gameData.turns;
+                results.totalScales += gameData.finalScales;
+                results.totalVulnerabilities += gameData.vulnerabilities;
+                results.totalMomentumChains += gameData.momentumChains;
+                results.maxMomentumSeen = Math.max(results.maxMomentumSeen, gameData.maxMomentum);
+
+                if ((i + 1) % 100 === 0) {
+                    console.log(`  Прогресс: ${i + 1}/${gamesCount} игр...`);
+                }
+            }
+
+            const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+
+            // Вычисляем средние
+            const avgTurns = (results.totalTurns / results.totalGames).toFixed(1);
+            const avgScales = (results.totalScales / results.totalGames).toFixed(2);
+            const vulnRate = (results.totalVulnerabilities / results.totalTurns * 100).toFixed(1);
+            const momentumRate = (results.totalMomentumChains / results.totalTurns * 100).toFixed(1);
+
+            // Вывод результатов
+            console.log(`\n⏱️  Симуляция завершена за ${duration} секунд\n`);
+            console.log('═══════════════════════════════════════════════════');
+            console.log('📊 РЕЗУЛЬТАТЫ СИМУЛЯЦИИ');
+            console.log('═══════════════════════════════════════════════════\n');
+
+            console.log('🎯 ОБЩАЯ СТАТИСТИКА:');
+            console.log(`  Всего игр: ${results.totalGames}`);
+            console.log(`  Побед игрока: ${results.playerWins} (${(results.playerWins/results.totalGames*100).toFixed(1)}%)`);
+            console.log(`  Побед скептика: ${results.enemyWins} (${(results.enemyWins/results.totalGames*100).toFixed(1)}%)`);
+            console.log(`  Ничьих: ${results.draws} (${(results.draws/results.totalGames*100).toFixed(1)}%)\n`);
+
+            const winRate = results.playerWins / results.totalGames * 100;
+            console.log('⚖️  АНАЛИЗ БАЛАНСА:');
+            if (winRate >= 45 && winRate <= 55) {
+                console.log('  ✅ ИДЕАЛЬНЫЙ БАЛАНС (45-55% побед)');
+            } else if (winRate >= 40 && winRate <= 60) {
+                console.log('  ✅ ХОРОШИЙ БАЛАНС (40-60% побед)');
+            } else if (winRate >= 35 && winRate <= 65) {
+                console.log('  ⚠️  ПРИЕМЛЕМЫЙ БАЛАНС (35-65% побед)');
+            } else {
+                console.log('  ❌ КРИТИЧНЫЙ ДИСБАЛАНС! Требуется корректировка механик');
+            }
+            console.log('');
+
+            console.log('🏆 ПРИЧИНЫ ПОБЕД ИГРОКА:');
+            for (const [reason, count] of Object.entries(results.winReasons)) {
+                console.log(`  ${reason}: ${count} (${(count/results.playerWins*100).toFixed(1)}%)`);
+            }
+            console.log('');
+
+            console.log('💀 ПРИЧИНЫ ПОРАЖЕНИЙ ИГРОКА:');
+            for (const [reason, count] of Object.entries(results.loseReasons)) {
+                console.log(`  ${reason}: ${count} (${(count/results.enemyWins*100).toFixed(1)}%)`);
+            }
+            console.log('');
+
+            console.log('📈 СРЕДНИЕ ПОКАЗАТЕЛИ:');
+            console.log(`  Ходов за игру: ${avgTurns}`);
+            console.log(`  Финальная позиция весов: ${avgScales}\n`);
+
+            console.log('🔧 ИСПОЛЬЗОВАНИЕ МЕХАНИК:');
+            console.log(`  Срабатываний Vulnerability: ${results.totalVulnerabilities} (${vulnRate}% ходов)`);
+            console.log(`  Использований Momentum: ${results.totalMomentumChains} (${momentumRate}% ходов)`);
+            console.log(`  Максимальная цепь Momentum: ${results.maxMomentumSeen}\n`);
+
+            console.log('💡 ВЫВОДЫ И РЕКОМЕНДАЦИИ:');
+            const scalesWins = (results.winReasons['scales'] || 0) / Math.max(results.playerWins, 1) * 100;
+            if (scalesWins > 80) {
+                console.log('  ✅ Большинство побед через весы - основная механика работает');
+            }
+
+            if (parseFloat(vulnRate) < 10) {
+                console.log('  ⚠️  Vulnerability используется редко - стоит увеличить бонус');
+            } else if (parseFloat(vulnRate) > 30) {
+                console.log('  ⚠️  Vulnerability слишком частая - стоит уменьшить бонус');
+            } else {
+                console.log('  ✅ Vulnerability работает хорошо');
+            }
+
+            if (parseFloat(momentumRate) < 15) {
+                console.log('  ⚠️  Momentum используется редко - бонус недостаточен');
+            } else if (parseFloat(momentumRate) > 40) {
+                console.log('  ⚠️  Momentum слишком частый - бонус слишком велик');
+            } else {
+                console.log('  ✅ Momentum работает хорошо');
+            }
+
+            console.log('\n═══════════════════════════════════════════════════');
+            console.log('✅ Тестирование завершено!');
+            console.log('═══════════════════════════════════════════════════\n');
+
+            return results;
+        };
+
+        // Детальная трассировка одной игры
+        window.debugSingleGame = function() {
+            console.log('\n🔍 === ДЕТАЛЬНАЯ ТРАССИРОВКА ОДНОЙ ИГРЫ ===\n');
+
+            const engine = new GameEngine();
+            engine.initGame(playerCards, enemyCards);
+
+            console.log(`Начальное состояние:`);
+            console.log(`  Весы: ${engine.scalesValue}\n`);
+
+            let turn = 0;
+            const MAX_TURNS = 20;
+
+            while (engine.gameState === 'playing' && turn < MAX_TURNS) {
+                turn++;
+
+                // Игрок
+                const playerCard = chooseCard(engine, true);
+                if (!playerCard) {
+                    console.log(`❌ Ход ${turn}: У игрока нет доступных карт`);
+                    break;
+                }
+
+                console.log(`\n--- Ход ${turn} (Игрок) ---`);
+                console.log(`  Карта: "${playerCard.text}" [${playerCard.type}]`);
+
+                const playerTurn = engine.playCard(playerCard, true);
+
+                console.log(`  Весы: ${engine.scalesValue}`);
+
+                if (engine.gameState !== 'playing') {
+                    console.log(`\n🏁 Игра завершена: ${engine.gameState}`);
+                    console.log(`   Причина: ${engine.winReason || engine.loseReason}`);
+                    break;
+                }
+
+                // Скептик
+                const enemyCard = chooseCard(engine, false);
+                if (!enemyCard) {
+                    console.log(`❌ Ход ${turn}: У скептика нет доступных карт`);
+                    break;
+                }
+
+                turn++;
+                console.log(`\n--- Ход ${turn} (Скептик) ---`);
+                console.log(`  Карта: "${enemyCard.text}" [${enemyCard.type}]`);
+
+                const enemyTurn = engine.playCard(enemyCard, false);
+
+                console.log(`  Весы: ${engine.scalesValue}`);
+
+                if (engine.gameState !== 'playing') {
+                    console.log(`\n🏁 Игра завершена: ${engine.gameState}`);
+                    console.log(`   Причина: ${engine.winReason || engine.loseReason}`);
+                    break;
+                }
+            }
+
+            console.log(`\n📊 Финальное состояние:`);
+            console.log(`  Весы: ${engine.scalesValue}`);
+            console.log(`  Ходов: ${turn}`);
+            console.log(`  Результат: ${engine.gameState}`);
+            console.log('\n═══════════════════════════════════════════════════\n');
+        };
+
+        // Информация о доступных командах
+        console.log('\n🎮 === DUELOGUE v2 - Консольные команды ===');
+        console.log('Доступные команды:');
+        console.log('  runBalanceTests(N) - запустить симуляцию N игр (по умолчанию 100)');
+        console.log('  debugSingleGame() - детальная трассировка одной игры');
+        console.log('  Пример: runBalanceTests(1000)\n');
+    </script>
+</body>
+</html>

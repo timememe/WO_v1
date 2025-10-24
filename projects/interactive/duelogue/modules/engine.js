@@ -38,7 +38,16 @@ class GameEngine {
     initializeNewGameState() {
         this.player = { logic: PLAYER_START_LOGIC, maxLogic: PLAYER_START_LOGIC, emotion: PLAYER_START_EMOTION, maxEmotion: PLAYER_START_EMOTION, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], deck: [], discardPile: [], lastCard: null, usedTextVariants: {}, discardCount: 0 };
         this.enemy = { logic: ENEMY_START_LOGIC, maxLogic: ENEMY_START_LOGIC, emotion: ENEMY_START_EMOTION, maxEmotion: ENEMY_START_EMOTION, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], deck: [], discardPile: [], lastCard: null, usedTextVariants: {}, discardCount: 0 };
-        
+
+        // Система весов убеждённости (активируется при HP=0)
+        this.scales = 0; // От -10 (скептик убедил) до +10 (игрок убедил)
+        this.SCALES_MAX = 10;
+        this.SCALES_MIN = -10;
+
+        // Пороги для зажигания точек по весам
+        this.SCALES_THRESHOLDS = [4, 7, 10]; // Точки зажигаются при +4, +7, +10 (для игрока)
+        this.scalesPointsEarned = { player: 0, enemy: 0 }; // Сколько точек уже заработано
+
         this.player.deck = this.cardManager.createFullDeck(true);
         this.enemy.deck = this.cardManager.createFullDeck(false);
 
@@ -47,7 +56,7 @@ class GameEngine {
 
         this.ensureMinimumHandComposition(this.player, true);
         this.ensureMinimumHandComposition(this.enemy, false);
-        console.log('New game state initialized');
+        console.log('New game state initialized with scales system');
     }
 
     getState() {
@@ -108,6 +117,7 @@ class GameEngine {
 ﻿        }
 
 ﻿        this.uiManager.updateStats(this.player, this.enemy);
+if (this.uiManager.updateScales) this.uiManager.updateScales(this.scales);
 ﻿        this.uiManager.renderCards(this.player.cards, this.playerTurn, this.playerHasPlayedCard, this.playCard.bind(this));
 ﻿        await this.visualManager.showIdle();
 ﻿    }
@@ -153,7 +163,7 @@ class GameEngine {
 ﻿            this.player.cards = this.player.cards.filter(c => !c.used);
 ﻿        }
 ﻿
-﻿        this.checkPoints(this.player, this.enemy);
+﻿        this.checkPoints();
 ﻿        this.uiManager.updateStats(this.player, this.enemy);
 
 ﻿        if (this.checkVictory()) {
@@ -219,7 +229,7 @@ class GameEngine {
 ﻿
 ﻿        const speechPromise = this.visualManager.showEnemyTurn(speechText);
 ﻿        this.uiManager.addMessage(logText, 'enemy', this.turn);
-﻿        this.checkPoints(this.enemy, this.player);
+﻿        this.checkPoints();
 
         // Обрабатываем события
         this.processEvents();
@@ -267,7 +277,7 @@ class GameEngine {
 ﻿        // Обновляем lastCard противника для механик зеркала/отмены
 ﻿        this.enemy.lastCard = opponentCard;
 
-﻿        this.checkPoints(this.enemy, this.player);
+﻿        this.checkPoints();
 
 ﻿        // Обрабатываем события (как в сингле) после получения хода противника
 ﻿        this.processEvents();
@@ -356,8 +366,12 @@ class GameEngine {
 ﻿                    }
 ﻿                }
 ﻿                if (finalDamage > 0) {
-﻿                    target[targetStat] = (target[targetStat] ?? 0) - finalDamage;
-﻿                    logDetails.push(`-${finalDamage} ${targetStat}`);
+                    // Используем систему весов - урон сначала по HP, потом в весы
+                    this.applyDamageWithScales(target, targetStat, finalDamage, logDetails);
+                    // Обновляем визуализацию весов
+                    if (this.uiManager && this.uiManager.updateScales) {
+                        this.uiManager.updateScales(this.scales);
+                    }
 ﻿                    if (!target.lastCardEffects) target.lastCardEffects = {};
 ﻿                    if (targetStat === 'logic') target.lastCardEffects.logicDamage = finalDamage;
 ﻿                    else target.lastCardEffects.emotionDamage = finalDamage;
@@ -400,49 +414,100 @@ class GameEngine {
 ﻿        return { speechText, logText: logDetails.join(' ') };
 ﻿    }
 ﻿
-﻿    checkPoints(winner, loser) {
-﻿        // ... (без изменений)
-﻿        if (loser.logic <= 0 && !loser.logicDepleted) {
-﻿            winner.points += 1;
-﻿            loser.logicDepleted = true;
-﻿            this.uiManager.addMessage(`${winner === this.player ? "Ты" : "Скептик"} зажигает точку! Логика исчерпана.`, winner === this.player ? 'player' : 'enemy');
-﻿        }
-﻿        if (loser.emotion <= 0 && !loser.emotionDepleted) {
-﻿            winner.points += 1;
-﻿            loser.emotionDepleted = true;
-﻿            this.uiManager.addMessage(`${winner === this.player ? "Ты" : "Скептик"} зажигает точку! Эмоции исчерпаны.`, winner === this.player ? 'player' : 'enemy');
-﻿        }
-﻿        if (loser.logic < 0 && loser.emotion < 0) {
-﻿            loser.negativeTurns += 1;
-﻿            if (loser.negativeTurns >= 3) {
-﻿                winner.points += 1;
-﻿                this.uiManager.addMessage(`${winner === this.player ? "Ты" : "Скептик"} зажигает точку! ${loser === this.player ? "Ты" : "Скептик"} слишком долго в смятении!`, winner === this.player ? 'player' : 'enemy');
-﻿                loser.negativeTurns = 0;
-﻿            }
-﻿        } else {
-﻿            loser.negativeTurns = 0;
-﻿        }
-﻿        if (loser.logic > 0) loser.logicDepleted = false;
-﻿        if (loser.emotion > 0) loser.emotionDepleted = false;
-﻿    }
+    checkPoints() {
+        // Новая система: точки зажигаются по достижению порогов весов
+        // Проверяем, пересекли ли мы новый порог
+
+        if (this.scales > 0) {
+            // Игрок впереди - проверяем пороги для игрока
+            for (let i = 0; i < this.SCALES_THRESHOLDS.length; i++) {
+                const threshold = this.SCALES_THRESHOLDS[i];
+                if (this.scales >= threshold && this.scalesPointsEarned.player < (i + 1)) {
+                    // Зажигаем точку игроку
+                    this.player.points = i + 1;
+                    this.scalesPointsEarned.player = i + 1;
+                    this.uiManager.addMessage(`Ты зажигаешь точку ${i + 1}! Весы убеждённости: +${this.scales}`, 'player');
+                    break;
+                }
+            }
+        } else if (this.scales < 0) {
+            // Скептик впереди - проверяем пороги для противника
+            for (let i = 0; i < this.SCALES_THRESHOLDS.length; i++) {
+                const threshold = -this.SCALES_THRESHOLDS[i]; // Отрицательные пороги: -4, -7, -10
+                if (this.scales <= threshold && this.scalesPointsEarned.enemy < (i + 1)) {
+                    // Зажигаем точку скептику
+                    this.enemy.points = i + 1;
+                    this.scalesPointsEarned.enemy = i + 1;
+                    this.uiManager.addMessage(`Скептик зажигает точку ${i + 1}! Весы убеждённости: ${this.scales}`, 'enemy');
+                    break;
+                }
+            }
+        }
+    }
 ﻿
-﻿    checkVictory() {
+﻿    // Применить урон с учётом системы весов
+    applyDamageWithScales(target, targetStat, damage, logDetails) {
+        if (damage <= 0) return;
+
+        const currentHP = target[targetStat] ?? 0;
+
+        if (currentHP > 0) {
+            // Обычный урон по HP
+            const actualDamage = Math.min(damage, currentHP);
+            const overflow = damage - actualDamage;
+
+            target[targetStat] = currentHP - actualDamage;
+            logDetails.push(`-${actualDamage} ${targetStat}`);
+
+            // Если урон превысил HP, остаток идёт в весы
+            if (overflow > 0) {
+                const scalesShift = (target === this.player) ? -overflow : overflow;
+                this.scales = Math.max(this.SCALES_MIN, Math.min(this.SCALES_MAX, this.scales + scalesShift));
+                logDetails.push(`⚖️ Весы: ${scalesShift > 0 ? '+' : ''}${scalesShift}`);
+            }
+        } else {
+            // HP уже 0, весь урон идёт в весы
+            const scalesShift = (target === this.player) ? -damage : damage;
+            this.scales = Math.max(this.SCALES_MIN, Math.min(this.SCALES_MAX, this.scales + scalesShift));
+            logDetails.push(`⚖️ Весы: ${scalesShift > 0 ? '+' : ''}${scalesShift} (защита пробита!)`);
+        }
+    }
+
+    checkVictory() {
+        // Проверка победы через весы
+        if (this.scales >= this.SCALES_MAX) {
+            this.handleGameEnd(true, 'scales');
+            return true;
+        } else if (this.scales <= this.SCALES_MIN) {
+            this.handleGameEnd(false, 'scales');
+            return true;
+        }
+
+        // Проверка победы через очки (теперь зависит от весов)
         if (this.player.points >= 3) {
-            this.handleGameEnd(true);
+            this.handleGameEnd(true, 'points');
             return true;
         } else if (this.enemy.points >= 3) {
-            this.handleGameEnd(false);
+            this.handleGameEnd(false, 'points');
             return true;
         }
         return false;
     }
 
-    async handleGameEnd(isVictory) {
+    async handleGameEnd(isVictory, reason) {
         if (!this.gameActive) return; // Предотвратить двойное срабатывание
         this.gameActive = false;
 
-        const message = isVictory ? "Ты победил! Все 3 твои точки зажжены!" : "Скептик победил! Ты проиграл!";
-        const speech = isVictory ? "Победа!" : "Поражение!";
+        let message, speech;
+        if (reason === 'scales') {
+            message = isVictory
+                ? `Ты победил! Весы убеждённости: +${this.scales}`
+                : `Скептик победил! Весы убеждённости: ${this.scales}`;
+            speech = isVictory ? "Победа!" : "Поражение!";
+        } else {
+            message = isVictory ? "Ты победил! Все 3 твои точки зажжены!" : "Скептик победил! Ты проиграл!";
+            speech = isVictory ? "Победа!" : "Поражение!";
+        }
 
         this.uiManager.addMessage(message, isVictory ? 'player' : 'enemy');
         if (isVictory) {

@@ -19,11 +19,12 @@ class VisualManager {
         this.speechBubble = document.getElementById('speechBubble');
         this.statsOverlay = document.getElementById('statsOverlay');
         this.pointsOverlay = document.getElementById('pointsOverlay');
+        this.scalesOverlay = document.getElementById('scalesOverlay');
 
         // Визуальные ассеты для каждого состояния
         this.assets = {
             [VisualState.IDLE]: {
-                image: 'images/main.png',
+                image: 'images/anim/idle2.gif',
                 background: 'images/anim/exp_bg.gif',
                 showStats: true
             },
@@ -167,9 +168,11 @@ class VisualManager {
         if (showStats) {
             this.statsOverlay.classList.add('visible');
             this.pointsOverlay.classList.add('visible');
+            if (this.scalesOverlay) this.scalesOverlay.classList.add('visible');
         } else {
             this.statsOverlay.classList.remove('visible');
             this.pointsOverlay.classList.remove('visible');
+            if (this.scalesOverlay) this.scalesOverlay.classList.remove('visible');
         }
     }
 
@@ -348,6 +351,7 @@ class VisualManager {
         this.speechBubble = null;
         this.statsOverlay = null;
         this.pointsOverlay = null;
+        this.scalesOverlay = null;
         this.currentAnimationResolve = null;
     }
 }

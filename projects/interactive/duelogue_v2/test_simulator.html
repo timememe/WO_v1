@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DUELOGUE v2 - Balance Simulator</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #0f0;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #0ff;
+            text-shadow: 0 0 10px #0ff;
+        }
+        .controls {
+            background: #2a2a2a;
+            padding: 20px;
+            border: 2px solid #0ff;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .controls button {
+            background: #0ff;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        .controls button:hover {
+            background: #0aa;
+        }
+        .controls input {
+            background: #333;
+            color: #0f0;
+            border: 1px solid #0ff;
+            padding: 8px;
+            font-size: 14px;
+            border-radius: 4px;
+            margin-right: 10px;
+            width: 100px;
+        }
+        #output {
+            background: #000;
+            border: 2px solid #0f0;
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .stat-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #1a1a1a;
+            border-left: 4px solid #0ff;
+        }
+        .stat-title {
+            color: #ff0;
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        .progress {
+            color: #888;
+            font-style: italic;
+        }
+        .summary {
+            color: #0ff;
+            font-weight: bold;
+        }
+        .warning {
+            color: #f90;
+        }
+        .error {
+            color: #f00;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎮 DUELOGUE v2 - BALANCE SIMULATOR 🎮</h1>
+
+    <div class="controls">
+        <label>Количество игр: </label>
+        <input type="number" id="gamesCount" value="100" min="10" max="1000">
+        <button onclick="runSimulation()">Запустить симуляцию</button>
+        <button onclick="clearOutput()">Очистить</button>
+    </div>
+
+    <div id="output">Готов к симуляции...</div>
+
+    <!-- Modules -->
+    <script src="modules/cards_v2.js"></script>
+    <script src="modules/engine_v2.js"></script>
+
+    <script>
+        const output = document.getElementById('output');
+
+        function log(text, className = '') {
+            const line = document.createElement('div');
+            if (className) line.className = className;
+            line.textContent = text;
+            output.appendChild(line);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearOutput() {
+            output.innerHTML = '';
+        }
+
+        // Простой ИИ для симуляции
+        class SimulatorAI {
+            constructor(deck, isPlayer) {
+                this.deck = [...deck];
+                this.usedCards = [];
+                this.isPlayer = isPlayer;
+            }
+
+            chooseCard(engine) {
+                const actor = this.isPlayer ? engine.player : engine.enemy;
+                const availableCards = this.deck.filter(
+                    card => !this.usedCards.includes(card) && engine.canAffordCard(card, actor)
+                );
+
+                if (availableCards.length === 0) return null;
+
+                // Приоритет 1: vulnerability
+                const lastTurn = engine.getLastTurn(!this.isPlayer);
+                if (lastTurn) {
+                    const vulnCard = availableCards.find(
+                        card => card.type === lastTurn.card.vulnerability
+                    );
+                    if (vulnCard) return vulnCard;
+                }
+
+                // Приоритет 2: momentum
+                if (engine.momentum.chain > 0) {
+                    const chainCard = availableCards.find(
+                        card => card.type === engine.momentum.type
+                    );
+                    if (chainCard && Math.random() > 0.3) return chainCard;
+                }
+
+                // Приоритет 3: экономия ресурсов
+                if (actor.logic <= 2 && actor.emotion > 2) {
+                    const emotionCards = availableCards.filter(c => c.type === CardType.EMOTION);
+                    if (emotionCards.length > 0) {
+                        return emotionCards[Math.floor(Math.random() * emotionCards.length)];
+                    }
+                }
+                if (actor.emotion <= 2 && actor.logic > 2) {
+                    const logicCards = availableCards.filter(c => c.type === CardType.LOGIC);
+                    if (logicCards.length > 0) {
+                        return logicCards[Math.floor(Math.random() * logicCards.length)];
+                    }
+                }
+
+                // Случайная карта
+                return availableCards[Math.floor(Math.random() * availableCards.length)];
+            }
+
+            markUsed(card) {
+                this.usedCards.push(card);
+            }
+        }
+
+        function simulateGame() {
+            const engine = new GameEngine();
+            engine.initGame(playerCards, enemyCards);
+
+            const playerAI = new SimulatorAI(playerCards, true);
+            const enemyAI = new SimulatorAI(enemyCards, false);
+
+            const stats = {
+                turns: 0,
+                rounds: 0,
+                finalScales: 0,
+                winner: null,
+                winReason: null,
+                playerFinalLogic: 0,
+                playerFinalEmotion: 0,
+                enemyFinalLogic: 0,
+                enemyFinalEmotion: 0,
+                momentumChains: 0,
+                vulnerabilitiesHit: 0,
+                maxMomentumChain: 0
+            };
+
+            let infiniteLoopProtection = 0;
+            const MAX_TURNS = 50;
+
+            while (engine.gameState === 'playing' && infiniteLoopProtection < MAX_TURNS) {
+                infiniteLoopProtection++;
+
+                // Ход игрока
+                const playerCard = playerAI.chooseCard(engine);
+                if (!playerCard) break;
+
+                const playerTurn = engine.playCard(playerCard, true);
+                if (!playerTurn) break;
+
+                playerAI.markUsed(playerCard);
+                stats.turns++;
+
+                if (playerTurn.vulnerabilityTriggered) stats.vulnerabilitiesHit++;
+                if (playerTurn.momentumBonus > 0) {
+                    stats.momentumChains++;
+                    stats.maxMomentumChain = Math.max(stats.maxMomentumChain, engine.momentum.chain);
+                }
+
+                if (engine.gameState !== 'playing') break;
+
+                // Ход противника
+                const enemyCard = enemyAI.chooseCard(engine);
+                if (!enemyCard) break;
+
+                const enemyTurn = engine.playCard(enemyCard, false);
+                if (!enemyTurn) break;
+
+                enemyAI.markUsed(enemyCard);
+                stats.turns++;
+
+                if (enemyTurn.vulnerabilityTriggered) stats.vulnerabilitiesHit++;
+                if (enemyTurn.momentumBonus > 0) {
+                    stats.momentumChains++;
+                    stats.maxMomentumChain = Math.max(stats.maxMomentumChain, engine.momentum.chain);
+                }
+            }
+
+            stats.rounds = engine.currentRound;
+            stats.finalScales = engine.scalesValue;
+            stats.winner = engine.gameState;
+            stats.winReason = engine.winReason || engine.loseReason || 'timeout';
+            stats.playerFinalLogic = engine.player.logic;
+            stats.playerFinalEmotion = engine.player.emotion;
+            stats.enemyFinalLogic = engine.enemy.logic;
+            stats.enemyFinalEmotion = engine.enemy.emotion;
+
+            return stats;
+        }
+
+        function runSimulation() {
+            clearOutput();
+            const gamesCount = parseInt(document.getElementById('gamesCount').value);
+
+            log(`🎮 === НАЧИНАЕМ СИМУЛЯЦИЮ ${gamesCount} ИГР ===\n`, 'stat-title');
+
+            const results = {
+                totalGames: gamesCount,
+                playerWins: 0,
+                enemyWins: 0,
+                draws: 0,
+                winReasons: {},
+                loseReasons: {},
+                avgTurns: 0,
+                avgRounds: 0,
+                avgFinalScales: 0,
+                scalesWins: 0,
+                resourceWins: 0,
+                roundsWins: 0,
+                totalVulnerabilities: 0,
+                totalMomentumChains: 0,
+                maxMomentumSeen: 0,
+                avgPlayerLogic: 0,
+                avgPlayerEmotion: 0,
+                avgEnemyLogic: 0,
+                avgEnemyEmotion: 0,
+                games: []
+            };
+
+            // Запускаем игры
+            for (let i = 0; i < gamesCount; i++) {
+                const gameStats = simulateGame();
+                results.games.push(gameStats);
+
+                if (gameStats.winner === 'won') {
+                    results.playerWins++;
+                    results.winReasons[gameStats.winReason] = (results.winReasons[gameStats.winReason] || 0) + 1;
+
+                    if (gameStats.winReason === 'scales') results.scalesWins++;
+                    if (gameStats.winReason === 'resources' || gameStats.winReason === 'resources_tie') results.resourceWins++;
+                    if (gameStats.winReason === 'rounds') results.roundsWins++;
+                } else if (gameStats.winner === 'lost') {
+                    results.enemyWins++;
+                    results.loseReasons[gameStats.winReason] = (results.loseReasons[gameStats.winReason] || 0) + 1;
+                } else {
+                    results.draws++;
+                }
+
+                results.avgTurns += gameStats.turns;
+                results.avgRounds += gameStats.rounds;
+                results.avgFinalScales += gameStats.finalScales;
+                results.totalVulnerabilities += gameStats.vulnerabilitiesHit;
+                results.totalMomentumChains += gameStats.momentumChains;
+                results.maxMomentumSeen = Math.max(results.maxMomentumSeen, gameStats.maxMomentumChain);
+                results.avgPlayerLogic += gameStats.playerFinalLogic;
+                results.avgPlayerEmotion += gameStats.playerFinalEmotion;
+                results.avgEnemyLogic += gameStats.enemyFinalLogic;
+                results.avgEnemyEmotion += gameStats.enemyFinalEmotion;
+
+                if ((i + 1) % 10 === 0) {
+                    log(`Прогресс: ${i + 1}/${gamesCount} игр...`, 'progress');
+                }
+            }
+
+            // Вычисляем средние
+            results.avgTurns = (results.avgTurns / gamesCount).toFixed(1);
+            results.avgRounds = (results.avgRounds / gamesCount).toFixed(1);
+            results.avgFinalScales = (results.avgFinalScales / gamesCount).toFixed(2);
+            results.avgPlayerLogic = (results.avgPlayerLogic / gamesCount).toFixed(1);
+            results.avgPlayerEmotion = (results.avgPlayerEmotion / gamesCount).toFixed(1);
+            results.avgEnemyLogic = (results.avgEnemyLogic / gamesCount).toFixed(1);
+            results.avgEnemyEmotion = (results.avgEnemyEmotion / gamesCount).toFixed(1);
+
+            // Выводим результаты
+            displayResults(results);
+        }
+
+        function displayResults(results) {
+            log('\n═══════════════════════════════════════════════════', 'summary');
+            log('📊 РЕЗУЛЬТАТЫ СИМУЛЯЦИИ', 'stat-title');
+            log('═══════════════════════════════════════════════════\n', 'summary');
+
+            // Общая статистика
+            log('🎯 ОБЩАЯ СТАТИСТИКА:', 'stat-title');
+            log(`Всего игр: ${results.totalGames}`);
+            log(`Побед игрока: ${results.playerWins} (${(results.playerWins/results.totalGames*100).toFixed(1)}%)`);
+            log(`Побед скептика: ${results.enemyWins} (${(results.enemyWins/results.totalGames*100).toFixed(1)}%)`);
+            log(`Ничьих: ${results.draws} (${(results.draws/results.totalGames*100).toFixed(1)}%)`);
+            log('');
+
+            // Баланс
+            const winRate = results.playerWins / results.totalGames * 100;
+            log('⚖️  АНАЛИЗ БАЛАНСА:', 'stat-title');
+            if (winRate >= 45 && winRate <= 55) {
+                log('✅ ИДЕАЛЬНЫЙ БАЛАНС (45-55% побед)', 'summary');
+            } else if (winRate >= 40 && winRate <= 60) {
+                log('✅ ХОРОШИЙ БАЛАНС (40-60% побед)', 'summary');
+            } else if (winRate >= 35 && winRate <= 65) {
+                log('⚠️  ПРИЕМЛЕМЫЙ БАЛАНС (35-65% побед)', 'warning');
+            } else {
+                log('❌ ДИСБАЛАНС! Требуется корректировка механик', 'error');
+            }
+            log('');
+
+            // Причины побед/поражений
+            log('🏆 ПРИЧИНЫ ПОБЕД ИГРОКА:', 'stat-title');
+            for (const [reason, count] of Object.entries(results.winReasons)) {
+                log(`  ${reason}: ${count} (${(count/results.playerWins*100).toFixed(1)}%)`);
+            }
+            log('');
+
+            log('💀 ПРИЧИНЫ ПОРАЖЕНИЙ ИГРОКА:', 'stat-title');
+            for (const [reason, count] of Object.entries(results.loseReasons)) {
+                log(`  ${reason}: ${count} (${(count/results.enemyWins*100).toFixed(1)}%)`);
+            }
+            log('');
+
+            // Средние показатели
+            log('📈 СРЕДНИЕ ПОКАЗАТЕЛИ:', 'stat-title');
+            log(`Ходов за игру: ${results.avgTurns}`);
+            log(`Раундов за игру: ${results.avgRounds}`);
+            log(`Финальная позиция весов: ${results.avgFinalScales}`);
+            log(`Финальные ресурсы игрока: ${results.avgPlayerLogic}🧠 ${results.avgPlayerEmotion}❤️`);
+            log(`Финальные ресурсы скептика: ${results.avgEnemyLogic}🧠 ${results.avgEnemyEmotion}❤️`);
+            log('');
+
+            // Механики
+            log('🔧 ИСПОЛЬЗОВАНИЕ МЕХАНИК:', 'stat-title');
+            log(`Срабатываний Vulnerability: ${results.totalVulnerabilities} (${(results.totalVulnerabilities/results.avgTurns/results.totalGames*100).toFixed(1)}% ходов)`);
+            log(`Использований Momentum: ${results.totalMomentumChains} (${(results.totalMomentumChains/results.avgTurns/results.totalGames*100).toFixed(1)}% ходов)`);
+            log(`Максимальная цепь Momentum: ${results.maxMomentumSeen}`);
+            log('');
+
+            // Выводы
+            log('💡 ВЫВОДЫ И РЕКОМЕНДАЦИИ:', 'stat-title');
+
+            if (results.avgRounds < 3) {
+                log('⚠️  Игры слишком короткие - возможно, стоит увеличить стартовые ресурсы', 'warning');
+            } else if (results.avgRounds > 8) {
+                log('⚠️  Игры слишком долгие - возможно, стоит уменьшить ресурсы или увеличить урон', 'warning');
+            } else {
+                log('✅ Длительность игр оптимальна');
+            }
+
+            const scalesWinPercent = results.scalesWins / results.playerWins * 100;
+            const resourceWinPercent = results.resourceWins / results.playerWins * 100;
+
+            if (scalesWinPercent > 80) {
+                log('⚠️  Большинство побед через весы - ресурсная система недостаточно влиятельна', 'warning');
+            } else if (resourceWinPercent > 80) {
+                log('⚠️  Большинство побед через истощение - возможно, ресурсы слишком важны', 'warning');
+            } else {
+                log('✅ Хороший баланс между весами и ресурсами');
+            }
+
+            const vulnRate = results.totalVulnerabilities / (results.avgTurns * results.totalGames) * 100;
+            if (vulnRate < 10) {
+                log('⚠️  Vulnerability используется редко - возможно, стоит увеличить бонус', 'warning');
+            } else if (vulnRate > 30) {
+                log('⚠️  Vulnerability слишком частая - возможно, стоит уменьшить бонус', 'warning');
+            } else {
+                log('✅ Vulnerability работает хорошо');
+            }
+
+            const momentumRate = results.totalMomentumChains / (results.avgTurns * results.totalGames) * 100;
+            if (momentumRate < 15) {
+                log('⚠️  Momentum используется редко - возможно, бонус недостаточен', 'warning');
+            } else if (momentumRate > 40) {
+                log('⚠️  Momentum слишком частый - возможно, бонус слишком велик', 'warning');
+            } else {
+                log('✅ Momentum работает хорошо');
+            }
+
+            log('\n═══════════════════════════════════════════════════', 'summary');
+            log('Симуляция завершена!', 'summary');
+            log('═══════════════════════════════════════════════════', 'summary');
+        }
+    </script>
+</body>
+</html>

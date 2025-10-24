@@ -14,7 +14,10 @@ class UIManager {
             playerLogicValue: 'playerLogicValue',
             playerEmotionValue: 'playerEmotionValue',
             enemyLogicValue: 'enemyLogicValue',
-            enemyEmotionValue: 'enemyEmotionValue'
+            enemyEmotionValue: 'enemyEmotionValue',
+            scalesOverlay: 'scalesOverlay',
+            scalesMarker: 'scalesMarker',
+            scalesValue: 'scalesValue'
         };
 
         for (const [key, id] of Object.entries(elements)) {
@@ -143,6 +146,21 @@ class UIManager {
             turnIndicator.textContent = isPlayerTurn ? 'Ваш ход' : 'Ход противника';
             turnIndicator.className = isPlayerTurn ? 'player-turn' : 'enemy-turn';
         }
+    }
+
+    updateScales(scalesValue) {
+        // Обновляем значение весов (-10 до +10)
+        if (this.scalesValue) {
+            this.scalesValue.textContent = scalesValue > 0 ? `+${scalesValue}` : scalesValue;
+        }
+
+        // Обновляем позицию маркера (0% = -10, 50% = 0, 100% = +10)
+        if (this.scalesMarker) {
+            const percent = ((scalesValue + 10) / 20) * 100;
+            this.scalesMarker.style.left = `${percent}%`;
+        }
+
+        // Видимость управляется через visualManager.updateOverlays()
     }
 
     renderStats(player, enemy) {
