@@ -131,16 +131,29 @@ class VisualManager {
             return;
         }
 
-        // Форсируем перезагрузку GIF через timestamp для рестарта анимации
-        // GIF уже в кэше браузера благодаря loader.js, поэтому загрузка мгновенная
-        const timestamp = Date.now();
-
-        // Обновляем источники (мгновенно из кэша)
+        // Просто меняем src без timestamp - браузер использует кэш
+        // GIF перезапускается автоматически при смене src
         if (assets.image) {
-            this.visualImage.src = `${assets.image}?t=${timestamp}`;
+            // Если это тот же файл, форсируем перезагрузку через временный пустой src
+            if (this.visualImage.src.includes(assets.image.split('?')[0])) {
+                this.visualImage.src = '';
+                // Небольшая задержка для гарантии перезапуска
+                setTimeout(() => {
+                    this.visualImage.src = assets.image;
+                }, 10);
+            } else {
+                this.visualImage.src = assets.image;
+            }
         }
         if (assets.background) {
-            this.visualBackground.src = `${assets.background}?t=${timestamp}`;
+            if (this.visualBackground.src.includes(assets.background.split('?')[0])) {
+                this.visualBackground.src = '';
+                setTimeout(() => {
+                    this.visualBackground.src = assets.background;
+                }, 10);
+            } else {
+                this.visualBackground.src = assets.background;
+            }
         }
     }
 
@@ -168,8 +181,8 @@ class VisualManager {
         this.speechBubble.textContent = '';
         this.speechBubble.classList.remove('visible');
 
-        // Минимальная задержка для синхронизации с началом GIF
-        await this.delay(50);
+        // Увеличенная задержка для дождаться отображения GIF (особенно тяжелых)
+        await this.delay(300);
 
         return new Promise((resolve) => {
             if (this.isDestroyed) {
