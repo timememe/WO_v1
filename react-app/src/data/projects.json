@@ -78,5 +78,15 @@
     "image": "/projects/interactive/parasitector/prev.png",
     "type": "embedded",
     "visible": false
+  },
+  {
+    "id": "dayvibe",
+    "title": "Dayvibe",
+    "category": "interactive",
+    "description": "Live coding музыка с помощью Strudel",
+    "path": "/projects/interactive/dayvibe/dayvibe.html",
+    "image": null,
+    "type": "embedded",
+    "visible": true
   }
 ]
