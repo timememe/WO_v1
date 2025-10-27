@@ -351,6 +351,7 @@
             <button class="btn btn-play" id="playBtn" onclick="playCode()">▶ Play</button>
             <button class="btn btn-stop" id="stopBtn" onclick="stopCode()" disabled>■ Stop</button>
             <button class="btn btn-example" id="exampleBtn" onclick="loadExample()">Load Example</button>
+            <button class="btn btn-example" onclick="debugStrudel()">🔍 Debug</button>
         </div>
 
         <!-- Статус-бар -->
@@ -358,11 +359,11 @@
             <div class="status-item">
                 <span class="status-label">Status:</span>
                 <div class="status-indicator" id="statusIndicator"></div>
-                <span class="status-value" id="statusText">Ready</span>
+                <span class="status-value" id="statusText">Loading...</span>
             </div>
             <div class="status-item">
                 <span class="status-label">Engine:</span>
-                <span class="status-value">Strudel REPL</span>
+                <span class="status-value">Strudel</span>
             </div>
         </div>
 
@@ -385,28 +386,74 @@
         </div>
     </div>
 
-    <!-- Подключение Strudel через CDN -->
-    <script src="https://unpkg.com/@strudel/embed@latest"></script>
+    <!-- Загружаем @strudel/web для создания своего интерфейса -->
+    <script src="https://unpkg.com/@strudel/web@latest"></script>
 
     <script>
-        let strudelRepl = null;
         let isPlaying = false;
         let animationFrame = null;
+        let repl = null;
+        let currentPattern = null;
 
-        // Инициализация Strudel REPL
-        async function initStrudel() {
+        // Инициализация Strudel через @strudel/web
+        async function initDayvibe() {
             try {
-                const { repl } = await import('https://unpkg.com/@strudel/repl@latest');
-                strudelRepl = await repl({
-                    // Настройки REPL
-                    prebake: true,
+                // Ждем пока загрузится initStrudel из @strudel/web
+                if (typeof window.initStrudel === 'undefined') {
+                    console.warn('⏳ Waiting for Strudel to load...');
+                    setTimeout(initDayvibe, 100);
+                    return;
+                }
+
+                console.log('🔧 Initializing Strudel with @strudel/web...');
+
+                // Вызываем глобальную initStrudel() из @strudel/web с загрузкой сэмплов
+                await window.initStrudel({
+                    prebake: () => samples('github:tidalcycles/Dirt-Samples'),
                 });
-                console.log('✅ Strudel REPL initialized');
+
+                console.log('✅ Strudel initialized with samples!');
+                console.log('🔍 Functions available:');
+                console.log('- sound:', typeof sound);
+                console.log('- note:', typeof note);
+                console.log('- evaluate:', typeof evaluate);
+                console.log('- hush:', typeof hush);
+
+                // Создаем простую обертку для REPL
+                repl = {
+                    evaluate: async (code) => {
+                        try {
+                            console.log('🎵 Evaluating code with @strudel/web...');
+
+                            // Используем глобальную evaluate() из @strudel/web
+                            const result = await evaluate(code);
+                            console.log('✅ Code evaluated, result:', result);
+
+                            return result;
+                        } catch (err) {
+                            console.error('❌ Eval error:', err);
+                            throw err;
+                        }
+                    },
+                    stop: () => {
+                        try {
+                            console.log('⏹️ Stopping with hush()...');
+                            if (typeof hush === 'function') {
+                                hush();
+                                console.log('✅ Stopped!');
+                            }
+                        } catch (err) {
+                            console.error('❌ Stop error:', err);
+                        }
+                    }
+                };
+
                 updateStatus('Ready', false);
+                console.log('✅ DAYVIBE ready to rock! 🎵');
             } catch (error) {
                 console.error('❌ Failed to initialize Strudel:', error);
                 updateStatus('Error', false);
-                alert('Ошибка загрузки Strudel. Проверь подключение к интернету.');
+                alert('Ошибка загрузки Strudel. Попробуй обновить страницу.');
             }
         }
 
@@ -426,11 +473,24 @@
 
             const bars = document.querySelectorAll('.visualizer-bar');
             bars.forEach(bar => {
-                const height = Math.random() * 90 + 10; // 10-100%
+                const height = Math.random() * 90 + 10;
                 bar.style.height = height + '%';
             });
 
             animationFrame = requestAnimationFrame(animateVisualizer);
+        }
+
+        // Остановка визуализатора
+        function stopVisualizer() {
+            if (animationFrame) {
+                cancelAnimationFrame(animationFrame);
+                animationFrame = null;
+            }
+
+            const bars = document.querySelectorAll('.visualizer-bar');
+            bars.forEach(bar => {
+                bar.style.height = '10%';
+            });
         }
 
         // Обновление статуса
@@ -441,6 +501,7 @@
             const stopBtn = document.getElementById('stopBtn');
 
             statusText.textContent = text;
+            isPlaying = playing;
 
             if (playing) {
                 statusIndicator.classList.add('active');
@@ -464,95 +525,139 @@
                 return;
             }
 
-            if (!strudelRepl) {
-                alert('Strudel еще загружается...');
+            if (!repl) {
+                alert('Strudel еще загружается... Подожди секунду.');
                 return;
             }
 
             try {
+                console.log('▶ Playing code:', code);
                 updateStatus('Playing...', true);
-                isPlaying = true;
 
-                // Evaluate код через Strudel REPL
-                await strudelRepl.evaluate(code);
+                // Останавливаем предыдущий паттерн если есть
+                if (currentPattern) {
+                    currentPattern.stop();
+                }
+
+                // Evaluate код через REPL
+                currentPattern = await repl.evaluate(code);
 
                 // Запуск визуализатора
                 animateVisualizer();
 
-                console.log('▶ Playing:', code);
+                console.log('✅ Code executed successfully');
             } catch (error) {
                 console.error('❌ Playback error:', error);
                 updateStatus('Error', false);
                 isPlaying = false;
-                alert('Ошибка в коде: ' + error.message);
+                stopVisualizer();
+                alert('Ошибка в коде:\n' + error.message);
             }
         }
 
         // Остановка воспроизведения
         function stopCode() {
-            if (strudelRepl) {
-                strudelRepl.stop();
+            try {
+                console.log('⏹️ Stopping playback...');
+
+                // Пробуем все возможные способы остановки
+                const stopMethods = ['hush', 'silence', 'panic', 'stop'];
+                let stopped = false;
+
+                for (const method of stopMethods) {
+                    if (typeof window[method] === 'function') {
+                        console.log(`🔧 Calling ${method}()...`);
+                        try {
+                            window[method]();
+                            stopped = true;
+                        } catch (err) {
+                            console.warn(`⚠️ ${method}() failed:`, err);
+                        }
+                    }
+                }
+
+                // Дополнительно останавливаем через evaluate пустого паттерна
+                if (typeof evaluate === 'function') {
+                    console.log('🔧 Evaluating empty pattern...');
+                    try {
+                        evaluate('silence');
+                    } catch (err) {
+                        console.warn('⚠️ silence pattern failed:', err);
+                    }
+                }
+
+                if (stopped) {
+                    console.log('✅ Stop methods called');
+                } else {
+                    console.warn('⚠️ No stop methods available!');
+                }
+
+                currentPattern = null;
+                isPlaying = false;
+                updateStatus('Stopped', false);
+                stopVisualizer();
+
+                console.log('■ Stopped successfully');
+            } catch (error) {
+                console.error('❌ Stop error:', error);
+                // Все равно останавливаем UI
+                isPlaying = false;
+                updateStatus('Stopped', false);
+                stopVisualizer();
             }
-
-            isPlaying = false;
-            updateStatus('Stopped', false);
-
-            if (animationFrame) {
-                cancelAnimationFrame(animationFrame);
-            }
-
-            // Сброс визуализатора
-            const bars = document.querySelectorAll('.visualizer-bar');
-            bars.forEach(bar => {
-                bar.style.height = '10%';
-            });
-
-            console.log('■ Stopped');
         }
 
         // Загрузка примера
         function loadExample() {
-            const exampleCode = `// DAYVIBE Example - Drum Pattern
-sound("bd sd hh sd, ~ cp")
-  .bank("RolandTR909")
-  .speed(1)
-  .gain(0.8)
-
-// Добавим басс
-stack(
-  sound("bd sd hh sd").bank("RolandTR909"),
-  note("c2 [c2 g2] c2 [c2 bb2]")
-    .sound("sawtooth")
-    .cutoff(800)
-    .gain(0.3)
-)`;
+            const exampleCode = `// DAYVIBE Example - Simple Beat
+// Используем короткую форму s() вместо sound()
+s("bd sd hh sd").gain(0.8)`;
 
             document.getElementById('codeEditor').value = exampleCode;
             console.log('📥 Example loaded');
         }
 
+        // Debug функция
+        function debugStrudel() {
+            console.log('=== STRUDEL DEBUG ===');
+            console.log('typeof strudel:', typeof strudel);
+            console.log('strudel keys:', strudel ? Object.keys(strudel) : 'undefined');
+            console.log('typeof sound:', typeof sound);
+            console.log('typeof window.sound:', typeof window.sound);
+
+            // Проверяем REPL функции
+            const replFuncs = ['repl', 'controls', 'silence', 'hush', 'panic'];
+            console.log('\nREPL functions:');
+            replFuncs.forEach(func => {
+                console.log(`- ${func}:`, typeof window[func]);
+            });
+
+            console.log('\nAll window keys with "play" or "start":',
+                Object.keys(window).filter(k => k.toLowerCase().includes('play') || k.toLowerCase().includes('start')).slice(0, 20));
+            console.log('===================');
+            alert('Check console for debug info');
+        }
+
+        // Горячие клавиши
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                if (!isPlaying) {
+                    playCode();
+                }
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === '.') {
+                e.preventDefault();
+                if (isPlaying) {
+                    stopCode();
+                }
+            }
+        });
+
         // Инициализация при загрузке
         window.addEventListener('DOMContentLoaded', () => {
             createVisualizer();
-            initStrudel();
-
-            // Горячие клавиши
-            document.addEventListener('keydown', (e) => {
-                // Ctrl/Cmd + Enter = Play
-                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                    e.preventDefault();
-                    if (!isPlaying) {
-                        playCode();
-                    }
-                }
-                // Ctrl/Cmd + . = Stop
-                if ((e.ctrlKey || e.metaKey) && e.key === '.') {
-                    e.preventDefault();
-                    if (isPlaying) {
-                        stopCode();
-                    }
-                }
-            });
+            initDayvibe();
 
             console.log('🎵 DAYVIBE initialized');
             console.log('⌨️  Hotkeys: Ctrl+Enter (Play) | Ctrl+. (Stop)');
