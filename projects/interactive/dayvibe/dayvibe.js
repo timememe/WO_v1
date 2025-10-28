@@ -460,6 +460,90 @@ s("rolandtr909bd rolandtr909sd rolandtr909hh rolandtr909sd")
     document.getElementById('codeEditor').value = exampleCode;
 }
 
+// AI Generation functions
+const API_URL = 'https://worldorder.online/api/generate-strudel-script';
+
+function openAIPrompt() {
+    document.getElementById('aiModal').style.display = 'flex';
+    document.getElementById('aiPromptInput').value = '';
+    document.getElementById('aiStatus').textContent = '';
+    document.getElementById('aiStatus').className = 'ai-status';
+}
+
+function closeAIPrompt() {
+    document.getElementById('aiModal').style.display = 'none';
+}
+
+async function generateScript() {
+    const promptInput = document.getElementById('aiPromptInput');
+    const statusDiv = document.getElementById('aiStatus');
+    const generateBtn = document.querySelector('.btn-generate');
+
+    const prompt = promptInput.value.trim();
+
+    if (!prompt) {
+        statusDiv.textContent = 'Пожалуйста, опиши что хочешь услышать';
+        statusDiv.className = 'ai-status error';
+        return;
+    }
+
+    if (prompt.length > 300) {
+        statusDiv.textContent = 'Промпт слишком длинный (максимум 300 символов)';
+        statusDiv.className = 'ai-status error';
+        return;
+    }
+
+    try {
+        // UI: начало генерации
+        generateBtn.disabled = true;
+        statusDiv.textContent = 'Генерация скрипта...';
+        statusDiv.className = 'ai-status loading';
+
+        // Отправка запроса
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ prompt })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Ошибка сервера');
+        }
+
+        const data = await response.json();
+
+        // Вставляем сгенерированный код в редактор
+        document.getElementById('codeEditor').value = data.code;
+
+        // UI: успех
+        statusDiv.textContent = '✅ Скрипт сгенерирован! Закрой окно и нажми Play';
+        statusDiv.className = 'ai-status success';
+
+        // Автозакрытие через 2 секунды
+        setTimeout(() => {
+            closeAIPrompt();
+        }, 2000);
+
+    } catch (error) {
+        console.error('❌ Ошибка генерации:', error);
+        statusDiv.textContent = `Ошибка: ${error.message}`;
+        statusDiv.className = 'ai-status error';
+    } finally {
+        generateBtn.disabled = false;
+    }
+}
+
+// Закрытие модального окна по клику вне его
+document.addEventListener('click', (e) => {
+    const modal = document.getElementById('aiModal');
+    if (e.target === modal) {
+        closeAIPrompt();
+    }
+});
+
 
 // Горячие клавиши
 document.addEventListener('keydown', (e) => {
