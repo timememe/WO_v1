@@ -508,12 +508,25 @@ async function generateScript() {
             body: JSON.stringify({ prompt })
         });
 
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+
+        // Читаем тело ответа как текст для диагностики
+        const responseText = await response.text();
+        console.log('Response text:', responseText);
+
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Ошибка сервера');
+            let errorMessage = 'Ошибка сервера';
+            try {
+                const errorData = JSON.parse(responseText);
+                errorMessage = errorData.error || errorMessage;
+            } catch (e) {
+                errorMessage = responseText || errorMessage;
+            }
+            throw new Error(errorMessage);
         }
 
-        const data = await response.json();
+        const data = JSON.parse(responseText);
 
         // Вставляем сгенерированный код в редактор
         document.getElementById('codeEditor').value = data.code;
