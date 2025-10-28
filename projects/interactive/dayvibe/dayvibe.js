@@ -373,9 +373,6 @@ async function playCode() {
         updateStatus('Playing...', true);
 
         // Evaluate код через REPL
-        console.log("--- CODE TO BE EVALUATED ---");
-        console.log(code);
-        console.log("----------------------------");
         currentPattern = await repl.evaluate(code);
 
         // Запуск визуализатора
