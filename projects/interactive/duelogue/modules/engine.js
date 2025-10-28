@@ -40,13 +40,12 @@ class GameEngine {
         this.enemy = { logic: ENEMY_START_LOGIC, maxLogic: ENEMY_START_LOGIC, emotion: ENEMY_START_EMOTION, maxEmotion: ENEMY_START_EMOTION, points: 0, logicDepleted: false, emotionDepleted: false, negativeTurns: 0, cards: [], deck: [], discardPile: [], lastCard: null, usedTextVariants: {}, discardCount: 0 };
 
         // Система весов убеждённости (активируется при HP=0)
-        this.scales = 0; // От -10 (скептик убедил) до +10 (игрок убедил)
-        this.SCALES_MAX = 10;
-        this.SCALES_MIN = -10;
+        this.scales = 0; // От -5 (скептик убедил) до +5 (игрок убедил)
+        this.SCALES_MAX = 5;
+        this.SCALES_MIN = -5;
 
         // Пороги для зажигания точек по весам
-        this.SCALES_THRESHOLDS = [4, 7, 10]; // Точки зажигаются при +4, +7, +10 (для игрока)
-        this.scalesPointsEarned = { player: 0, enemy: 0 }; // Сколько точек уже заработано
+        // При достижении ±5 зажигается точка и весы обнуляются
 
         this.player.deck = this.cardManager.createFullDeck(true);
         this.enemy.deck = this.cardManager.createFullDeck(false);
@@ -163,13 +162,6 @@ if (this.uiManager.updateScales) this.uiManager.updateScales(this.scales);
 ﻿            this.player.cards = this.player.cards.filter(c => !c.used);
 ﻿        }
 ﻿
-﻿        this.checkPoints();
-﻿        this.uiManager.updateStats(this.player, this.enemy);
-
-﻿        if (this.checkVictory()) {
-﻿            await speechPromise;
-﻿            return;
-﻿        }
 
 ﻿        // Если это мультиплеер, отправляем ход на сервер
         if (this.isMultiplayer) {
@@ -187,6 +179,36 @@ if (this.uiManager.updateScales) this.uiManager.updateScales(this.scales);
 ﻿            await this.enemyTurn();
 ﻿        }
 ﻿    }
+
+    checkPoints() {
+        // Проверяем, достигли ли весы предела ±5
+        if (this.scales >= this.SCALES_MAX) {
+            // Игрок зажигает точку
+            this.player.points += 1;
+            this.uiManager.addMessage(`Ты зажигаешь точку ${this.player.points}! Весы достигли +${this.scales}`, 'player');
+            this.scales = 0; // Обнуляем весы
+            this.uiManager.updateScales(this.scales);
+        } else if (this.scales <= this.SCALES_MIN) {
+            // Скептик зажигает точку
+            this.enemy.points += 1;
+            this.uiManager.addMessage(`Скептик зажигает точку ${this.enemy.points}! Весы достигли ${this.scales}`, 'enemy');
+            this.scales = 0; // Обнуляем весы
+            this.uiManager.updateScales(this.scales);
+        }
+    }
+
+    checkVictory() {
+        // Победа только через 3 точки
+        if (this.player.points >= 3) {
+            this.handleGameEnd(true, 'points');
+            return true;
+        } else if (this.enemy.points >= 3) {
+            this.handleGameEnd(false, 'points');
+            return true;
+        }
+        return false;
+    }
+
 ﻿
 ﻿    async enemyTurn() {
 ﻿        if (this.isMultiplayer || !this.gameActive) return;
@@ -414,36 +436,6 @@ if (this.uiManager.updateScales) this.uiManager.updateScales(this.scales);
 ﻿        return { speechText, logText: logDetails.join(' ') };
 ﻿    }
 ﻿
-    checkPoints() {
-        // Новая система: точки зажигаются по достижению порогов весов
-        // Проверяем, пересекли ли мы новый порог
-
-        if (this.scales > 0) {
-            // Игрок впереди - проверяем пороги для игрока
-            for (let i = 0; i < this.SCALES_THRESHOLDS.length; i++) {
-                const threshold = this.SCALES_THRESHOLDS[i];
-                if (this.scales >= threshold && this.scalesPointsEarned.player < (i + 1)) {
-                    // Зажигаем точку игроку
-                    this.player.points = i + 1;
-                    this.scalesPointsEarned.player = i + 1;
-                    this.uiManager.addMessage(`Ты зажигаешь точку ${i + 1}! Весы убеждённости: +${this.scales}`, 'player');
-                    break;
-                }
-            }
-        } else if (this.scales < 0) {
-            // Скептик впереди - проверяем пороги для противника
-            for (let i = 0; i < this.SCALES_THRESHOLDS.length; i++) {
-                const threshold = -this.SCALES_THRESHOLDS[i]; // Отрицательные пороги: -4, -7, -10
-                if (this.scales <= threshold && this.scalesPointsEarned.enemy < (i + 1)) {
-                    // Зажигаем точку скептику
-                    this.enemy.points = i + 1;
-                    this.scalesPointsEarned.enemy = i + 1;
-                    this.uiManager.addMessage(`Скептик зажигает точку ${i + 1}! Весы убеждённости: ${this.scales}`, 'enemy');
-                    break;
-                }
-            }
-        }
-    }
 ﻿
 ﻿    // Применить урон с учётом системы весов
     applyDamageWithScales(target, targetStat, damage, logDetails) {

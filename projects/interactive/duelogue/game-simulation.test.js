@@ -93,10 +93,8 @@ class GameSimulator {
 
             // Система весов убеждённости
             scales: 0,
-            SCALES_MAX: 10,
-            SCALES_MIN: -10,
-            SCALES_THRESHOLDS: [4, 7, 10],
-            scalesPointsEarned: { player: 0, enemy: 0 },
+            SCALES_MAX: 5,
+            SCALES_MIN: -5,
 
             // Система событий
             eventManager: typeof EventManager !== 'undefined' ? new EventManager() : null,
@@ -314,34 +312,20 @@ class GameSimulator {
             },
 
             checkPoints() {
-                // Новая система: точки зажигаются по достижению порогов весов
-                if (this.scales > 0) {
-                    for (let i = 0; i < this.SCALES_THRESHOLDS.length; i++) {
-                        const threshold = this.SCALES_THRESHOLDS[i];
-                        if (this.scales >= threshold && this.scalesPointsEarned.player < (i + 1)) {
-                            this.player.points = i + 1;
-                            this.scalesPointsEarned.player = i + 1;
-                            break;
-                        }
-                    }
-                } else if (this.scales < 0) {
-                    for (let i = 0; i < this.SCALES_THRESHOLDS.length; i++) {
-                        const threshold = -this.SCALES_THRESHOLDS[i];
-                        if (this.scales <= threshold && this.scalesPointsEarned.enemy < (i + 1)) {
-                            this.enemy.points = i + 1;
-                            this.scalesPointsEarned.enemy = i + 1;
-                            break;
-                        }
-                    }
+                // Проверяем, достигли ли весы предела ±5
+                if (this.scales >= this.SCALES_MAX) {
+                    // Игрок зажигает точку
+                    this.player.points += 1;
+                    this.scales = 0; // Обнуляем весы
+                } else if (this.scales <= this.SCALES_MIN) {
+                    // Скептик зажигает точку
+                    this.enemy.points += 1;
+                    this.scales = 0; // Обнуляем весы
                 }
             },
 
             checkVictory() {
-                // Проверка победы через весы
-                if (this.scales >= this.SCALES_MAX) return 'player';
-                if (this.scales <= this.SCALES_MIN) return 'enemy';
-
-                // Проверка победы через очки
+                // Победа только через 3 точки
                 if (this.player.points >= 3) return 'player';
                 if (this.enemy.points >= 3) return 'enemy';
                 return null;
@@ -774,20 +758,6 @@ class GameSimulator {
 
         console.log('');
 
-        // 8. Статистика весов убеждённости
-        console.log('%c⚖️  СИСТЕМА ВЕСОВ УБЕЖДЁННОСТИ', 'color: #e67e22; font-size: 14px; font-weight: bold');
-        console.log(`  Среднее финальное значение весов: ${this.globalMetrics.avgFinalScales.toFixed(2)}`);
-        console.log(`  Побед через весы (±10):           ${this.globalMetrics.scalesVictories} (${(this.globalMetrics.scalesVictories / this.globalMetrics.totalGames * 100).toFixed(1)}%)`);
-        console.log(`  Побед через точки (3 точки):      ${this.globalMetrics.pointsVictories} (${(this.globalMetrics.pointsVictories / this.globalMetrics.totalGames * 100).toFixed(1)}%)`);
-
-        const scalesVsPoints = this.globalMetrics.scalesVictories / Math.max(this.globalMetrics.pointsVictories, 1);
-        if (scalesVsPoints > 2) {
-            console.log(`  ⚠️  Слишком много побед через весы (${scalesVsPoints.toFixed(2)}x)`);
-        } else if (scalesVsPoints < 0.5) {
-            console.log(`  ⚠️  Слишком мало побед через весы (${scalesVsPoints.toFixed(2)}x)`);
-        } else {
-            console.log(`  ✅ Баланс между весами и точками хороший (${scalesVsPoints.toFixed(2)}x)`);
-        }
 
         console.log('');
         console.log('%c' + '='.repeat(80), 'color: #2c3e50');
