@@ -186,7 +186,54 @@ function updateLoopsGrid() {
             loopName.textContent = loops[i].name || `Loop ${i + 1}`;
             tile.appendChild(loopName);
 
-            tile.onclick = () => switchToLoop(i);
+            // Кнопки управления лупом
+            const controls = document.createElement('div');
+            controls.className = 'loop-controls-mini';
+
+            // Кнопка удаления
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'loop-btn-delete';
+            deleteBtn.innerHTML = '×';
+            deleteBtn.title = 'Delete loop';
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation();
+                deleteLoop(i);
+            };
+
+            // Кнопка вверх
+            const upBtn = document.createElement('button');
+            upBtn.className = 'loop-btn-move';
+            upBtn.innerHTML = '▲';
+            upBtn.title = 'Move up';
+            upBtn.disabled = i === 0;
+            upBtn.onclick = (e) => {
+                e.stopPropagation();
+                moveLoopUp(i);
+            };
+
+            // Кнопка вниз
+            const downBtn = document.createElement('button');
+            downBtn.className = 'loop-btn-move';
+            downBtn.innerHTML = '▼';
+            downBtn.title = 'Move down';
+            downBtn.disabled = i === loops.length - 1;
+            downBtn.onclick = (e) => {
+                e.stopPropagation();
+                moveLoopDown(i);
+            };
+
+            controls.appendChild(upBtn);
+            controls.appendChild(downBtn);
+            controls.appendChild(deleteBtn);
+            tile.appendChild(controls);
+
+            // Клик по тайлу для переключения
+            tile.onclick = (e) => {
+                if (!e.target.classList.contains('loop-btn-delete') &&
+                    !e.target.classList.contains('loop-btn-move')) {
+                    switchToLoop(i);
+                }
+            };
         } else {
             tile.classList.add('empty');
             const emptyText = document.createElement('div');
@@ -212,6 +259,83 @@ function updateAIButtonsState() {
 
     // Continue кнопка активна если есть хотя бы 1 луп
     continueBtn.disabled = loops.length < 1;
+}
+
+// Удалить луп из очереди
+function deleteLoop(index) {
+    if (index < 0 || index >= loops.length) {
+        return;
+    }
+
+    const loopName = loops[index].name || `Loop ${index + 1}`;
+
+    if (!confirm(`Удалить "${loopName}"?`)) {
+        return;
+    }
+
+    // Удаляем луп из массива
+    loops.splice(index, 1);
+
+    // Корректируем currentLoopIndex
+    if (currentLoopIndex === index) {
+        // Если удаляем активный луп
+        if (loops.length === 0) {
+            currentLoopIndex = -1;
+            stopCode(); // Останавливаем воспроизведение
+        } else if (currentLoopIndex >= loops.length) {
+            currentLoopIndex = loops.length - 1;
+        }
+        // Переключаемся на новый текущий луп если есть
+        if (currentLoopIndex >= 0 && isPlaying) {
+            switchToLoop(currentLoopIndex);
+        }
+    } else if (currentLoopIndex > index) {
+        // Если удаляем луп перед текущим, сдвигаем индекс
+        currentLoopIndex--;
+    }
+
+    updateLoopsGrid();
+    console.log(`🗑️ Удален луп ${index}: ${loopName}`);
+}
+
+// Переместить луп вверх
+function moveLoopUp(index) {
+    if (index <= 0 || index >= loops.length) {
+        return;
+    }
+
+    // Меняем местами с предыдущим
+    [loops[index - 1], loops[index]] = [loops[index], loops[index - 1]];
+
+    // Корректируем currentLoopIndex
+    if (currentLoopIndex === index) {
+        currentLoopIndex = index - 1;
+    } else if (currentLoopIndex === index - 1) {
+        currentLoopIndex = index;
+    }
+
+    updateLoopsGrid();
+    console.log(`⬆️ Луп ${index} перемещен вверх`);
+}
+
+// Переместить луп вниз
+function moveLoopDown(index) {
+    if (index < 0 || index >= loops.length - 1) {
+        return;
+    }
+
+    // Меняем местами со следующим
+    [loops[index], loops[index + 1]] = [loops[index + 1], loops[index]];
+
+    // Корректируем currentLoopIndex
+    if (currentLoopIndex === index) {
+        currentLoopIndex = index + 1;
+    } else if (currentLoopIndex === index + 1) {
+        currentLoopIndex = index;
+    }
+
+    updateLoopsGrid();
+    console.log(`⬇️ Луп ${index} перемещен вниз`);
 }
 
 // Добавить луп в очередь
