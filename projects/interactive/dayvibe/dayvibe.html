@@ -288,6 +288,134 @@
             opacity: 0.7;
         }
 
+        /* Loops Grid */
+        .loops-container {
+            margin-bottom: 20px;
+            background-color: #0d1117;
+            border: 2px solid #444;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .loops-header {
+            font-size: clamp(9px, 2vw, 11px);
+            color: #3498db;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .loops-grid {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding-bottom: 5px;
+        }
+
+        .loops-grid::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .loops-grid::-webkit-scrollbar-track {
+            background: #0d1117;
+            border-radius: 3px;
+        }
+
+        .loops-grid::-webkit-scrollbar-thumb {
+            background: #3498db;
+            border-radius: 3px;
+        }
+
+        .loops-grid::-webkit-scrollbar-thumb:hover {
+            background: #5dade2;
+        }
+
+        .loop-tile {
+            min-width: 80px;
+            width: 80px;
+            height: 80px;
+            flex-shrink: 0;
+            background-color: #161b22;
+            border: 2px solid #333;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .loop-tile.empty {
+            border-style: dashed;
+            opacity: 0.5;
+            cursor: default;
+        }
+
+        .loop-tile.empty:hover {
+            opacity: 0.7;
+        }
+
+        .loop-tile.active {
+            background-color: #1e2530;
+            border-color: #3498db;
+        }
+
+        .loop-tile.active:hover {
+            border-color: #5dade2;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+        }
+
+        .loop-tile.playing {
+            background: linear-gradient(135deg, #1e2530 0%, #2c3e50 100%);
+            border-color: #27ae60;
+            animation: pulse-border 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-border {
+            0%, 100% {
+                border-color: #27ae60;
+                box-shadow: 0 0 10px rgba(39, 174, 96, 0.5);
+            }
+            50% {
+                border-color: #2ecc71;
+                box-shadow: 0 0 20px rgba(46, 204, 113, 0.8);
+            }
+        }
+
+        .loop-name {
+            font-size: clamp(8px, 2vw, 10px);
+            color: #fff;
+            text-align: center;
+            padding: 5px;
+        }
+
+        .loop-empty-text {
+            font-size: clamp(16px, 4vw, 24px);
+            color: #555;
+        }
+
+        /* Loop Controls */
+        .loop-controls {
+            margin-top: 10px;
+        }
+
+        .btn-loop {
+            background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+            border-color: #7d3c98;
+            color: #fff;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .btn-loop:hover {
+            background: linear-gradient(135deg, #a569bd 0%, #9b59b6 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(155, 89, 182, 0.4);
+        }
+
         @media (max-width: 600px) {
             .container {
                 padding: 15px;
@@ -299,6 +427,12 @@
 
             .btn {
                 min-width: 100%;
+            }
+
+            .loop-tile {
+                min-width: 70px;
+                width: 70px;
+                height: 70px;
             }
         }
     </style>
@@ -313,6 +447,14 @@
         <!-- Визуализатор -->
         <div class="visualizer" id="visualizer">
             <!-- Будут созданы бары динамически -->
+        </div>
+
+        <!-- Loops Grid -->
+        <div class="loops-container">
+            <div class="loops-header">Loops</div>
+            <div class="loops-grid" id="loopsGrid">
+                <!-- Будут созданы плитки динамически -->
+            </div>
         </div>
 
         <!-- Редактор кода -->
@@ -330,7 +472,13 @@
             <button class="btn btn-play" id="playBtn" onclick="playCode()">▶ Play</button>
             <button class="btn btn-stop" id="stopBtn" onclick="stopCode()" disabled>■ Stop</button>
             <button class="btn btn-example" id="exampleBtn" onclick="loadExample()">Load Example</button>
-            <button class="btn btn-example" onclick="debugStrudel()">🔍 Debug</button>
+        </div>
+
+        <!-- Loop Controls -->
+        <div class="controls loop-controls">
+            <button class="btn btn-loop" onclick="addLoop()">+ Add to Queue</button>
+            <button class="btn btn-loop" onclick="prevLoop()">◀ Prev Loop</button>
+            <button class="btn btn-loop" onclick="nextLoop()">Next Loop ▶</button>
         </div>
 
         <!-- Статус-бар -->

@@ -9,6 +9,11 @@ let scheduler = null;
 let audioContext = null;
 let activeNodes = []; // Отслеживаем все активные аудио ноды
 
+// Loops management
+let loops = []; // Массив лупов { code: string, name: string }
+let currentLoopIndex = -1; // Индекс активного лупа
+const MAX_LOOPS = 8;
+
 // Инициализация Strudel через @strudel/web
 async function initDayvibe() {
     try {
@@ -151,6 +156,97 @@ function stopVisualizer() {
     });
 }
 
+// Обновление грида лупов
+function updateLoopsGrid() {
+    const grid = document.getElementById('loopsGrid');
+    grid.innerHTML = '';
+
+    for (let i = 0; i < MAX_LOOPS; i++) {
+        const tile = document.createElement('div');
+        tile.className = 'loop-tile';
+
+        if (loops[i]) {
+            tile.classList.add('active');
+            if (i === currentLoopIndex) {
+                tile.classList.add('playing');
+            }
+
+            const loopName = document.createElement('div');
+            loopName.className = 'loop-name';
+            loopName.textContent = loops[i].name || `Loop ${i + 1}`;
+            tile.appendChild(loopName);
+
+            tile.onclick = () => switchToLoop(i);
+        } else {
+            tile.classList.add('empty');
+            const emptyText = document.createElement('div');
+            emptyText.className = 'loop-empty-text';
+            emptyText.textContent = '+';
+            tile.appendChild(emptyText);
+        }
+
+        grid.appendChild(tile);
+    }
+}
+
+// Добавить луп в очередь
+function addLoop() {
+    if (loops.length >= MAX_LOOPS) {
+        alert('Максимум 8 лупов!');
+        return;
+    }
+
+    const code = document.getElementById('codeEditor').value.trim();
+    if (!code) {
+        alert('Напиши код для лупа!');
+        return;
+    }
+
+    loops.push({
+        code: code,
+        name: `Loop ${loops.length + 1}`
+    });
+
+    updateLoopsGrid();
+}
+
+// Переключиться на следующий луп
+async function nextLoop() {
+    if (loops.length === 0) return;
+
+    currentLoopIndex = (currentLoopIndex + 1) % loops.length;
+    await switchToLoop(currentLoopIndex);
+}
+
+// Переключиться на предыдущий луп
+async function prevLoop() {
+    if (loops.length === 0) return;
+
+    currentLoopIndex = currentLoopIndex - 1;
+    if (currentLoopIndex < 0) {
+        currentLoopIndex = loops.length - 1;
+    }
+    await switchToLoop(currentLoopIndex);
+}
+
+// Переключиться на конкретный луп
+async function switchToLoop(index) {
+    if (!loops[index]) return;
+
+    currentLoopIndex = index;
+    const loop = loops[index];
+
+    // Загружаем код лупа в редактор
+    document.getElementById('codeEditor').value = loop.code;
+
+    // Если играет - перезапускаем с новым лупом
+    if (isPlaying) {
+        await playCode();
+    }
+
+    updateLoopsGrid();
+}
+
 // Обновление статуса
 function updateStatus(text, playing) {
     const statusText = document.getElementById('statusText');
@@ -189,6 +285,16 @@ async function playCode() {
     }
 
     try {
+        // Если это первый запуск и нет лупов - создаем первый луп
+        if (loops.length === 0) {
+            loops.push({
+                code: code,
+                name: 'Loop 1'
+            });
+            currentLoopIndex = 0;
+            updateLoopsGrid();
+        }
+
         console.log('▶ Playing code:', code);
 
         // ВАЖНО: Полностью останавливаем всё перед новым запуском
@@ -354,54 +460,6 @@ s("rolandtr909bd rolandtr909sd rolandtr909hh rolandtr909sd")
     document.getElementById('codeEditor').value = exampleCode;
 }
 
-// Debug функция
-function debugStrudel() {
-    console.log('=== STRUDEL DEBUG ===');
-    console.log('typeof strudel:', typeof strudel);
-    console.log('strudel keys:', strudel ? Object.keys(strudel) : 'undefined');
-    console.log('typeof sound:', typeof sound);
-    console.log('typeof window.sound:', typeof window.sound);
-
-    // Проверяем REPL функции
-    const replFuncs = ['repl', 'controls', 'silence', 'hush', 'panic', 'getScheduler', 'cyclist'];
-    console.log('\nREPL functions:');
-    replFuncs.forEach(func => {
-        console.log(`- ${func}:`, typeof window[func]);
-    });
-
-    // Проверяем scheduler
-    if (typeof getScheduler === 'function') {
-        const scheduler = getScheduler();
-        console.log('\nScheduler:', scheduler);
-        console.log('Scheduler methods:', Object.keys(scheduler));
-        console.log('Scheduler state:', {
-            started: scheduler.started,
-            pattern: scheduler.pattern,
-            audioContext: scheduler.audioContext?.state
-        });
-    }
-
-    // Проверяем controls если есть
-    if (typeof controls === 'object') {
-        console.log('\nControls:', controls);
-        console.log('Controls methods:', Object.keys(controls));
-    }
-
-    console.log('\nCurrent pattern:', currentPattern);
-    if (currentPattern) {
-        console.log('Pattern type:', currentPattern.constructor?.name);
-        console.log('Pattern methods:', Object.keys(currentPattern));
-        console.log('Pattern proto:', Object.getPrototypeOf(currentPattern));
-    }
-
-    console.log('\nAll window keys with "play", "start", or "stop":',
-        Object.keys(window).filter(k => {
-            const lower = k.toLowerCase();
-            return lower.includes('play') || lower.includes('start') || lower.includes('stop');
-        }).slice(0, 30));
-    console.log('===================');
-    alert('Check console for debug info');
-}
 
 // Горячие клавиши
 document.addEventListener('keydown', (e) => {
@@ -422,6 +480,7 @@ document.addEventListener('keydown', (e) => {
 // Инициализация при загрузке
 window.addEventListener('DOMContentLoaded', () => {
     createVisualizer();
+    updateLoopsGrid(); // Инициализируем пустой грид лупов
     initDayvibe();
 
     console.log('🎵 DAYVIBE initialized');
