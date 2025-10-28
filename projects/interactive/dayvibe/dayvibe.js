@@ -83,8 +83,17 @@ async function initDayvibe() {
                 try {
                     console.log('🎵 Evaluating code with @strudel/web...');
 
-                    // Используем глобальную evaluate() из @strudel/web
-                    const result = await evaluate(code);
+                    // ПАТЧ: AI генерирует некорректный код с .fade(). Заменяем его на рабочий xfade().
+                    let patchedCode = code;
+                    if (patchedCode.includes('.fade(')) {
+                        console.warn('⚠️ Обнаружен .fade(). Применяю патч для совместимости.');
+                        // Заменяем неверный паттерн "stack(...).fade(...)" на правильный "xfade(...)"
+                        patchedCode = patchedCode.replace(/stack\s*\(([\s\S]*)\)\s*\.fade\s*\([^)]*\)/g, 'xfade($1)');
+                        console.log('✨ Исправленный код:', patchedCode);
+                    }
+
+                    // Используем глобальную evaluate() из @strudel/web с исправленным кодом
+                    const result = await evaluate(patchedCode);
                     console.log('✅ Code evaluated, result:', result);
 
                     return result;
