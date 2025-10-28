@@ -461,7 +461,9 @@ s("rolandtr909bd rolandtr909sd rolandtr909hh rolandtr909sd")
 }
 
 // AI Generation functions
-const API_URL = 'https://worldorder.online/api/generate-strudel-script';
+// ВАЖНО: Это должен быть URL сервера на Render, а не статического сайта!
+// Замени YOUR_SERVICE_NAME на имя твоего сервиса на Render
+const API_URL = 'https://wo-server-v1.onrender.com/api/generate-strudel-script';
 
 function openAIPrompt() {
     document.getElementById('aiModal').style.display = 'flex';
@@ -524,6 +526,11 @@ async function generateScript() {
                 errorMessage = responseText || errorMessage;
             }
             throw new Error(errorMessage);
+        }
+
+        // Проверка на пустой ответ
+        if (!responseText || responseText.trim() === '') {
+            throw new Error('Сервер вернул пустой ответ. Возможно endpoint еще не задеплоился на Render. Попробуй через несколько минут.');
         }
 
         const data = JSON.parse(responseText);
