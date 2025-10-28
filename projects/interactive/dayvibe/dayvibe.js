@@ -187,6 +187,16 @@ function updateLoopsGrid() {
 
         grid.appendChild(tile);
     }
+
+    // Обновляем состояние кнопки Generate Transition
+    updateTransitionButtonState();
+}
+
+// Обновление состояния кнопки перехода
+function updateTransitionButtonState() {
+    const transitionBtn = document.getElementById('transitionBtn');
+    // Кнопка активна только если есть минимум 2 лупа
+    transitionBtn.disabled = loops.length < 2;
 }
 
 // Добавить луп в очередь
@@ -558,11 +568,146 @@ async function generateScript() {
 
 // Закрытие модального окна по клику вне его
 document.addEventListener('click', (e) => {
-    const modal = document.getElementById('aiModal');
-    if (e.target === modal) {
+    const aiModal = document.getElementById('aiModal');
+    const transitionModal = document.getElementById('transitionModal');
+
+    if (e.target === aiModal) {
         closeAIPrompt();
     }
+    if (e.target === transitionModal) {
+        closeTransitionPrompt();
+    }
 });
+
+// Transition Generation functions
+const TRANSITION_API_URL = 'https://wo-server-v1.onrender.com/api/generate-strudel-transition';
+
+function openTransitionPrompt() {
+    if (loops.length < 2) {
+        alert('Нужно минимум 2 лупа для генерации перехода!');
+        return;
+    }
+
+    // Заполняем селекты лупами
+    const fromSelect = document.getElementById('fromLoopSelect');
+    const toSelect = document.getElementById('toLoopSelect');
+
+    fromSelect.innerHTML = '';
+    toSelect.innerHTML = '';
+
+    loops.forEach((loop, index) => {
+        const optionFrom = document.createElement('option');
+        optionFrom.value = index;
+        optionFrom.textContent = loop.name || `Loop ${index + 1}`;
+        fromSelect.appendChild(optionFrom);
+
+        const optionTo = document.createElement('option');
+        optionTo.value = index;
+        optionTo.textContent = loop.name || `Loop ${index + 1}`;
+        toSelect.appendChild(optionTo);
+    });
+
+    // По умолчанию выбираем первый и второй лупы
+    fromSelect.value = '0';
+    toSelect.value = loops.length > 1 ? '1' : '0';
+
+    document.getElementById('transitionModal').style.display = 'flex';
+    document.getElementById('transitionStatus').textContent = '';
+    document.getElementById('transitionStatus').className = 'ai-status';
+}
+
+function closeTransitionPrompt() {
+    document.getElementById('transitionModal').style.display = 'none';
+}
+
+async function generateTransition() {
+    const fromSelect = document.getElementById('fromLoopSelect');
+    const toSelect = document.getElementById('toLoopSelect');
+    const statusDiv = document.getElementById('transitionStatus');
+    const generateBtn = document.querySelector('#transitionModal .btn-generate');
+
+    const fromIndex = parseInt(fromSelect.value);
+    const toIndex = parseInt(toSelect.value);
+
+    if (fromIndex === toIndex) {
+        statusDiv.textContent = 'Выбери разные лупы для перехода!';
+        statusDiv.className = 'ai-status error';
+        return;
+    }
+
+    const fromLoop = loops[fromIndex];
+    const toLoop = loops[toIndex];
+
+    try {
+        // UI: начало генерации
+        generateBtn.disabled = true;
+        statusDiv.textContent = 'Генерация перехода...';
+        statusDiv.className = 'ai-status loading';
+
+        // Отправка запроса
+        const response = await fetch(TRANSITION_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                fromLoop: fromLoop.code,
+                toLoop: toLoop.code
+            })
+        });
+
+        const responseText = await response.text();
+
+        if (!response.ok) {
+            let errorMessage = 'Ошибка сервера';
+            try {
+                const errorData = JSON.parse(responseText);
+                errorMessage = errorData.error || errorMessage;
+            } catch (e) {
+                errorMessage = responseText || errorMessage;
+            }
+            throw new Error(errorMessage);
+        }
+
+        if (!responseText || responseText.trim() === '') {
+            throw new Error('Сервер вернул пустой ответ');
+        }
+
+        const data = JSON.parse(responseText);
+
+        // Вставляем переход между выбранными лупами
+        const transitionLoop = {
+            code: data.code,
+            name: `Transition ${fromIndex + 1}→${toIndex + 1}`
+        };
+
+        // Вставляем переход после fromLoop
+        const insertIndex = Math.max(fromIndex, toIndex);
+        loops.splice(insertIndex, 0, transitionLoop);
+
+        // Обновляем грид
+        updateLoopsGrid();
+
+        // Вставляем код в редактор
+        document.getElementById('codeEditor').value = data.code;
+
+        // UI: успех
+        statusDiv.textContent = '✅ Переход создан! Закрой окно и нажми Play';
+        statusDiv.className = 'ai-status success';
+
+        // Автозакрытие через 2 секунды
+        setTimeout(() => {
+            closeTransitionPrompt();
+        }, 2000);
+
+    } catch (error) {
+        console.error('❌ Ошибка генерации перехода:', error);
+        statusDiv.textContent = `Ошибка: ${error.message}`;
+        statusDiv.className = 'ai-status error';
+    } finally {
+        generateBtn.disabled = false;
+    }
+}
 
 
 // Горячие клавиши

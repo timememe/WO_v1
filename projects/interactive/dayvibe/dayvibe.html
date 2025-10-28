@@ -548,6 +548,67 @@
             color: #e74c3c;
         }
 
+        /* Transition Button */
+        .btn-transition {
+            background: linear-gradient(135deg, #16a085 0%, #138d75 100%);
+            border-color: #0e6655;
+            color: #fff;
+            flex: 1;
+            min-width: 160px;
+        }
+
+        .btn-transition:hover:not(:disabled) {
+            background: linear-gradient(135deg, #1abc9c 0%, #16a085 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(22, 160, 133, 0.4);
+        }
+
+        .btn-transition:disabled {
+            background: linear-gradient(135deg, #555 0%, #444 100%);
+            border-color: #333;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        /* Transition Selector */
+        .transition-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .transition-label {
+            font-size: clamp(9px, 2vw, 11px);
+            color: #3498db;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .loop-select {
+            width: 100%;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: clamp(10px, 2.5vw, 13px);
+            background-color: #0d1117;
+            color: #c9d1d9;
+            border: 2px solid #444;
+            border-radius: 6px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .loop-select:focus {
+            border-color: #16a085;
+        }
+
+        .loop-select option {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            padding: 10px;
+        }
+
         @media (max-width: 600px) {
             .container {
                 padding: 15px;
@@ -622,11 +683,33 @@
             </div>
         </div>
 
+        <!-- Transition Modal -->
+        <div class="ai-modal" id="transitionModal" style="display: none;">
+            <div class="ai-modal-content">
+                <div class="ai-modal-header">
+                    <span class="ai-modal-title">Generate Transition</span>
+                    <button class="ai-modal-close" onclick="closeTransitionPrompt()">×</button>
+                </div>
+                <div class="ai-modal-body">
+                    <div class="transition-selector">
+                        <label class="transition-label">From Loop:</label>
+                        <select id="fromLoopSelect" class="loop-select"></select>
+
+                        <label class="transition-label">To Loop:</label>
+                        <select id="toLoopSelect" class="loop-select"></select>
+                    </div>
+                    <button class="btn btn-generate" onclick="generateTransition()">Generate Transition</button>
+                </div>
+                <div class="ai-status" id="transitionStatus"></div>
+            </div>
+        </div>
+
         <!-- Loop Controls -->
         <div class="controls loop-controls">
             <button class="btn btn-loop" onclick="addLoop()">+ Add to Queue</button>
             <button class="btn btn-loop" onclick="prevLoop()">◀ Prev Loop</button>
             <button class="btn btn-loop" onclick="nextLoop()">Next Loop ▶</button>
+            <button class="btn btn-transition" id="transitionBtn" onclick="openTransitionPrompt()" disabled>🔄 Generate Transition</button>
         </div>
 
         <!-- Статус-бар -->
