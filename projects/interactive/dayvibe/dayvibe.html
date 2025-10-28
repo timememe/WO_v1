@@ -488,48 +488,64 @@
             box-shadow: 0 6px 12px rgba(230, 126, 34, 0.4);
         }
 
-        /* AI Modal */
-        .ai-modal {
+        /* AI Slide-out Panel */
+        .ai-panel {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            max-width: 90vw;
+            height: 100%;
+            background-color: #1a1a1a;
+            border-left: 3px solid #e67e22;
+            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
+            z-index: 1001;
+            transition: right 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ai-panel.open {
+            right: 0;
+        }
+
+        .ai-panel-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(2px);
             z-index: 1000;
-            backdrop-filter: blur(4px);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
         }
 
-        .ai-modal-content {
-            background-color: #1a1a1a;
-            border: 3px solid #e67e22;
-            border-radius: 12px;
-            padding: 20px;
-            width: 90%;
-            max-width: 500px;
-            box-shadow: 0 8px 32px rgba(230, 126, 34, 0.5);
+        .ai-panel-overlay.active {
+            opacity: 1;
+            visibility: visible;
         }
 
-        .ai-modal-header {
+        .ai-panel-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
+            padding: 20px;
             border-bottom: 2px solid #333;
+            background: linear-gradient(135deg, #1e2530 0%, #1a1a1a 100%);
         }
 
-        .ai-modal-title {
+        .ai-panel-title {
             font-size: clamp(12px, 3vw, 16px);
             color: #e67e22;
             text-transform: uppercase;
             letter-spacing: 1px;
+            font-family: 'Press Start 2P', cursive;
         }
 
-        .ai-modal-close {
+        .ai-panel-close {
             background: none;
             border: none;
             color: #888;
@@ -542,12 +558,14 @@
             transition: color 0.3s ease;
         }
 
-        .ai-modal-close:hover {
+        .ai-panel-close:hover {
             color: #e67e22;
         }
 
-        .ai-modal-body {
-            margin-bottom: 15px;
+        .ai-panel-body {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
         }
 
         .ai-prompt-input {
@@ -643,6 +661,46 @@
         }
 
         .btn-continue:disabled {
+            background: linear-gradient(135deg, #555 0%, #444 100%);
+            border-color: #333;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        /* Update Loop Button */
+        .btn-update {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            border-color: #1e8449;
+            color: #fff;
+        }
+
+        .btn-update:hover:not(:disabled) {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(39, 174, 96, 0.4);
+        }
+
+        .btn-update:disabled {
+            background: linear-gradient(135deg, #555 0%, #444 100%);
+            border-color: #333;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        /* Edit Loop Button */
+        .btn-edit {
+            background: linear-gradient(135deg, #f39c12 0%, #d68910 100%);
+            border-color: #b9770e;
+            color: #fff;
+        }
+
+        .btn-edit:hover:not(:disabled) {
+            background: linear-gradient(135deg, #f1c40f 0%, #f39c12 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(243, 156, 18, 0.4);
+        }
+
+        .btn-edit:disabled {
             background: linear-gradient(135deg, #555 0%, #444 100%);
             border-color: #333;
             cursor: not-allowed;
@@ -761,7 +819,7 @@
             <div class="controls">
                 <button class="btn btn-play" id="playBtn" onclick="playCode()">▶ Play</button>
                 <button class="btn btn-stop" id="stopBtn" onclick="stopCode()" disabled>■ Stop</button>
-                <button class="btn btn-example" id="exampleBtn" onclick="loadExample()">Load Example</button>
+                <button class="btn btn-update" id="updateBtn" onclick="updateCurrentLoop()" disabled>🔄 Update Loop</button>
             </div>
         </div>
 
@@ -769,63 +827,27 @@
         <div class="controls-section">
             <div class="section-title">AI Generation</div>
             <div class="controls ai-controls">
-                <button class="btn btn-ai" id="aiBtn" onclick="openAIPrompt()">✨ Generate New</button>
-                <button class="btn btn-continue" id="continueBtn" onclick="openContinuePrompt()" disabled>➡️ Continue Loop</button>
-                <button class="btn btn-transition" id="transitionBtn" onclick="openTransitionPrompt()" disabled>🔄 Transition</button>
+                <button class="btn btn-ai" id="aiBtn" onclick="openAIPanel()">✨ Generate New</button>
+                <button class="btn btn-edit" id="editBtn" onclick="openEditPanel()">✏️ Edit Loop</button>
+                <button class="btn btn-continue" id="continueBtn" onclick="openContinuePanel()" disabled>➡️ Continue Loop</button>
+                <button class="btn btn-transition" id="transitionBtn" onclick="openTransitionPanel()" disabled>🔄 Transition</button>
             </div>
         </div>
 
-        <!-- AI Prompt Modal -->
-        <div class="ai-modal" id="aiModal" style="display: none;">
-            <div class="ai-modal-content">
-                <div class="ai-modal-header">
-                    <span class="ai-modal-title">AI Script Generator</span>
-                    <button class="ai-modal-close" onclick="closeAIPrompt()">×</button>
-                </div>
-                <div class="ai-modal-body">
-                    <textarea id="aiPromptInput" class="ai-prompt-input" placeholder="Опиши что хочешь услышать... (например: энергичный техно бит с TR-909)"></textarea>
-                    <button class="btn btn-generate" onclick="generateScript()">Generate</button>
-                </div>
-                <div class="ai-status" id="aiStatus"></div>
+        <!-- Slide-out AI Panel -->
+        <div class="ai-panel" id="aiPanel">
+            <div class="ai-panel-header">
+                <span class="ai-panel-title" id="panelTitle">AI Panel</span>
+                <button class="ai-panel-close" onclick="closeAIPanel()">×</button>
             </div>
+            <div class="ai-panel-body" id="panelBody">
+                <!-- Content будет динамически загружаться -->
+            </div>
+            <div class="ai-status" id="panelStatus"></div>
         </div>
 
-        <!-- Continue Loop Modal -->
-        <div class="ai-modal" id="continueModal" style="display: none;">
-            <div class="ai-modal-content">
-                <div class="ai-modal-header">
-                    <span class="ai-modal-title">Continue Loop</span>
-                    <button class="ai-modal-close" onclick="closeContinuePrompt()">×</button>
-                </div>
-                <div class="ai-modal-body">
-                    <textarea id="continuePromptInput" class="ai-prompt-input"
-                        placeholder="Как развить предыдущий луп? (например: добавь более мощные биты и агрессивные хай-хеты)"></textarea>
-                    <button class="btn btn-generate" onclick="generateContinuation()">Generate</button>
-                </div>
-                <div class="ai-status" id="continueStatus"></div>
-            </div>
-        </div>
-
-        <!-- Transition Modal -->
-        <div class="ai-modal" id="transitionModal" style="display: none;">
-            <div class="ai-modal-content">
-                <div class="ai-modal-header">
-                    <span class="ai-modal-title">Generate Transition</span>
-                    <button class="ai-modal-close" onclick="closeTransitionPrompt()">×</button>
-                </div>
-                <div class="ai-modal-body">
-                    <div class="transition-selector">
-                        <label class="transition-label">From Loop:</label>
-                        <select id="fromLoopSelect" class="loop-select"></select>
-
-                        <label class="transition-label">To Loop:</label>
-                        <select id="toLoopSelect" class="loop-select"></select>
-                    </div>
-                    <button class="btn btn-generate" onclick="generateTransition()">Generate Transition</button>
-                </div>
-                <div class="ai-status" id="transitionStatus"></div>
-            </div>
-        </div>
+        <!-- Overlay для панели -->
+        <div class="ai-panel-overlay" id="panelOverlay" onclick="closeAIPanel()"></div>
 
         <!-- Loop Controls -->
         <div class="controls-section">

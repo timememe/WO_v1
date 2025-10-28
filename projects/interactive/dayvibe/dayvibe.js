@@ -628,20 +628,253 @@ s("rolandtr909bd rolandtr909sd rolandtr909hh rolandtr909sd")
 // Замени YOUR_SERVICE_NAME на имя твоего сервиса на Render
 const API_URL = 'https://wo-server-v1.onrender.com/api/generate-strudel-script';
 
-function openAIPrompt() {
-    document.getElementById('aiModal').style.display = 'flex';
-    document.getElementById('aiPromptInput').value = '';
-    document.getElementById('aiStatus').textContent = '';
-    document.getElementById('aiStatus').className = 'ai-status';
+// === Panel Management Functions ===
+
+function openAIPanel() {
+    const panel = document.getElementById('aiPanel');
+    const overlay = document.getElementById('panelOverlay');
+    const panelTitle = document.getElementById('panelTitle');
+    const panelBody = document.getElementById('panelBody');
+    const panelStatus = document.getElementById('panelStatus');
+
+    panelTitle.textContent = '✨ Generate New Loop';
+    panelBody.innerHTML = `
+        <textarea id="aiPromptInput" class="ai-prompt-input" placeholder="Опиши что хочешь услышать...&#10;&#10;Например:&#10;- Быстрый techno паттерн с 909 kick&#10;- Медленный ambient с pad звуками&#10;- Jungle breaks с басом"></textarea>
+        <button class="btn btn-generate" onclick="generateScript()">Генерировать</button>
+    `;
+    panelStatus.textContent = '';
+    panelStatus.className = 'ai-status';
+
+    panel.classList.add('open');
+    overlay.classList.add('active');
 }
 
-function closeAIPrompt() {
-    document.getElementById('aiModal').style.display = 'none';
+function openEditPanel() {
+    if (currentLoopIndex < 0) {
+        alert('Сначала выбери луп для редактирования');
+        return;
+    }
+
+    const panel = document.getElementById('aiPanel');
+    const overlay = document.getElementById('panelOverlay');
+    const panelTitle = document.getElementById('panelTitle');
+    const panelBody = document.getElementById('panelBody');
+    const panelStatus = document.getElementById('panelStatus');
+
+    panelTitle.textContent = '✏️ Edit Current Loop';
+    panelBody.innerHTML = `
+        <textarea id="editPromptInput" class="ai-prompt-input" placeholder="Опиши что изменить в лупе...&#10;&#10;Например:&#10;- Сделай медленнее&#10;- Добавь reverb&#10;- Замени kick на другой&#10;- Упрости ритм"></textarea>
+        <button class="btn btn-generate" onclick="editLoop()">Отредактировать</button>
+    `;
+    panelStatus.textContent = '';
+    panelStatus.className = 'ai-status';
+
+    panel.classList.add('open');
+    overlay.classList.add('active');
+}
+
+function openContinuePanel() {
+    if (currentLoopIndex < 0) {
+        alert('Сначала выбери луп для продолжения');
+        return;
+    }
+
+    const panel = document.getElementById('aiPanel');
+    const overlay = document.getElementById('panelOverlay');
+    const panelTitle = document.getElementById('panelTitle');
+    const panelBody = document.getElementById('panelBody');
+    const panelStatus = document.getElementById('panelStatus');
+
+    panelTitle.textContent = '➡️ Continue Loop';
+    panelBody.innerHTML = `
+        <textarea id="continuePromptInput" class="ai-prompt-input" placeholder="Опиши как развить этот луп...&#10;&#10;Например:&#10;- Добавь hi-hats и эволюционируй&#10;- Усложни ритм&#10;- Сделай более мелодичным"></textarea>
+        <button class="btn btn-generate" onclick="generateContinuation()">Генерировать продолжение</button>
+    `;
+    panelStatus.textContent = '';
+    panelStatus.className = 'ai-status';
+
+    panel.classList.add('open');
+    overlay.classList.add('active');
+}
+
+function openTransitionPanel() {
+    if (loops.length < 2) {
+        alert('Нужно минимум 2 лупа для создания перехода');
+        return;
+    }
+
+    const panel = document.getElementById('aiPanel');
+    const overlay = document.getElementById('panelOverlay');
+    const panelTitle = document.getElementById('panelTitle');
+    const panelBody = document.getElementById('panelBody');
+    const panelStatus = document.getElementById('panelStatus');
+
+    panelTitle.textContent = '🔄 Create Transition';
+
+    // Генерируем список доступных лупов для выбора
+    let loopOptions = '';
+    loops.forEach((loop, i) => {
+        const loopName = loop.name || `Loop ${i + 1}`;
+        loopOptions += `<option value="${i}">${loopName}</option>`;
+    });
+
+    panelBody.innerHTML = `
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; color: #c9d1d9;">From Loop:</label>
+            <select id="transitionFromLoop" class="ai-prompt-input" style="min-height: auto; padding: 8px;">
+                ${loopOptions}
+            </select>
+        </div>
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; color: #c9d1d9;">To Loop:</label>
+            <select id="transitionToLoop" class="ai-prompt-input" style="min-height: auto; padding: 8px;">
+                ${loopOptions}
+            </select>
+        </div>
+        <button class="btn btn-generate" onclick="generateTransition()">Создать переход</button>
+    `;
+
+    // Устанавливаем значения по умолчанию
+    setTimeout(() => {
+        const fromSelect = document.getElementById('transitionFromLoop');
+        const toSelect = document.getElementById('transitionToLoop');
+        if (currentLoopIndex >= 0) {
+            fromSelect.value = currentLoopIndex;
+            toSelect.value = currentLoopIndex < loops.length - 1 ? currentLoopIndex + 1 : 0;
+        }
+    }, 0);
+
+    panelStatus.textContent = '';
+    panelStatus.className = 'ai-status';
+
+    panel.classList.add('open');
+    overlay.classList.add('active');
+}
+
+function closeAIPanel() {
+    const panel = document.getElementById('aiPanel');
+    const overlay = document.getElementById('panelOverlay');
+
+    panel.classList.remove('open');
+    overlay.classList.remove('active');
+}
+
+// === Update Current Loop ===
+
+function updateCurrentLoop() {
+    if (currentLoopIndex < 0) {
+        alert('Сначала выбери луп для обновления');
+        return;
+    }
+
+    const editor = document.getElementById('codeEditor');
+    const code = editor.value.trim();
+
+    if (!code) {
+        alert('Редактор пустой');
+        return;
+    }
+
+    // Обновляем код текущего лупа
+    loops[currentLoopIndex].code = code;
+    loops[currentLoopIndex].name = `Loop ${currentLoopIndex + 1} (edited)`;
+
+    // Обновляем грид
+    updateLoopsGrid();
+
+    // Если луп играет - перезагружаем его
+    if (isPlaying && currentLoopIndex >= 0) {
+        switchToLoop(currentLoopIndex);
+    }
+
+    console.log(`✅ Loop ${currentLoopIndex + 1} updated`);
+}
+
+// === Edit Loop with AI ===
+
+async function editLoop() {
+    const promptInput = document.getElementById('editPromptInput');
+    const statusDiv = document.getElementById('panelStatus');
+    const editBtn = document.querySelector('.btn-generate');
+
+    const prompt = promptInput.value.trim();
+
+    if (!prompt) {
+        statusDiv.textContent = 'Опиши что нужно изменить';
+        statusDiv.className = 'ai-status error';
+        return;
+    }
+
+    if (prompt.length > 300) {
+        statusDiv.textContent = 'Промпт слишком длинный (максимум 300 символов)';
+        statusDiv.className = 'ai-status error';
+        return;
+    }
+
+    const currentLoop = loops[currentLoopIndex].code;
+
+    try {
+        editBtn.disabled = true;
+        statusDiv.textContent = 'Редактирование лупа...';
+        statusDiv.className = 'ai-status loading';
+
+        const response = await fetch('https://wo-server-v1.onrender.com/api/edit-strudel-loop', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                prompt,
+                currentLoop
+            })
+        });
+
+        const responseText = await response.text();
+
+        if (!response.ok) {
+            let errorMessage = 'Ошибка сервера';
+            try {
+                const errorData = JSON.parse(responseText);
+                errorMessage = errorData.error || errorMessage;
+            } catch (e) {
+                errorMessage = responseText || errorMessage;
+            }
+            throw new Error(errorMessage);
+        }
+
+        if (!responseText || responseText.trim() === '') {
+            throw new Error('Сервер вернул пустой ответ');
+        }
+
+        const data = JSON.parse(responseText);
+
+        // Обновляем код в редакторе
+        document.getElementById('codeEditor').value = data.code;
+
+        // Обновляем луп
+        loops[currentLoopIndex].code = data.code;
+        loops[currentLoopIndex].name = `Loop ${currentLoopIndex + 1} (edited)`;
+        updateLoopsGrid();
+
+        statusDiv.textContent = '✅ Луп отредактирован! Закрываю панель...';
+        statusDiv.className = 'ai-status success';
+
+        setTimeout(() => {
+            closeAIPanel();
+        }, 2000);
+
+    } catch (error) {
+        console.error('❌ Ошибка редактирования:', error);
+        statusDiv.textContent = `Ошибка: ${error.message}`;
+        statusDiv.className = 'ai-status error';
+    } finally {
+        editBtn.disabled = false;
+    }
 }
 
 async function generateScript() {
     const promptInput = document.getElementById('aiPromptInput');
-    const statusDiv = document.getElementById('aiStatus');
+    const statusDiv = document.getElementById('panelStatus');
     const generateBtn = document.querySelector('.btn-generate');
 
     const prompt = promptInput.value.trim();
@@ -707,7 +940,7 @@ async function generateScript() {
 
         // Автозакрытие через 2 секунды
         setTimeout(() => {
-            closeAIPrompt();
+            closeAIPanel();
         }, 2000);
 
     } catch (error) {
@@ -719,65 +952,15 @@ async function generateScript() {
     }
 }
 
-// Закрытие модального окна по клику вне его
-document.addEventListener('click', (e) => {
-    const aiModal = document.getElementById('aiModal');
-    const transitionModal = document.getElementById('transitionModal');
-
-    if (e.target === aiModal) {
-        closeAIPrompt();
-    }
-    if (e.target === transitionModal) {
-        closeTransitionPrompt();
-    }
-});
 
 // Transition Generation functions
 const TRANSITION_API_URL = 'https://wo-server-v1.onrender.com/api/generate-strudel-transition';
 
-function openTransitionPrompt() {
-    if (loops.length < 2) {
-        alert('Нужно минимум 2 лупа для генерации перехода!');
-        return;
-    }
-
-    // Заполняем селекты лупами
-    const fromSelect = document.getElementById('fromLoopSelect');
-    const toSelect = document.getElementById('toLoopSelect');
-
-    fromSelect.innerHTML = '';
-    toSelect.innerHTML = '';
-
-    loops.forEach((loop, index) => {
-        const optionFrom = document.createElement('option');
-        optionFrom.value = index;
-        optionFrom.textContent = loop.name || `Loop ${index + 1}`;
-        fromSelect.appendChild(optionFrom);
-
-        const optionTo = document.createElement('option');
-        optionTo.value = index;
-        optionTo.textContent = loop.name || `Loop ${index + 1}`;
-        toSelect.appendChild(optionTo);
-    });
-
-    // По умолчанию выбираем первый и второй лупы
-    fromSelect.value = '0';
-    toSelect.value = loops.length > 1 ? '1' : '0';
-
-    document.getElementById('transitionModal').style.display = 'flex';
-    document.getElementById('transitionStatus').textContent = '';
-    document.getElementById('transitionStatus').className = 'ai-status';
-}
-
-function closeTransitionPrompt() {
-    document.getElementById('transitionModal').style.display = 'none';
-}
-
 async function generateTransition() {
-    const fromSelect = document.getElementById('fromLoopSelect');
-    const toSelect = document.getElementById('toLoopSelect');
-    const statusDiv = document.getElementById('transitionStatus');
-    const generateBtn = document.querySelector('#transitionModal .btn-generate');
+    const fromSelect = document.getElementById('transitionFromLoop');
+    const toSelect = document.getElementById('transitionToLoop');
+    const statusDiv = document.getElementById('panelStatus');
+    const generateBtn = document.querySelector('.btn-generate');
 
     const fromIndex = parseInt(fromSelect.value);
     const toIndex = parseInt(toSelect.value);
@@ -845,12 +1028,12 @@ async function generateTransition() {
         document.getElementById('codeEditor').value = data.code;
 
         // UI: успех
-        statusDiv.textContent = '✅ Переход создан! Закрой окно и нажми Play';
+        statusDiv.textContent = '✅ Переход создан! Закрываю панель...';
         statusDiv.className = 'ai-status success';
 
         // Автозакрытие через 2 секунды
         setTimeout(() => {
-            closeTransitionPrompt();
+            closeAIPanel();
         }, 2000);
 
     } catch (error) {
@@ -865,26 +1048,10 @@ async function generateTransition() {
 // Continue Loop Generation functions
 const CONTINUE_API_URL = 'https://wo-server-v1.onrender.com/api/generate-strudel-continuation';
 
-function openContinuePrompt() {
-    if (loops.length < 1) {
-        alert('Нужно минимум 1 луп для генерации продолжения!');
-        return;
-    }
-
-    document.getElementById('continueModal').style.display = 'flex';
-    document.getElementById('continuePromptInput').value = '';
-    document.getElementById('continueStatus').textContent = '';
-    document.getElementById('continueStatus').className = 'ai-status';
-}
-
-function closeContinuePrompt() {
-    document.getElementById('continueModal').style.display = 'none';
-}
-
 async function generateContinuation() {
     const promptInput = document.getElementById('continuePromptInput');
-    const statusDiv = document.getElementById('continueStatus');
-    const generateBtn = document.querySelector('#continueModal .btn-generate');
+    const statusDiv = document.getElementById('panelStatus');
+    const generateBtn = document.querySelector('.btn-generate');
     const prompt = promptInput.value.trim();
 
     if (!prompt) {
@@ -893,8 +1060,8 @@ async function generateContinuation() {
         return;
     }
 
-    // Берем последний луп в массиве как базу для продолжения
-    const lastLoop = loops[loops.length - 1];
+    // Берем текущий луп как базу для продолжения
+    const currentLoop = loops[currentLoopIndex];
 
     try {
         // UI: начало генерации
@@ -910,7 +1077,7 @@ async function generateContinuation() {
             },
             body: JSON.stringify({
                 prompt: prompt,
-                previousLoop: lastLoop.code
+                previousLoop: currentLoop.code
             })
         });
 
@@ -937,12 +1104,12 @@ async function generateContinuation() {
         document.getElementById('codeEditor').value = data.code;
 
         // UI: успех
-        statusDiv.textContent = '✅ Продолжение сгенерировано! Закрой окно и нажми Play или Add to Queue';
+        statusDiv.textContent = '✅ Продолжение сгенерировано! Закрываю панель...';
         statusDiv.className = 'ai-status success';
 
         // Автозакрытие через 2 секунды
         setTimeout(() => {
-            closeContinuePrompt();
+            closeAIPanel();
         }, 2000);
 
     } catch (error) {
