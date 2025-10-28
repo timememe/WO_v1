@@ -8,6 +8,7 @@ let panicTimeout = null;
 let scheduler = null;
 let audioContext = null;
 let activeNodes = []; // Отслеживаем все активные аудио ноды
+let isTransitioning = false; // Флаг для предотвращения двойных переключений
 
 // Loops management
 let loops = []; // Массив лупов { code: string, name: string }
@@ -231,39 +232,53 @@ function addLoop() {
 
 // Переключиться на следующий луп
 async function nextLoop() {
-    if (loops.length === 0) return;
-
-    currentLoopIndex = (currentLoopIndex + 1) % loops.length;
-    await switchToLoop(currentLoopIndex);
+    if (loops.length < 2) return;
+    const nextIndex = (currentLoopIndex + 1) % loops.length;
+    await switchToLoop(nextIndex);
 }
 
 // Переключиться на предыдущий луп
 async function prevLoop() {
-    if (loops.length === 0) return;
-
-    currentLoopIndex = currentLoopIndex - 1;
-    if (currentLoopIndex < 0) {
-        currentLoopIndex = loops.length - 1;
+    if (loops.length < 2) return;
+    let prevIndex = currentLoopIndex - 1;
+    if (prevIndex < 0) {
+        prevIndex = loops.length - 1;
     }
-    await switchToLoop(currentLoopIndex);
+    await switchToLoop(prevIndex);
 }
 
-// Переключиться на конкретный луп
+// Переключиться на конкретный луп с переходом по циклу
 async function switchToLoop(index) {
-    if (!loops[index]) return;
-
-    currentLoopIndex = index;
-    const loop = loops[index];
-
-    // Загружаем код лупа в редактор
-    document.getElementById('codeEditor').value = loop.code;
-
-    // Если играет - перезапускаем с новым лупом
-    if (isPlaying) {
-        await playCode();
+    // Не переключаться, если это тот же луп, идет переход или лупа не существует
+    if (!loops[index] || isTransitioning || index === currentLoopIndex) {
+        return;
     }
 
-    updateLoopsGrid();
+    const performSwitch = async () => {
+        console.log(`🚀 Switching to loop ${index + 1}`);
+        currentLoopIndex = index;
+        const loop = loops[index];
+        document.getElementById('codeEditor').value = loop.code;
+        updateLoopsGrid();
+
+        if (isPlaying) {
+            await playCode();
+        }
+    };
+
+    // Если музыка играет и scheduler доступен, планируем переход
+    if (isPlaying && scheduler && typeof scheduler.nextCycle === 'function') {
+        isTransitioning = true;
+        console.log(`⏳ Scheduling transition to loop ${index + 1} for next cycle...`);
+        
+        await scheduler.nextCycle();
+        
+        await performSwitch();
+        isTransitioning = false;
+    } else {
+        // Иначе (если музыка не играет) переключаемся мгновенно
+        await performSwitch();
+    }
 }
 
 // Обновление статуса
