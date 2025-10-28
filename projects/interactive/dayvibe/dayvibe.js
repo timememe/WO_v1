@@ -388,6 +388,11 @@ async function switchToLoop(index) {
         currentLoopIndex = index;
         const loop = loops[index];
         document.getElementById('codeEditor').value = loop.code;
+
+        // Сохраняем оригинальный код и проверяем состояние кнопки
+        saveOriginalCode();
+        checkEditorChanges();
+
         updateLoopsGrid();
 
         if (isPlaying) {
@@ -788,6 +793,34 @@ function updateCurrentLoop() {
     }
 
     console.log(`✅ Loop ${currentLoopIndex + 1} updated`);
+
+    // Деактивируем кнопку после обновления
+    checkEditorChanges();
+}
+
+// === Track Editor Changes ===
+
+let originalLoopCode = ''; // Хранит оригинальный код текущего лупа
+
+function checkEditorChanges() {
+    const editor = document.getElementById('codeEditor');
+    const updateBtn = document.getElementById('updateBtn');
+
+    if (currentLoopIndex < 0) {
+        updateBtn.disabled = true;
+        return;
+    }
+
+    const currentCode = editor.value.trim();
+    const originalCode = originalLoopCode.trim();
+
+    // Активируем кнопку только если код изменился
+    updateBtn.disabled = (currentCode === originalCode) || !currentCode;
+}
+
+function saveOriginalCode() {
+    const editor = document.getElementById('codeEditor');
+    originalLoopCode = editor.value;
 }
 
 // === Edit Loop with AI ===
@@ -855,6 +888,10 @@ async function editLoop() {
         loops[currentLoopIndex].code = data.code;
         loops[currentLoopIndex].name = `Loop ${currentLoopIndex + 1} (edited)`;
         updateLoopsGrid();
+
+        // Сохраняем новый оригинальный код
+        saveOriginalCode();
+        checkEditorChanges();
 
         statusDiv.textContent = '✅ Луп отредактирован! Закрываю панель...';
         statusDiv.className = 'ai-status success';
@@ -933,6 +970,10 @@ async function generateScript() {
 
         // Вставляем сгенерированный код в редактор
         document.getElementById('codeEditor').value = data.code;
+
+        // Сохраняем новый код как оригинальный
+        saveOriginalCode();
+        checkEditorChanges();
 
         // UI: успех
         statusDiv.textContent = '✅ Скрипт сгенерирован! Закрой окно и нажми Play';
@@ -1027,6 +1068,10 @@ async function generateTransition() {
         // Вставляем код в редактор
         document.getElementById('codeEditor').value = data.code;
 
+        // Сохраняем новый код как оригинальный
+        saveOriginalCode();
+        checkEditorChanges();
+
         // UI: успех
         statusDiv.textContent = '✅ Переход создан! Закрываю панель...';
         statusDiv.className = 'ai-status success';
@@ -1103,6 +1148,10 @@ async function generateContinuation() {
         // Вставляем код в редактор
         document.getElementById('codeEditor').value = data.code;
 
+        // Сохраняем новый код как оригинальный
+        saveOriginalCode();
+        checkEditorChanges();
+
         // UI: успех
         statusDiv.textContent = '✅ Продолжение сгенерировано! Закрываю панель...';
         statusDiv.className = 'ai-status success';
@@ -1143,6 +1192,12 @@ window.addEventListener('DOMContentLoaded', () => {
     createVisualizer();
     updateLoopsGrid(); // Инициализируем пустой грид лупов
     initDayvibe();
+
+    // Добавляем отслеживание изменений в code editor
+    const codeEditor = document.getElementById('codeEditor');
+    if (codeEditor) {
+        codeEditor.addEventListener('input', checkEditorChanges);
+    }
 
     console.log('🎵 DAYVIBE initialized');
     console.log('⌨️  Hotkeys: Ctrl+Enter (Play) | Ctrl+. (Stop)');
