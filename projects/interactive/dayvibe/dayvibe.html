@@ -570,6 +570,44 @@
             opacity: 0.6;
         }
 
+        /* Continue Button */
+        .btn-continue {
+            background: linear-gradient(135deg, #8e44ad 0%, #6c3483 100%);
+            border-color: #5b2c6f;
+            color: #fff;
+            flex: 1;
+            min-width: 160px;
+        }
+
+        .btn-continue:hover:not(:disabled) {
+            background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(142, 68, 173, 0.4);
+        }
+
+        .btn-continue:disabled {
+            background: linear-gradient(135deg, #555 0%, #444 100%);
+            border-color: #333;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        /* Controls Section */
+        .controls-section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-family: 'Press Start 2P', cursive;
+            font-size: clamp(9px, 2vw, 11px);
+            color: #3498db;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            padding-left: 5px;
+            border-left: 3px solid #3498db;
+        }
+
         /* Transition Selector */
         .transition-selector {
             display: flex;
@@ -660,12 +698,24 @@
 // Нажми Play чтобы запустить!"></textarea>
         </div>
 
-        <!-- Кнопки управления -->
-        <div class="controls">
-            <button class="btn btn-play" id="playBtn" onclick="playCode()">▶ Play</button>
-            <button class="btn btn-stop" id="stopBtn" onclick="stopCode()" disabled>■ Stop</button>
-            <button class="btn btn-example" id="exampleBtn" onclick="loadExample()">Load Example</button>
-            <button class="btn btn-ai" id="aiBtn" onclick="openAIPrompt()">✨ AI Generate</button>
+        <!-- Секция управления воспроизведением -->
+        <div class="controls-section">
+            <div class="section-title">Playback Controls</div>
+            <div class="controls">
+                <button class="btn btn-play" id="playBtn" onclick="playCode()">▶ Play</button>
+                <button class="btn btn-stop" id="stopBtn" onclick="stopCode()" disabled>■ Stop</button>
+                <button class="btn btn-example" id="exampleBtn" onclick="loadExample()">Load Example</button>
+            </div>
+        </div>
+
+        <!-- Секция AI генерации -->
+        <div class="controls-section">
+            <div class="section-title">AI Generation</div>
+            <div class="controls ai-controls">
+                <button class="btn btn-ai" id="aiBtn" onclick="openAIPrompt()">✨ Generate New</button>
+                <button class="btn btn-continue" id="continueBtn" onclick="openContinuePrompt()" disabled>➡️ Continue Loop</button>
+                <button class="btn btn-transition" id="transitionBtn" onclick="openTransitionPrompt()" disabled>🔄 Transition</button>
+            </div>
         </div>
 
         <!-- AI Prompt Modal -->
@@ -680,6 +730,22 @@
                     <button class="btn btn-generate" onclick="generateScript()">Generate</button>
                 </div>
                 <div class="ai-status" id="aiStatus"></div>
+            </div>
+        </div>
+
+        <!-- Continue Loop Modal -->
+        <div class="ai-modal" id="continueModal" style="display: none;">
+            <div class="ai-modal-content">
+                <div class="ai-modal-header">
+                    <span class="ai-modal-title">Continue Loop</span>
+                    <button class="ai-modal-close" onclick="closeContinuePrompt()">×</button>
+                </div>
+                <div class="ai-modal-body">
+                    <textarea id="continuePromptInput" class="ai-prompt-input"
+                        placeholder="Как развить предыдущий луп? (например: добавь более мощные биты и агрессивные хай-хеты)"></textarea>
+                    <button class="btn btn-generate" onclick="generateContinuation()">Generate</button>
+                </div>
+                <div class="ai-status" id="continueStatus"></div>
             </div>
         </div>
 
@@ -705,11 +771,13 @@
         </div>
 
         <!-- Loop Controls -->
-        <div class="controls loop-controls">
-            <button class="btn btn-loop" onclick="addLoop()">+ Add to Queue</button>
-            <button class="btn btn-loop" onclick="prevLoop()">◀ Prev Loop</button>
-            <button class="btn btn-loop" onclick="nextLoop()">Next Loop ▶</button>
-            <button class="btn btn-transition" id="transitionBtn" onclick="openTransitionPrompt()" disabled>🔄 Generate Transition</button>
+        <div class="controls-section">
+            <div class="section-title">Loop Management</div>
+            <div class="controls loop-controls">
+                <button class="btn btn-loop" onclick="addLoop()">+ Add to Queue</button>
+                <button class="btn btn-loop" onclick="prevLoop()">◀ Prev Loop</button>
+                <button class="btn btn-loop" onclick="nextLoop()">Next Loop ▶</button>
+            </div>
         </div>
 
         <!-- Статус-бар -->

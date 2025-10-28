@@ -198,15 +198,20 @@ function updateLoopsGrid() {
         grid.appendChild(tile);
     }
 
-    // Обновляем состояние кнопки Generate Transition
-    updateTransitionButtonState();
+    // Обновляем состояние AI кнопок
+    updateAIButtonsState();
 }
 
-// Обновление состояния кнопки перехода
-function updateTransitionButtonState() {
+// Обновление состояния AI кнопок
+function updateAIButtonsState() {
     const transitionBtn = document.getElementById('transitionBtn');
-    // Кнопка активна только если есть минимум 2 лупа
+    const continueBtn = document.getElementById('continueBtn');
+
+    // Transition кнопка активна только если есть минимум 2 лупа
     transitionBtn.disabled = loops.length < 2;
+
+    // Continue кнопка активна если есть хотя бы 1 луп
+    continueBtn.disabled = loops.length < 1;
 }
 
 // Добавить луп в очередь
@@ -726,6 +731,98 @@ async function generateTransition() {
 
     } catch (error) {
         console.error('❌ Ошибка генерации перехода:', error);
+        statusDiv.textContent = `Ошибка: ${error.message}`;
+        statusDiv.className = 'ai-status error';
+    } finally {
+        generateBtn.disabled = false;
+    }
+}
+
+// Continue Loop Generation functions
+const CONTINUE_API_URL = 'https://wo-server-v1.onrender.com/api/generate-strudel-continuation';
+
+function openContinuePrompt() {
+    if (loops.length < 1) {
+        alert('Нужно минимум 1 луп для генерации продолжения!');
+        return;
+    }
+
+    document.getElementById('continueModal').style.display = 'flex';
+    document.getElementById('continuePromptInput').value = '';
+    document.getElementById('continueStatus').textContent = '';
+    document.getElementById('continueStatus').className = 'ai-status';
+}
+
+function closeContinuePrompt() {
+    document.getElementById('continueModal').style.display = 'none';
+}
+
+async function generateContinuation() {
+    const promptInput = document.getElementById('continuePromptInput');
+    const statusDiv = document.getElementById('continueStatus');
+    const generateBtn = document.querySelector('#continueModal .btn-generate');
+    const prompt = promptInput.value.trim();
+
+    if (!prompt) {
+        statusDiv.textContent = 'Пожалуйста, опиши как развить луп';
+        statusDiv.className = 'ai-status error';
+        return;
+    }
+
+    // Берем последний луп в массиве как базу для продолжения
+    const lastLoop = loops[loops.length - 1];
+
+    try {
+        // UI: начало генерации
+        generateBtn.disabled = true;
+        statusDiv.textContent = 'Генерация продолжения...';
+        statusDiv.className = 'ai-status loading';
+
+        // Отправка запроса
+        const response = await fetch(CONTINUE_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                prompt: prompt,
+                previousLoop: lastLoop.code
+            })
+        });
+
+        const responseText = await response.text();
+
+        if (!response.ok) {
+            let errorMessage = 'Ошибка сервера';
+            try {
+                const errorData = JSON.parse(responseText);
+                errorMessage = errorData.error || errorMessage;
+            } catch (e) {
+                errorMessage = responseText || errorMessage;
+            }
+            throw new Error(errorMessage);
+        }
+
+        if (!responseText || responseText.trim() === '') {
+            throw new Error('Сервер вернул пустой ответ');
+        }
+
+        const data = JSON.parse(responseText);
+
+        // Вставляем код в редактор
+        document.getElementById('codeEditor').value = data.code;
+
+        // UI: успех
+        statusDiv.textContent = '✅ Продолжение сгенерировано! Закрой окно и нажми Play или Add to Queue';
+        statusDiv.className = 'ai-status success';
+
+        // Автозакрытие через 2 секунды
+        setTimeout(() => {
+            closeContinuePrompt();
+        }, 2000);
+
+    } catch (error) {
+        console.error('❌ Ошибка генерации продолжения:', error);
         statusDiv.textContent = `Ошибка: ${error.message}`;
         statusDiv.className = 'ai-status error';
     } finally {
