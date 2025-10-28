@@ -5,6 +5,9 @@ let animationFrame = null;
 let repl = null;
 let currentPattern = null;
 let panicTimeout = null;
+let scheduler = null;
+let audioContext = null;
+let activeNodes = []; // Отслеживаем все активные аудио ноды
 
 // Инициализация Strudel через @strudel/web
 async function initDayvibe() {
@@ -57,6 +60,18 @@ async function initDayvibe() {
         console.log('- evaluate:', typeof evaluate);
         console.log('- hush:', typeof hush);
 
+        // Сохраняем ссылку на scheduler для более надежной остановки
+        if (typeof getScheduler === 'function') {
+            scheduler = getScheduler();
+            console.log('✅ Scheduler ref saved:', scheduler);
+
+            // Сохраняем ссылку на аудио-контекст
+            if (scheduler.audioContext) {
+                audioContext = scheduler.audioContext;
+                console.log('✅ AudioContext ref saved:', audioContext.state);
+            }
+        }
+
         // Создаем простую обертку для REPL
         repl = {
             evaluate: async (code) => {
@@ -75,10 +90,15 @@ async function initDayvibe() {
             },
             stop: () => {
                 try {
-                    console.log('⏹️ Stopping with hush()...');
-                    if (typeof hush === 'function') {
+                    console.log('⏹️ REPL stop called...');
+
+                    // Используем scheduler.stop() вместо hush()
+                    if (scheduler && typeof scheduler.stop === 'function') {
+                        scheduler.stop();
+                        console.log('✅ Scheduler stopped!');
+                    } else if (typeof hush === 'function') {
                         hush();
-                        console.log('✅ Stopped!');
+                        console.log('✅ Hush called!');
                     }
                 } catch (err) {
                     console.error('❌ Stop error:', err);
@@ -171,19 +191,46 @@ async function playCode() {
     try {
         console.log('▶ Playing code:', code);
 
-        // Отменяем отложенный panic если пользователь быстро нажал play
+        // ВАЖНО: Полностью останавливаем всё перед новым запуском
+        console.log('🔧 Stopping any previous playback...');
+
+        // Отменяем любые отложенные операции
         if (panicTimeout) {
-            console.log('🔧 Cancelling panic timeout...');
             clearTimeout(panicTimeout);
             panicTimeout = null;
         }
 
-        updateStatus('Playing...', true);
-
-        // Останавливаем предыдущий паттерн если есть
-        if (currentPattern) {
+        // Останавливаем предыдущий паттерн
+        if (currentPattern && typeof currentPattern.stop === 'function') {
             currentPattern.stop();
         }
+
+        // Останавливаем scheduler
+        if (scheduler && typeof scheduler.stop === 'function') {
+            scheduler.stop();
+        }
+
+        // Вызываем hush для очистки
+        if (typeof hush === 'function') {
+            hush();
+        }
+
+        // Небольшая задержка чтобы Strudel успел очиститься
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // Убеждаемся что аудио-контекст активен (resume если был suspended)
+        if (audioContext && audioContext.state === 'suspended') {
+            console.log('🔧 Resuming audio context...');
+            await audioContext.resume();
+        }
+
+        // Запускаем scheduler снова перед новым evaluate
+        if (scheduler && typeof scheduler.start === 'function') {
+            console.log('🔧 Starting scheduler...');
+            scheduler.start();
+        }
+
+        updateStatus('Playing...', true);
 
         // Evaluate код через REPL
         currentPattern = await repl.evaluate(code);
@@ -201,43 +248,93 @@ async function playCode() {
     }
 }
 
-// Остановка воспроизведения
-function stopCode() {
+// Утилита: мгновенная остановка через правильный API Strudel
+async function killAllAudioSources() {
     try {
-        console.log('⏹️ Stopping playback...');
-
-        // Останавливаем текущий паттерн если есть
-        if (currentPattern && typeof currentPattern.stop === 'function') {
-            console.log('🔧 Stopping current pattern...');
-            currentPattern.stop();
-        }
-
-        // Вызываем hush несколько раз для надежности
-        if (typeof hush === 'function') {
-            console.log('🔧 Calling hush() multiple times...');
-            hush();
-            setTimeout(() => hush(), 10);
-            setTimeout(() => hush(), 50);
-        }
-
-        // Используем panic только если hush не помог, но сохраняем timeout чтобы можно было отменить
-        panicTimeout = setTimeout(() => {
-            if (typeof panic === 'function') {
-                console.log('🔧 Calling panic() as backup...');
-                panic();
-                panicTimeout = null;
+        // Evaluate пустой код для триггера [cyclist] stop
+        if (typeof evaluate === 'function') {
+            try {
+                await evaluate('silence');
+            } catch (e) {
+                // Silent fail
             }
-        }, 100);
+        }
 
-        currentPattern = null;
+        // Прямой доступ к cyclist через window
+        if (typeof window.cyclist !== 'undefined' && window.cyclist) {
+            try {
+                if (typeof window.cyclist.stop === 'function') {
+                    window.cyclist.stop();
+                }
+            } catch (e) {
+                // Silent fail
+            }
+        }
+
+        // scheduler stop
+        if (scheduler && typeof scheduler.stop === 'function') {
+            scheduler.stop();
+        }
+    } catch (err) {
+        console.error('❌ Stop failed:', err);
+    }
+}
+
+// Остановка воспроизведения
+async function stopCode() {
+    try {
+        // Отменяем любые отложенные операции
+        if (panicTimeout) {
+            clearTimeout(panicTimeout);
+            panicTimeout = null;
+        }
+
+        // Очищаем UI и флаг
         isPlaying = false;
-        updateStatus('Stopped', false);
         stopVisualizer();
 
-        console.log('■ Stopped successfully');
+        // Очищаем ссылку на паттерн
+        if (currentPattern) {
+            try {
+                if (typeof currentPattern.stop === 'function') {
+                    currentPattern.stop();
+                }
+            } catch (e) {
+                // Silent fail
+            }
+            currentPattern = null;
+        }
+
+        // Вызываем Strudel API для остановки
+        await killAllAudioSources();
+
+        // Дополнительно: hush() для полной очистки
+        if (typeof hush === 'function') {
+            hush();
+        }
+
+        // Обновляем UI статус
+        updateStatus('Stopped', false);
     } catch (error) {
         console.error('❌ Stop error:', error);
-        // Все равно останавливаем UI
+
+        // Аварийная остановка
+        try {
+            if (currentPattern) {
+                if (typeof currentPattern.stop === 'function') {
+                    currentPattern.stop();
+                }
+                currentPattern = null;
+            }
+
+            if (typeof hush === 'function') {
+                hush();
+            }
+        } catch (e) {
+            console.error('❌ Emergency stop failed:', e);
+        }
+
+        // В любом случае обновляем UI
         isPlaying = false;
         updateStatus('Stopped', false);
         stopVisualizer();
@@ -255,7 +352,6 @@ s("rolandtr909bd rolandtr909sd rolandtr909hh rolandtr909sd")
 // s("bd cp sd cp").speed("1 2 0.5 1.5")`;
 
     document.getElementById('codeEditor').value = exampleCode;
-    console.log('📥 Example loaded');
 }
 
 // Debug функция
@@ -267,7 +363,7 @@ function debugStrudel() {
     console.log('typeof window.sound:', typeof window.sound);
 
     // Проверяем REPL функции
-    const replFuncs = ['repl', 'controls', 'silence', 'hush', 'panic', 'getScheduler'];
+    const replFuncs = ['repl', 'controls', 'silence', 'hush', 'panic', 'getScheduler', 'cyclist'];
     console.log('\nREPL functions:');
     replFuncs.forEach(func => {
         console.log(`- ${func}:`, typeof window[func]);
@@ -278,15 +374,31 @@ function debugStrudel() {
         const scheduler = getScheduler();
         console.log('\nScheduler:', scheduler);
         console.log('Scheduler methods:', Object.keys(scheduler));
+        console.log('Scheduler state:', {
+            started: scheduler.started,
+            pattern: scheduler.pattern,
+            audioContext: scheduler.audioContext?.state
+        });
+    }
+
+    // Проверяем controls если есть
+    if (typeof controls === 'object') {
+        console.log('\nControls:', controls);
+        console.log('Controls methods:', Object.keys(controls));
     }
 
     console.log('\nCurrent pattern:', currentPattern);
     if (currentPattern) {
+        console.log('Pattern type:', currentPattern.constructor?.name);
         console.log('Pattern methods:', Object.keys(currentPattern));
+        console.log('Pattern proto:', Object.getPrototypeOf(currentPattern));
     }
 
-    console.log('\nAll window keys with "play" or "start":',
-        Object.keys(window).filter(k => k.toLowerCase().includes('play') || k.toLowerCase().includes('start')).slice(0, 20));
+    console.log('\nAll window keys with "play", "start", or "stop":',
+        Object.keys(window).filter(k => {
+            const lower = k.toLowerCase();
+            return lower.includes('play') || lower.includes('start') || lower.includes('stop');
+        }).slice(0, 30));
     console.log('===================');
     alert('Check console for debug info');
 }
