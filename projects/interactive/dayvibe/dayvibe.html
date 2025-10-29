@@ -72,6 +72,28 @@
             border: 2px solid #444;
             border-radius: 8px;
             overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        /* AI Mode Colors */
+        .editor-container[data-mode="generate"] {
+            border-color: #e67e22;
+            box-shadow: 0 0 20px rgba(230, 126, 34, 0.3);
+        }
+
+        .editor-container[data-mode="continue"] {
+            border-color: #8e44ad;
+            box-shadow: 0 0 20px rgba(142, 68, 173, 0.3);
+        }
+
+        .editor-container[data-mode="transition"] {
+            border-color: #16a085;
+            box-shadow: 0 0 20px rgba(22, 160, 133, 0.3);
+        }
+
+        .editor-container[data-mode="edit"] {
+            border-color: #f39c12;
+            box-shadow: 0 0 20px rgba(243, 156, 18, 0.3);
         }
 
         .editor-header {
@@ -81,12 +103,46 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            transition: background-color 0.3s ease;
+        }
+
+        .editor-container[data-mode="generate"] .editor-header {
+            background: linear-gradient(135deg, rgba(230, 126, 34, 0.2) 0%, #161b22 100%);
+        }
+
+        .editor-container[data-mode="continue"] .editor-header {
+            background: linear-gradient(135deg, rgba(142, 68, 173, 0.2) 0%, #161b22 100%);
+        }
+
+        .editor-container[data-mode="transition"] .editor-header {
+            background: linear-gradient(135deg, rgba(22, 160, 133, 0.2) 0%, #161b22 100%);
+        }
+
+        .editor-container[data-mode="edit"] .editor-header {
+            background: linear-gradient(135deg, rgba(243, 156, 18, 0.2) 0%, #161b22 100%);
         }
 
         .editor-title {
             font-size: clamp(8px, 2vw, 10px);
             color: #888;
             text-transform: uppercase;
+            transition: color 0.3s ease;
+        }
+
+        .editor-container[data-mode="generate"] .editor-title {
+            color: #e67e22;
+        }
+
+        .editor-container[data-mode="continue"] .editor-title {
+            color: #9b59b6;
+        }
+
+        .editor-container[data-mode="transition"] .editor-title {
+            color: #16a085;
+        }
+
+        .editor-container[data-mode="edit"] .editor-title {
+            color: #f39c12;
         }
 
         .editor-lang {
@@ -110,10 +166,42 @@
             outline: none;
             resize: vertical;
             tab-size: 2;
+            transition: background-color 0.3s ease;
+        }
+
+        .editor-container[data-mode="generate"] #codeEditor,
+        .editor-container[data-mode="continue"] #codeEditor,
+        .editor-container[data-mode="transition"] #codeEditor,
+        .editor-container[data-mode="edit"] #codeEditor {
+            background-color: rgba(13, 17, 23, 0.8);
         }
 
         #codeEditor::placeholder {
             color: #555;
+        }
+
+        .editor-status {
+            padding: 10px 15px;
+            font-size: clamp(9px, 2vw, 11px);
+            text-align: center;
+            min-height: 20px;
+            display: none;
+        }
+
+        .editor-status.active {
+            display: block;
+        }
+
+        .editor-status.loading {
+            color: #3498db;
+        }
+
+        .editor-status.success {
+            color: #27ae60;
+        }
+
+        .editor-status.error {
+            color: #e74c3c;
         }
 
         .editor-footer {
@@ -123,10 +211,33 @@
             display: flex;
             justify-content: flex-end;
             align-items: center;
+            gap: 8px;
         }
 
         .btn-editor-action {
-            min-width: 150px;
+            min-width: 120px;
+        }
+
+        .btn-add-loop {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            border-color: #1e7e34;
+            color: #fff;
+        }
+
+        .btn-add-loop:hover {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(39, 174, 96, 0.4);
+        }
+
+        .btn-cancel {
+            background: linear-gradient(135deg, #555 0%, #444 100%);
+            border-color: #333;
+            color: #fff;
+        }
+
+        .btn-cancel:hover {
+            background: linear-gradient(135deg, #666 0%, #555 100%);
         }
 
         .controls {
@@ -502,140 +613,6 @@
             box-shadow: 0 6px 12px rgba(230, 126, 34, 0.4);
         }
 
-        /* AI Slide-out Panel */
-        .ai-panel {
-            position: fixed;
-            top: 0;
-            right: -400px;
-            width: 400px;
-            max-width: 90vw;
-            height: 100%;
-            background-color: #1a1a1a;
-            border-left: 3px solid #e67e22;
-            box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
-            z-index: 1001;
-            transition: right 0.3s ease;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .ai-panel.open {
-            right: 0;
-        }
-
-        .ai-panel-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(2px);
-            z-index: 1000;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
-        }
-
-        .ai-panel-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .ai-panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px;
-            border-bottom: 2px solid #333;
-            background: linear-gradient(135deg, #1e2530 0%, #1a1a1a 100%);
-        }
-
-        .ai-panel-title {
-            font-size: clamp(12px, 3vw, 16px);
-            color: #e67e22;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-family: 'Press Start 2P', cursive;
-        }
-
-        .ai-panel-close {
-            background: none;
-            border: none;
-            color: #888;
-            font-size: 32px;
-            cursor: pointer;
-            padding: 0;
-            width: 32px;
-            height: 32px;
-            line-height: 1;
-            transition: color 0.3s ease;
-        }
-
-        .ai-panel-close:hover {
-            color: #e67e22;
-        }
-
-        .ai-panel-body {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-        }
-
-        .ai-prompt-input {
-            width: 100%;
-            min-height: 100px;
-            padding: 15px;
-            font-family: 'Courier New', monospace;
-            font-size: clamp(10px, 2.5vw, 14px);
-            background-color: #0d1117;
-            color: #c9d1d9;
-            border: 2px solid #444;
-            border-radius: 6px;
-            resize: vertical;
-            margin-bottom: 15px;
-            outline: none;
-        }
-
-        .ai-prompt-input:focus {
-            border-color: #e67e22;
-        }
-
-        .btn-generate {
-            width: 100%;
-            background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
-            border-color: #ba4a00;
-            color: #fff;
-        }
-
-        .btn-generate:hover {
-            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
-        }
-
-        .btn-generate:disabled {
-            background: linear-gradient(135deg, #555 0%, #444 100%);
-            cursor: not-allowed;
-        }
-
-        .ai-status {
-            font-size: clamp(9px, 2vw, 11px);
-            color: #888;
-            text-align: center;
-            padding: 10px;
-            min-height: 30px;
-        }
-
-        .ai-status.loading {
-            color: #e67e22;
-        }
-
-        .ai-status.success {
-            color: #27ae60;
-        }
-
-        .ai-status.error {
-            color: #e74c3c;
-        }
 
         /* Transition Button */
         .btn-transition {
@@ -937,40 +914,29 @@
             <div class="control-tile ai-tile">
                 <div class="tile-title">AI Generation</div>
                 <div class="tile-buttons ai-buttons">
-                    <button class="btn btn-ai" id="aiBtn" onclick="openAIPanel()">✨ Generate Loop</button>
-                    <button class="btn btn-continue" id="continueBtn" onclick="openContinuePanel()" disabled>➡️ Continue Loop</button>
-                    <button class="btn btn-transition" id="transitionBtn" onclick="openTransitionPanel()" disabled>🔄 Make transition</button>
+                    <button class="btn btn-ai" id="aiBtn" onclick="openGenerateMode()">✨ Generate Loop</button>
+                    <button class="btn btn-continue" id="continueBtn" onclick="openContinueMode()" disabled>➡️ Continue Loop</button>
+                    <button class="btn btn-transition" id="transitionBtn" onclick="openTransitionMode()" disabled>🔄 Make transition</button>
                 </div>
             </div>
         </div>        
 
         <!-- Редактор кода -->
-        <div class="editor-container">
+        <div class="editor-container" id="editorContainer" data-mode="normal">
             <div class="editor-header">
-                <span class="editor-title">Code Editor</span>
+                <span class="editor-title" id="editorTitle">Code Editor</span>
                 <span class="editor-lang">Strudel</span>
             </div>
             <textarea id="codeEditor" placeholder="// Напиши свой Strudel-паттерн или загрузи пример...
 // Нажми Play чтобы запустить!"></textarea>
+            <div class="editor-status" id="editorStatus"></div>
             <div class="editor-footer">
-                <button class="btn btn-edit btn-editor-action" id="editBtn" onclick="openEditPanel()">✏️ Edit with AI</button>
+                <button class="btn btn-cancel btn-editor-action" id="cancelBtn" onclick="cancelAIMode()" style="display: none;">✖ Cancel</button>
+                <button class="btn btn-generate btn-editor-action" id="generateBtn" onclick="executeAIGeneration()" style="display: none;">Generate</button>
+                <button class="btn btn-add-loop btn-editor-action" id="addToLoopsBtn" onclick="addGeneratedLoop()" style="display: none;">+ Add to Loops</button>
+                <button class="btn btn-edit btn-editor-action" id="editBtn" onclick="openEditMode()">✏️ Edit with AI</button>
             </div>
         </div>
-
-        <!-- Slide-out AI Panel -->
-        <div class="ai-panel" id="aiPanel">
-            <div class="ai-panel-header">
-                <span class="ai-panel-title" id="panelTitle">AI Panel</span>
-                <button class="ai-panel-close" onclick="closeAIPanel()">×</button>
-            </div>
-            <div class="ai-panel-body" id="panelBody">
-                <!-- Content будет динамически загружаться -->
-            </div>
-            <div class="ai-status" id="panelStatus"></div>
-        </div>
-
-        <!-- Overlay для панели -->
-        <div class="ai-panel-overlay" id="panelOverlay" onclick="closeAIPanel()"></div>
 
         <!-- Статус-бар -->
         <div class="status-bar">

@@ -633,111 +633,122 @@ s("rolandtr909bd rolandtr909sd rolandtr909hh rolandtr909sd")
 // Замени YOUR_SERVICE_NAME на имя твоего сервиса на Render
 const API_URL = 'https://wo-server-v1.onrender.com/api/generate-strudel-script';
 
-// === Panel Management Functions ===
+// === Editor AI Mode Management ===
 
-function openAIPanel() {
-    const panel = document.getElementById('aiPanel');
-    const overlay = document.getElementById('panelOverlay');
-    const panelTitle = document.getElementById('panelTitle');
-    const panelBody = document.getElementById('panelBody');
-    const panelStatus = document.getElementById('panelStatus');
+let currentAIMode = 'normal'; // 'normal', 'generate', 'edit', 'continue', 'transition'
+let savedCode = ''; // Сохраняем код перед входом в AI режим
 
-    panelTitle.textContent = '✨ Generate New Loop';
-    panelBody.innerHTML = `
-        <textarea id="aiPromptInput" class="ai-prompt-input" placeholder="Опиши что хочешь услышать...&#10;&#10;Например:&#10;- Быстрый techno паттерн с 909 kick&#10;- Медленный ambient с pad звуками&#10;- Jungle breaks с басом"></textarea>
-        <button class="btn btn-generate" onclick="generateScript()">Генерировать</button>
-    `;
-    panelStatus.textContent = '';
-    panelStatus.className = 'ai-status';
+function setEditorMode(mode, title, placeholder) {
+    const container = document.getElementById('editorContainer');
+    const editorTitle = document.getElementById('editorTitle');
+    const codeEditor = document.getElementById('codeEditor');
+    const editorStatus = document.getElementById('editorStatus');
+    const generateBtn = document.getElementById('generateBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const editBtn = document.getElementById('editBtn');
+    const addToLoopsBtn = document.getElementById('addToLoopsBtn');
 
-    panel.classList.add('open');
-    overlay.classList.add('active');
+    currentAIMode = mode;
+    container.setAttribute('data-mode', mode);
+    editorTitle.textContent = title;
+    codeEditor.placeholder = placeholder;
+
+    if (mode === 'normal') {
+        // Обычный режим
+        generateBtn.style.display = 'none';
+        cancelBtn.style.display = 'none';
+        editBtn.style.display = 'inline-block';
+        addToLoopsBtn.style.display = 'none';
+        editorStatus.classList.remove('active');
+    } else {
+        // AI режим
+        generateBtn.style.display = 'inline-block';
+        cancelBtn.style.display = 'inline-block';
+        editBtn.style.display = 'none';
+        addToLoopsBtn.style.display = 'none';
+    }
 }
 
-function openEditPanel() {
+function openGenerateMode() {
+    savedCode = document.getElementById('codeEditor').value;
+    document.getElementById('codeEditor').value = '';
+    setEditorMode(
+        'generate',
+        '✨ AI Generate Loop',
+        'Опиши что хочешь услышать...\n\nНапример:\n- Быстрый techno паттерн с 909 kick\n- Медленный ambient с pad звуками\n- Jungle breaks с басом'
+    );
+}
+
+function openEditMode() {
     if (currentLoopIndex < 0) {
         alert('Сначала выбери луп для редактирования');
         return;
     }
 
-    const panel = document.getElementById('aiPanel');
-    const overlay = document.getElementById('panelOverlay');
-    const panelTitle = document.getElementById('panelTitle');
-    const panelBody = document.getElementById('panelBody');
-    const panelStatus = document.getElementById('panelStatus');
-
-    panelTitle.textContent = '✏️ Edit Current Loop';
-    panelBody.innerHTML = `
-        <textarea id="editPromptInput" class="ai-prompt-input" placeholder="Опиши что изменить в лупе...&#10;&#10;Например:&#10;- Сделай медленнее&#10;- Добавь reverb&#10;- Замени kick на другой&#10;- Упрости ритм"></textarea>
-        <button class="btn btn-generate" onclick="editLoop()">Отредактировать</button>
-    `;
-    panelStatus.textContent = '';
-    panelStatus.className = 'ai-status';
-
-    panel.classList.add('open');
-    overlay.classList.add('active');
+    savedCode = document.getElementById('codeEditor').value;
+    document.getElementById('codeEditor').value = '';
+    setEditorMode(
+        'edit',
+        '✏️ AI Edit Loop',
+        'Опиши что изменить в лупе...\n\nНапример:\n- Сделай медленнее\n- Добавь reverb\n- Замени kick на другой\n- Упрости ритм'
+    );
 }
 
-function openContinuePanel() {
+function openContinueMode() {
     if (currentLoopIndex < 0) {
         alert('Сначала выбери луп для продолжения');
         return;
     }
 
-    const panel = document.getElementById('aiPanel');
-    const overlay = document.getElementById('panelOverlay');
-    const panelTitle = document.getElementById('panelTitle');
-    const panelBody = document.getElementById('panelBody');
-    const panelStatus = document.getElementById('panelStatus');
-
-    panelTitle.textContent = '➡️ Continue Loop';
-    panelBody.innerHTML = `
-        <textarea id="continuePromptInput" class="ai-prompt-input" placeholder="Опиши как развить этот луп...&#10;&#10;Например:&#10;- Добавь hi-hats и эволюционируй&#10;- Усложни ритм&#10;- Сделай более мелодичным"></textarea>
-        <button class="btn btn-generate" onclick="generateContinuation()">Генерировать продолжение</button>
-    `;
-    panelStatus.textContent = '';
-    panelStatus.className = 'ai-status';
-
-    panel.classList.add('open');
-    overlay.classList.add('active');
+    savedCode = document.getElementById('codeEditor').value;
+    document.getElementById('codeEditor').value = '';
+    setEditorMode(
+        'continue',
+        '➡️ AI Continue Loop',
+        'Опиши как развить этот луп...\n\nНапример:\n- Добавь hi-hats и эволюционируй\n- Усложни ритм\n- Сделай более мелодичным'
+    );
 }
 
-function openTransitionPanel() {
+function openTransitionMode() {
     if (loops.length < 2) {
         alert('Нужно минимум 2 лупа для создания перехода');
         return;
     }
 
-    const panel = document.getElementById('aiPanel');
-    const overlay = document.getElementById('panelOverlay');
-    const panelTitle = document.getElementById('panelTitle');
-    const panelBody = document.getElementById('panelBody');
-    const panelStatus = document.getElementById('panelStatus');
+    savedCode = document.getElementById('codeEditor').value;
 
-    panelTitle.textContent = '🔄 Create Transition';
-
-    // Генерируем список доступных лупов для выбора
+    // Для transition показываем селекторы
     let loopOptions = '';
     loops.forEach((loop, i) => {
         const loopName = loop.name || `Loop ${i + 1}`;
         loopOptions += `<option value="${i}">${loopName}</option>`;
     });
 
-    panelBody.innerHTML = `
-        <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; color: #c9d1d9;">From Loop:</label>
-            <select id="transitionFromLoop" class="ai-prompt-input" style="min-height: auto; padding: 8px;">
+    const promptText = `From Loop: [выбери ниже]\nTo Loop: [выбери ниже]\n\nСоздаст плавный переход между выбранными лупами`;
+
+    document.getElementById('codeEditor').value = promptText;
+    document.getElementById('codeEditor').readOnly = true;
+
+    setEditorMode(
+        'transition',
+        '🔄 AI Make Transition',
+        'Transition mode'
+    );
+
+    // Добавляем селекторы в editorStatus
+    const editorStatus = document.getElementById('editorStatus');
+    editorStatus.innerHTML = `
+        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+            <select id="transitionFromLoop" style="padding: 8px; background: #0d1117; color: #c9d1d9; border: 2px solid #444; border-radius: 4px;">
+                ${loopOptions}
+            </select>
+            <span style="color: #888;">→</span>
+            <select id="transitionToLoop" style="padding: 8px; background: #0d1117; color: #c9d1d9; border: 2px solid #444; border-radius: 4px;">
                 ${loopOptions}
             </select>
         </div>
-        <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; color: #c9d1d9;">To Loop:</label>
-            <select id="transitionToLoop" class="ai-prompt-input" style="min-height: auto; padding: 8px;">
-                ${loopOptions}
-            </select>
-        </div>
-        <button class="btn btn-generate" onclick="generateTransition()">Создать переход</button>
     `;
+    editorStatus.classList.add('active');
 
     // Устанавливаем значения по умолчанию
     setTimeout(() => {
@@ -748,20 +759,57 @@ function openTransitionPanel() {
             toSelect.value = currentLoopIndex < loops.length - 1 ? currentLoopIndex + 1 : 0;
         }
     }, 0);
-
-    panelStatus.textContent = '';
-    panelStatus.className = 'ai-status';
-
-    panel.classList.add('open');
-    overlay.classList.add('active');
 }
 
-function closeAIPanel() {
-    const panel = document.getElementById('aiPanel');
-    const overlay = document.getElementById('panelOverlay');
+function cancelAIMode() {
+    const codeEditor = document.getElementById('codeEditor');
+    codeEditor.value = savedCode;
+    codeEditor.readOnly = false;
+    setEditorMode('normal', 'Code Editor', '// Напиши свой Strudel-паттерн или загрузи пример...\n// Нажми Play чтобы запустить!');
+    savedCode = '';
+}
 
-    panel.classList.remove('open');
-    overlay.classList.remove('active');
+async function executeAIGeneration() {
+    const mode = currentAIMode;
+
+    switch (mode) {
+        case 'generate':
+            await generateScript();
+            break;
+        case 'edit':
+            await editLoop();
+            break;
+        case 'continue':
+            await generateContinuation();
+            break;
+        case 'transition':
+            await generateTransition();
+            break;
+    }
+}
+
+function addGeneratedLoop() {
+    const codeEditor = document.getElementById('codeEditor');
+    const code = codeEditor.value.trim();
+
+    if (!code) {
+        alert('Нет сгенерированного кода для добавления');
+        return;
+    }
+
+    // Добавляем в loops
+    loops.push({
+        code: code,
+        name: `AI Loop ${loops.length + 1}`
+    });
+
+    updateLoopsGrid();
+
+    // Переходим в обычный режим
+    savedCode = code;
+    cancelAIMode();
+
+    console.log(`✅ Добавлен AI луп ${loops.length}`);
 }
 
 // === Update Current Loop ===
@@ -826,30 +874,31 @@ function saveOriginalCode() {
 // === Edit Loop with AI ===
 
 async function editLoop() {
-    const promptInput = document.getElementById('editPromptInput');
-    const statusDiv = document.getElementById('panelStatus');
-    const editBtn = document.querySelector('.btn-generate');
+    const codeEditor = document.getElementById('codeEditor');
+    const statusDiv = document.getElementById('editorStatus');
+    const generateBtn = document.getElementById('generateBtn');
+    const addToLoopsBtn = document.getElementById('addToLoopsBtn');
 
-    const prompt = promptInput.value.trim();
+    const prompt = codeEditor.value.trim();
 
     if (!prompt) {
         statusDiv.textContent = 'Опиши что нужно изменить';
-        statusDiv.className = 'ai-status error';
+        statusDiv.className = 'editor-status active error';
         return;
     }
 
     if (prompt.length > 300) {
         statusDiv.textContent = 'Промпт слишком длинный (максимум 300 символов)';
-        statusDiv.className = 'ai-status error';
+        statusDiv.className = 'editor-status active error';
         return;
     }
 
-    const currentLoop = loops[currentLoopIndex].code;
+    const currentLoop = savedCode; // savedCode содержит оригинальный код
 
     try {
-        editBtn.disabled = true;
+        generateBtn.disabled = true;
         statusDiv.textContent = 'Редактирование лупа...';
-        statusDiv.className = 'ai-status loading';
+        statusDiv.className = 'editor-status active loading';
 
         const response = await fetch('https://wo-server-v1.onrender.com/api/edit-strudel-loop', {
             method: 'POST',
@@ -882,49 +931,45 @@ async function editLoop() {
         const data = JSON.parse(responseText);
 
         // Обновляем код в редакторе
-        document.getElementById('codeEditor').value = data.code;
+        codeEditor.value = data.code;
 
         // Обновляем луп
         loops[currentLoopIndex].code = data.code;
         loops[currentLoopIndex].name = `Loop ${currentLoopIndex + 1} (edited)`;
         updateLoopsGrid();
 
-        // Сохраняем новый оригинальный код
-        saveOriginalCode();
-        checkEditorChanges();
+        statusDiv.textContent = '✅ Луп отредактирован!';
+        statusDiv.className = 'editor-status active success';
 
-        statusDiv.textContent = '✅ Луп отредактирован! Закрываю панель...';
-        statusDiv.className = 'ai-status success';
-
-        setTimeout(() => {
-            closeAIPanel();
-        }, 2000);
+        // Показываем кнопку Add to Loops
+        addToLoopsBtn.style.display = 'inline-block';
 
     } catch (error) {
         console.error('❌ Ошибка редактирования:', error);
         statusDiv.textContent = `Ошибка: ${error.message}`;
-        statusDiv.className = 'ai-status error';
+        statusDiv.className = 'editor-status active error';
     } finally {
-        editBtn.disabled = false;
+        generateBtn.disabled = false;
     }
 }
 
 async function generateScript() {
-    const promptInput = document.getElementById('aiPromptInput');
-    const statusDiv = document.getElementById('panelStatus');
-    const generateBtn = document.querySelector('.btn-generate');
+    const codeEditor = document.getElementById('codeEditor');
+    const statusDiv = document.getElementById('editorStatus');
+    const generateBtn = document.getElementById('generateBtn');
+    const addToLoopsBtn = document.getElementById('addToLoopsBtn');
 
-    const prompt = promptInput.value.trim();
+    const prompt = codeEditor.value.trim();
 
     if (!prompt) {
         statusDiv.textContent = 'Пожалуйста, опиши что хочешь услышать';
-        statusDiv.className = 'ai-status error';
+        statusDiv.className = 'editor-status active error';
         return;
     }
 
     if (prompt.length > 300) {
         statusDiv.textContent = 'Промпт слишком длинный (максимум 300 символов)';
-        statusDiv.className = 'ai-status error';
+        statusDiv.className = 'editor-status active error';
         return;
     }
 
@@ -932,7 +977,7 @@ async function generateScript() {
         // UI: начало генерации
         generateBtn.disabled = true;
         statusDiv.textContent = 'Генерация скрипта...';
-        statusDiv.className = 'ai-status loading';
+        statusDiv.className = 'editor-status active loading';
 
         // Отправка запроса
         const response = await fetch(API_URL, {
@@ -943,12 +988,7 @@ async function generateScript() {
             body: JSON.stringify({ prompt })
         });
 
-        console.log('Response status:', response.status);
-        console.log('Response headers:', response.headers);
-
-        // Читаем тело ответа как текст для диагностики
         const responseText = await response.text();
-        console.log('Response text:', responseText);
 
         if (!response.ok) {
             let errorMessage = 'Ошибка сервера';
@@ -961,33 +1001,26 @@ async function generateScript() {
             throw new Error(errorMessage);
         }
 
-        // Проверка на пустой ответ
         if (!responseText || responseText.trim() === '') {
-            throw new Error('Сервер вернул пустой ответ. Возможно endpoint еще не задеплоился на Render. Попробуй через несколько минут.');
+            throw new Error('Сервер вернул пустой ответ');
         }
 
         const data = JSON.parse(responseText);
 
         // Вставляем сгенерированный код в редактор
-        document.getElementById('codeEditor').value = data.code;
-
-        // Сохраняем новый код как оригинальный
-        saveOriginalCode();
-        checkEditorChanges();
+        codeEditor.value = data.code;
 
         // UI: успех
-        statusDiv.textContent = '✅ Скрипт сгенерирован! Закрой окно и нажми Play';
-        statusDiv.className = 'ai-status success';
+        statusDiv.textContent = '✅ Скрипт сгенерирован!';
+        statusDiv.className = 'editor-status active success';
 
-        // Автозакрытие через 2 секунды
-        setTimeout(() => {
-            closeAIPanel();
-        }, 2000);
+        // Показываем кнопку Add to Loops
+        addToLoopsBtn.style.display = 'inline-block';
 
     } catch (error) {
         console.error('❌ Ошибка генерации:', error);
         statusDiv.textContent = `Ошибка: ${error.message}`;
-        statusDiv.className = 'ai-status error';
+        statusDiv.className = 'editor-status active error';
     } finally {
         generateBtn.disabled = false;
     }
@@ -1000,15 +1033,17 @@ const TRANSITION_API_URL = 'https://wo-server-v1.onrender.com/api/generate-strud
 async function generateTransition() {
     const fromSelect = document.getElementById('transitionFromLoop');
     const toSelect = document.getElementById('transitionToLoop');
-    const statusDiv = document.getElementById('panelStatus');
-    const generateBtn = document.querySelector('.btn-generate');
+    const codeEditor = document.getElementById('codeEditor');
+    const statusDiv = document.getElementById('editorStatus');
+    const generateBtn = document.getElementById('generateBtn');
+    const addToLoopsBtn = document.getElementById('addToLoopsBtn');
 
     const fromIndex = parseInt(fromSelect.value);
     const toIndex = parseInt(toSelect.value);
 
     if (fromIndex === toIndex) {
         statusDiv.textContent = 'Выбери разные лупы для перехода!';
-        statusDiv.className = 'ai-status error';
+        statusDiv.className = 'editor-status active error';
         return;
     }
 
@@ -1019,7 +1054,7 @@ async function generateTransition() {
         // UI: начало генерации
         generateBtn.disabled = true;
         statusDiv.textContent = 'Генерация перехода...';
-        statusDiv.className = 'ai-status loading';
+        statusDiv.className = 'editor-status active loading';
 
         // Отправка запроса
         const response = await fetch(TRANSITION_API_URL, {
@@ -1052,39 +1087,21 @@ async function generateTransition() {
 
         const data = JSON.parse(responseText);
 
-        // Вставляем переход между выбранными лупами
-        const transitionLoop = {
-            code: data.code,
-            name: `Transition ${fromIndex + 1}→${toIndex + 1}`
-        };
-
-        // Вставляем переход после fromLoop
-        const insertIndex = Math.max(fromIndex, toIndex);
-        loops.splice(insertIndex, 0, transitionLoop);
-
-        // Обновляем грид
-        updateLoopsGrid();
-
         // Вставляем код в редактор
-        document.getElementById('codeEditor').value = data.code;
-
-        // Сохраняем новый код как оригинальный
-        saveOriginalCode();
-        checkEditorChanges();
+        codeEditor.value = data.code;
+        codeEditor.readOnly = false;
 
         // UI: успех
-        statusDiv.textContent = '✅ Переход создан! Закрываю панель...';
-        statusDiv.className = 'ai-status success';
+        statusDiv.textContent = `✅ Переход создан! (${fromLoop.name || 'Loop ' + (fromIndex + 1)} → ${toLoop.name || 'Loop ' + (toIndex + 1)})`;
+        statusDiv.className = 'editor-status active success';
 
-        // Автозакрытие через 2 секунды
-        setTimeout(() => {
-            closeAIPanel();
-        }, 2000);
+        // Показываем кнопку Add to Loops
+        addToLoopsBtn.style.display = 'inline-block';
 
     } catch (error) {
         console.error('❌ Ошибка генерации перехода:', error);
         statusDiv.textContent = `Ошибка: ${error.message}`;
-        statusDiv.className = 'ai-status error';
+        statusDiv.className = 'editor-status active error';
     } finally {
         generateBtn.disabled = false;
     }
@@ -1094,25 +1111,26 @@ async function generateTransition() {
 const CONTINUE_API_URL = 'https://wo-server-v1.onrender.com/api/generate-strudel-continuation';
 
 async function generateContinuation() {
-    const promptInput = document.getElementById('continuePromptInput');
-    const statusDiv = document.getElementById('panelStatus');
-    const generateBtn = document.querySelector('.btn-generate');
-    const prompt = promptInput.value.trim();
+    const codeEditor = document.getElementById('codeEditor');
+    const statusDiv = document.getElementById('editorStatus');
+    const generateBtn = document.getElementById('generateBtn');
+    const addToLoopsBtn = document.getElementById('addToLoopsBtn');
+    const prompt = codeEditor.value.trim();
 
     if (!prompt) {
         statusDiv.textContent = 'Пожалуйста, опиши как развить луп';
-        statusDiv.className = 'ai-status error';
+        statusDiv.className = 'editor-status active error';
         return;
     }
 
-    // Берем текущий луп как базу для продолжения
-    const currentLoop = loops[currentLoopIndex];
+    // Берем текущий луп как базу для продолжения (из savedCode)
+    const previousLoop = savedCode;
 
     try {
         // UI: начало генерации
         generateBtn.disabled = true;
         statusDiv.textContent = 'Генерация продолжения...';
-        statusDiv.className = 'ai-status loading';
+        statusDiv.className = 'editor-status active loading';
 
         // Отправка запроса
         const response = await fetch(CONTINUE_API_URL, {
@@ -1122,7 +1140,7 @@ async function generateContinuation() {
             },
             body: JSON.stringify({
                 prompt: prompt,
-                previousLoop: currentLoop.code
+                previousLoop: previousLoop
             })
         });
 
@@ -1146,25 +1164,19 @@ async function generateContinuation() {
         const data = JSON.parse(responseText);
 
         // Вставляем код в редактор
-        document.getElementById('codeEditor').value = data.code;
-
-        // Сохраняем новый код как оригинальный
-        saveOriginalCode();
-        checkEditorChanges();
+        codeEditor.value = data.code;
 
         // UI: успех
-        statusDiv.textContent = '✅ Продолжение сгенерировано! Закрываю панель...';
-        statusDiv.className = 'ai-status success';
+        statusDiv.textContent = '✅ Продолжение сгенерировано!';
+        statusDiv.className = 'editor-status active success';
 
-        // Автозакрытие через 2 секунды
-        setTimeout(() => {
-            closeAIPanel();
-        }, 2000);
+        // Показываем кнопку Add to Loops
+        addToLoopsBtn.style.display = 'inline-block';
 
     } catch (error) {
         console.error('❌ Ошибка генерации продолжения:', error);
         statusDiv.textContent = `Ошибка: ${error.message}`;
-        statusDiv.className = 'ai-status error';
+        statusDiv.className = 'editor-status active error';
     } finally {
         generateBtn.disabled = false;
     }
