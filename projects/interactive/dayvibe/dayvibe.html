@@ -240,6 +240,19 @@
             background: linear-gradient(135deg, #666 0%, #555 100%);
         }
 
+        /* Update Loop button in editor */
+        .editor-footer .btn-update {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            border-color: #2c3e50;
+            color: #fff;
+        }
+
+        .editor-footer .btn-update:hover {
+            background: linear-gradient(135deg, #3ba3e8 0%, #2e8bc7 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(52, 152, 219, 0.4);
+        }
+
         .controls {
             display: flex;
             gap: 10px;
@@ -895,7 +908,6 @@
                     <div class="tile-buttons">
                         <button class="btn btn-play btn-icon" id="playBtn" onclick="playCode()" title="Play">▶</button>
                         <button class="btn btn-stop btn-icon" id="stopBtn" onclick="stopCode()" disabled title="Stop">■</button>
-                        <button class="btn btn-update btn-icon" id="updateBtn" onclick="updateCurrentLoop()" disabled title="Update Loop">🔄</button>
                     </div>
                 </div>
 
@@ -903,7 +915,6 @@
                 <div class="control-tile loop-tile">
                     <div class="tile-title">Loop Management</div>
                     <div class="tile-buttons">
-                        <button class="btn btn-loop" onclick="addLoop()">+ Add to loops</button>
                         <button class="btn btn-loop" onclick="prevLoop()">◀ Prev</button>
                         <button class="btn btn-loop" onclick="nextLoop()">Next ▶</button>
                     </div>
@@ -934,6 +945,7 @@
                 <button class="btn btn-cancel btn-editor-action" id="cancelBtn" onclick="cancelAIMode()" style="display: none;">✖ Cancel</button>
                 <button class="btn btn-generate btn-editor-action" id="generateBtn" onclick="executeAIGeneration()" style="display: none;">Generate</button>
                 <button class="btn btn-add-loop btn-editor-action" id="addToLoopsBtn" onclick="addGeneratedLoop()" style="display: none;">+ Add to Loops</button>
+                <button class="btn btn-update btn-editor-action" id="updateBtn" onclick="updateCurrentLoop()" style="display: none;" title="Update Loop">🔄 Update Loop</button>
                 <button class="btn btn-edit btn-editor-action" id="editBtn" onclick="openEditMode()">✏️ Edit with AI</button>
             </div>
         </div>

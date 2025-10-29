@@ -647,6 +647,7 @@ function setEditorMode(mode, title, placeholder) {
     const cancelBtn = document.getElementById('cancelBtn');
     const editBtn = document.getElementById('editBtn');
     const addToLoopsBtn = document.getElementById('addToLoopsBtn');
+    const updateBtn = document.getElementById('updateBtn');
 
     currentAIMode = mode;
     container.setAttribute('data-mode', mode);
@@ -660,12 +661,15 @@ function setEditorMode(mode, title, placeholder) {
         editBtn.style.display = 'inline-block';
         addToLoopsBtn.style.display = 'none';
         editorStatus.classList.remove('active');
+        // Update Loop кнопка контролируется checkEditorChanges()
+        checkEditorChanges();
     } else {
         // AI режим
         generateBtn.style.display = 'inline-block';
         cancelBtn.style.display = 'inline-block';
         editBtn.style.display = 'none';
         addToLoopsBtn.style.display = 'none';
+        updateBtn.style.display = 'none'; // Скрываем в AI режиме
     }
 }
 
@@ -805,9 +809,13 @@ function addGeneratedLoop() {
 
     updateLoopsGrid();
 
-    // Переходим в обычный режим
+    // Переходим в обычный режим, сохраняя код
     savedCode = code;
     cancelAIMode();
+
+    // Обновляем отслеживание изменений
+    saveOriginalCode();
+    checkEditorChanges();
 
     console.log(`✅ Добавлен AI луп ${loops.length}`);
 }
@@ -842,7 +850,8 @@ function updateCurrentLoop() {
 
     console.log(`✅ Loop ${currentLoopIndex + 1} updated`);
 
-    // Деактивируем кнопку после обновления
+    // Сохраняем новый код как оригинальный и скрываем кнопку
+    saveOriginalCode();
     checkEditorChanges();
 }
 
@@ -854,16 +863,24 @@ function checkEditorChanges() {
     const editor = document.getElementById('codeEditor');
     const updateBtn = document.getElementById('updateBtn');
 
-    if (currentLoopIndex < 0) {
-        updateBtn.disabled = true;
+    // Показываем кнопку только если:
+    // 1. Есть выбранный луп (currentLoopIndex >= 0)
+    // 2. Код был изменен
+    // 3. Не находимся в AI режиме
+    if (currentLoopIndex < 0 || currentAIMode !== 'normal') {
+        updateBtn.style.display = 'none';
         return;
     }
 
     const currentCode = editor.value.trim();
     const originalCode = originalLoopCode.trim();
 
-    // Активируем кнопку только если код изменился
-    updateBtn.disabled = (currentCode === originalCode) || !currentCode;
+    // Показываем кнопку только если код изменился
+    if (currentCode && currentCode !== originalCode) {
+        updateBtn.style.display = 'inline-block';
+    } else {
+        updateBtn.style.display = 'none';
+    }
 }
 
 function saveOriginalCode() {
