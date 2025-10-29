@@ -116,6 +116,19 @@
             color: #555;
         }
 
+        .editor-footer {
+            background-color: #161b22;
+            padding: 10px 15px;
+            border-top: 1px solid #444;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        .btn-editor-action {
+            min-width: 150px;
+        }
+
         .controls {
             display: flex;
             gap: 10px;
@@ -331,7 +344,8 @@
             background: #5dade2;
         }
 
-        .loop-tile {
+        /* Loop tiles in loops grid */
+        .loops-grid .loop-tile {
             min-width: 80px;
             width: 80px;
             height: 80px;
@@ -347,28 +361,28 @@
             position: relative;
         }
 
-        .loop-tile.empty {
+        .loops-grid .loop-tile.empty {
             border-style: dashed;
             opacity: 0.5;
             cursor: default;
         }
 
-        .loop-tile.empty:hover {
+        .loops-grid .loop-tile.empty:hover {
             opacity: 0.7;
         }
 
-        .loop-tile.active {
+        .loops-grid .loop-tile.active {
             background-color: #1e2530;
             border-color: #3498db;
         }
 
-        .loop-tile.active:hover {
+        .loops-grid .loop-tile.active:hover {
             border-color: #5dade2;
             transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
         }
 
-        .loop-tile.playing {
+        .loops-grid .loop-tile.playing {
             background: linear-gradient(135deg, #1e2530 0%, #2c3e50 100%);
             border-color: #27ae60;
             animation: pulse-border 2s ease-in-out infinite;
@@ -408,7 +422,7 @@
             transition: opacity 0.2s ease;
         }
 
-        .loop-tile.active:hover .loop-controls-mini {
+        .loops-grid .loop-tile.active:hover .loop-controls-mini {
             opacity: 1;
         }
 
@@ -707,6 +721,92 @@
             opacity: 0.6;
         }
 
+        /* Controls Wrapper */
+        .controls-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .controls-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .control-tile {
+            background-color: #0d1117;
+            border: 2px solid #444;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .tile-title {
+            font-family: 'Press Start 2P', cursive;
+            font-size: clamp(9px, 2vw, 11px);
+            color: #3498db;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #333;
+        }
+
+        .tile-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .tile-buttons .btn {
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* Playback specific buttons */
+        .playback-tile .tile-buttons {
+            display: flex;
+            justify-content: stretch;
+        }
+
+        .playback-tile .btn {
+            flex: 1;
+            min-width: 60px;
+        }
+
+        /* Loop Management specific */
+        .loop-tile .tile-buttons {
+            display: flex;
+            justify-content: stretch;
+        }
+
+        .loop-tile .btn {
+            flex: 1;
+            min-width: 60px;
+        }
+
+        /* AI buttons horizontal */
+        .ai-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .ai-buttons .btn {
+            flex: 1;
+            min-width: 160px;
+        }
+
+        /* Icon Buttons for Playback */
+        .btn-icon {
+            font-size: clamp(18px, 4vw, 24px);
+            padding: 12px 15px;
+            min-width: 60px;
+        }
+
         /* Controls Section */
         .controls-section {
             margin-bottom: 20px;
@@ -767,15 +867,20 @@
                 padding: 15px;
             }
 
+            .controls-row {
+                grid-template-columns: 1fr;
+            }
+
             .controls {
                 flex-direction: column;
             }
 
-            .btn {
+            .ai-buttons .btn {
                 min-width: 100%;
+                flex: 1 1 100%;
             }
 
-            .loop-tile {
+            .loops-grid .loop-tile {
                 min-width: 70px;
                 width: 70px;
                 height: 70px;
@@ -803,6 +908,42 @@
             </div>
         </div>
 
+        <!-- Main Controls -->
+        <div class="controls-wrapper">
+            <!-- Playback & Loop Row -->
+            <div class="controls-row">
+                <!-- Playback Controls -->
+                <div class="control-tile playback-tile">
+                    <div class="tile-title">Playback</div>
+                    <div class="tile-buttons">
+                        <button class="btn btn-play btn-icon" id="playBtn" onclick="playCode()" title="Play">▶</button>
+                        <button class="btn btn-stop btn-icon" id="stopBtn" onclick="stopCode()" disabled title="Stop">■</button>
+                        <button class="btn btn-update btn-icon" id="updateBtn" onclick="updateCurrentLoop()" disabled title="Update Loop">🔄</button>
+                    </div>
+                </div>
+
+                <!-- Loop Management -->
+                <div class="control-tile loop-tile">
+                    <div class="tile-title">Loop Management</div>
+                    <div class="tile-buttons">
+                        <button class="btn btn-loop" onclick="addLoop()">+ Add to loops</button>
+                        <button class="btn btn-loop" onclick="prevLoop()">◀ Prev</button>
+                        <button class="btn btn-loop" onclick="nextLoop()">Next ▶</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Generation Row -->
+            <div class="control-tile ai-tile">
+                <div class="tile-title">AI Generation</div>
+                <div class="tile-buttons ai-buttons">
+                    <button class="btn btn-ai" id="aiBtn" onclick="openAIPanel()">✨ Generate Loop</button>
+                    <button class="btn btn-continue" id="continueBtn" onclick="openContinuePanel()" disabled>➡️ Continue Loop</button>
+                    <button class="btn btn-transition" id="transitionBtn" onclick="openTransitionPanel()" disabled>🔄 Make transition</button>
+                </div>
+            </div>
+        </div>        
+
         <!-- Редактор кода -->
         <div class="editor-container">
             <div class="editor-header">
@@ -811,26 +952,8 @@
             </div>
             <textarea id="codeEditor" placeholder="// Напиши свой Strudel-паттерн или загрузи пример...
 // Нажми Play чтобы запустить!"></textarea>
-        </div>
-
-        <!-- Секция управления воспроизведением -->
-        <div class="controls-section">
-            <div class="section-title">Playback Controls</div>
-            <div class="controls">
-                <button class="btn btn-play" id="playBtn" onclick="playCode()">▶ Play</button>
-                <button class="btn btn-stop" id="stopBtn" onclick="stopCode()" disabled>■ Stop</button>
-                <button class="btn btn-update" id="updateBtn" onclick="updateCurrentLoop()" disabled>🔄 Update Loop</button>
-            </div>
-        </div>
-
-        <!-- Секция AI генерации -->
-        <div class="controls-section">
-            <div class="section-title">AI Generation</div>
-            <div class="controls ai-controls">
-                <button class="btn btn-ai" id="aiBtn" onclick="openAIPanel()">✨ Generate New</button>
-                <button class="btn btn-edit" id="editBtn" onclick="openEditPanel()">✏️ Edit Loop</button>
-                <button class="btn btn-continue" id="continueBtn" onclick="openContinuePanel()" disabled>➡️ Continue Loop</button>
-                <button class="btn btn-transition" id="transitionBtn" onclick="openTransitionPanel()" disabled>🔄 Transition</button>
+            <div class="editor-footer">
+                <button class="btn btn-edit btn-editor-action" id="editBtn" onclick="openEditPanel()">✏️ Edit with AI</button>
             </div>
         </div>
 
@@ -848,16 +971,6 @@
 
         <!-- Overlay для панели -->
         <div class="ai-panel-overlay" id="panelOverlay" onclick="closeAIPanel()"></div>
-
-        <!-- Loop Controls -->
-        <div class="controls-section">
-            <div class="section-title">Loop Management</div>
-            <div class="controls loop-controls">
-                <button class="btn btn-loop" onclick="addLoop()">+ Add to Queue</button>
-                <button class="btn btn-loop" onclick="prevLoop()">◀ Prev Loop</button>
-                <button class="btn btn-loop" onclick="nextLoop()">Next Loop ▶</button>
-            </div>
-        </div>
 
         <!-- Статус-бар -->
         <div class="status-bar">
