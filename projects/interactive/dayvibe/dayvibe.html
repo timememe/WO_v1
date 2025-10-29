@@ -129,6 +129,25 @@
             transition: color 0.3s ease;
         }
 
+        /* Live mode indicator animation */
+        @keyframes live-pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .editor-container[data-mode="normal"] .editor-title {
+            animation: none;
+        }
+
+        /* Live mode active */
+        #editorTitle:contains("LIVE") {
+            animation: live-pulse 2s ease-in-out infinite;
+        }
+
         .editor-container[data-mode="generate"] .editor-title {
             color: #e67e22;
         }

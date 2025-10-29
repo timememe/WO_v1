@@ -123,6 +123,10 @@ async function initDayvibe() {
 
         updateStatus('Ready', false);
         console.log('✅ DAYVIBE ready to rock! 🎵');
+
+        // Подключаем live reload mode
+        setupLiveReload();
+        console.log('✅ Live reload mode enabled (active during playback)');
     } catch (error) {
         console.error('❌ Failed to initialize Strudel:', error);
         updateStatus('Error', false);
@@ -421,6 +425,7 @@ function updateStatus(text, playing) {
     const statusIndicator = document.getElementById('statusIndicator');
     const playBtn = document.getElementById('playBtn');
     const stopBtn = document.getElementById('stopBtn');
+    const editorTitle = document.getElementById('editorTitle');
 
     statusText.textContent = text;
     isPlaying = playing;
@@ -430,12 +435,26 @@ function updateStatus(text, playing) {
         statusIndicator.classList.remove('stopped');
         playBtn.disabled = true;
         stopBtn.disabled = false;
+
+        // Показываем индикатор Live Mode
+        if (currentLoopIndex >= 0 && currentAIMode === 'normal') {
+            editorTitle.textContent = 'Code Editor 🔴 LIVE';
+        }
     } else {
         statusIndicator.classList.remove('active');
         statusIndicator.classList.add('stopped');
         playBtn.disabled = false;
         stopBtn.disabled = true;
+
+        // Убираем индикатор Live Mode
+        if (currentAIMode === 'normal') {
+            editorTitle.textContent = 'Code Editor';
+        }
     }
+
+    // Обновляем видимость кнопки Update Loop
+    // (скрывается во время воспроизведения, т.к. работает live reload)
+    checkEditorChanges();
 }
 
 // Воспроизведение кода
@@ -867,7 +886,8 @@ function checkEditorChanges() {
     // 1. Есть выбранный луп (currentLoopIndex >= 0)
     // 2. Код был изменен
     // 3. Не находимся в AI режиме
-    if (currentLoopIndex < 0 || currentAIMode !== 'normal') {
+    // 4. Луп НЕ играет (при воспроизведении работает live reload)
+    if (currentLoopIndex < 0 || currentAIMode !== 'normal' || isPlaying) {
         updateBtn.style.display = 'none';
         return;
     }
@@ -886,6 +906,55 @@ function checkEditorChanges() {
 function saveOriginalCode() {
     const editor = document.getElementById('codeEditor');
     originalLoopCode = editor.value;
+}
+
+// === Live Reload Mode ===
+
+let liveReloadTimeout = null;
+
+function setupLiveReload() {
+    const editor = document.getElementById('codeEditor');
+
+    editor.addEventListener('input', () => {
+        // Live reload только если:
+        // 1. Луп играет
+        // 2. Есть выбранный луп
+        // 3. Не в AI режиме
+        if (!isPlaying || currentLoopIndex < 0 || currentAIMode !== 'normal') {
+            return;
+        }
+
+        // Debounce 500ms - ждём паузу в наборе
+        clearTimeout(liveReloadTimeout);
+        liveReloadTimeout = setTimeout(() => {
+            liveReloadCode();
+        }, 500);
+    });
+}
+
+async function liveReloadCode() {
+    const code = document.getElementById('codeEditor').value.trim();
+
+    if (!code) return;
+
+    try {
+        // Обновляем луп в массиве
+        loops[currentLoopIndex].code = code;
+
+        // Патчим AI ошибки (как в playCode)
+        let patchedCode = code.replace(/\.fade\(/g, '.xfade(');
+
+        // Применяем код к текущему реплу
+        await repl.evaluate(patchedCode);
+
+        // Обновляем грид (название может измениться)
+        updateLoopsGrid();
+
+        console.log('🔄 Live reload applied');
+    } catch (error) {
+        console.warn('⚠️ Live reload error:', error.message);
+        // Не показываем alert при ошибках live reload - просто логируем
+    }
 }
 
 // === Edit Loop with AI ===
