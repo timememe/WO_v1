@@ -49,6 +49,8 @@ body {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    position: relative;
+    z-index: 1;
 }
 
 /* Кастомный скроллбар для контейнера */
@@ -116,7 +118,8 @@ h1 {
 
 .editor-container {
     margin-bottom: 12px;
-    background-color: #0d1117;
+    background-color: rgba(13, 17, 23, 0.92);
+    backdrop-filter: blur(4px);
     border: 2px solid #444;
     border-radius: 6px;
     overflow: hidden;
@@ -426,34 +429,40 @@ h1 {
     }
 }
 
-/* Визуальный эквалайзер */
-.visualizer {
-    margin-bottom: 12px;
-    height: 65px;
-    background: linear-gradient(180deg, #0d1117 0%, #161b22 100%);
-    border: 2px solid #444;
-    border-radius: 6px;
+/* Background Visualizer */
+.visualizer-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     display: flex;
     align-items: flex-end;
     justify-content: space-around;
-    padding: 6px;
-    gap: 2px;
+    padding: 0 6px 6px 6px;
+    gap: 1px;
     overflow: hidden;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.25;
+    filter: blur(0.5px);
 }
 
 .visualizer-bar {
     flex: 1;
     background: linear-gradient(0deg, #3498db 0%, #2ecc71 50%, #f39c12 100%);
-    border-radius: 2px;
+    border-radius: 2px 2px 0 0;
     height: 10%;
-    transition: height 0.1s ease;
-    opacity: 0.7;
+    transition: height 0.15s ease;
+    opacity: 0.9;
+    box-shadow: 0 0 8px rgba(52, 152, 219, 0.3);
 }
 
 /* Loops Grid */
 .loops-container {
     margin-bottom: 12px;
-    background-color: #0d1117;
+    background-color: rgba(13, 17, 23, 0.92);
+    backdrop-filter: blur(4px);
     border: 2px solid #444;
     border-radius: 6px;
     padding: 8px 10px;
@@ -845,7 +854,8 @@ h1 {
 }
 
 .control-tile {
-    background-color: #0d1117;
+    background-color: rgba(13, 17, 23, 0.92);
+    backdrop-filter: blur(4px);
     border: 2px solid #444;
     border-radius: 6px;
     padding: 8px 10px;
@@ -971,39 +981,33 @@ h1 {
     padding: 8px;
 }
 
-/* Code Sliders Panel */
-.code-sliders-panel {
-    position: absolute;
-    bottom: 8px;
-    right: 8px;
-    z-index: 10;
-    pointer-events: auto;
+/* Sliders Panel Wrapper */
+.sliders-panel-wrapper {
+    position: relative;
+    display: none; /* Hidden by default */
 }
 
+/* Sliders Toggle Button in Footer */
 .sliders-toggle-btn {
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 36px;
-    height: 36px;
+    min-width: 90px;
+    padding: 9px 11px;
     background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-    border: 2px solid rgba(52, 152, 219, 0.6);
-    border-radius: 6px;
+    border: 2px solid #2c3e50;
+    border-radius: 5px;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    color: #fff;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-    transition: all 0.3s ease;
     font-family: 'Press Start 2P', cursive;
+    font-size: clamp(7px, 1.6vw, 9px);
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
 }
 
 .sliders-toggle-btn:hover {
     background: linear-gradient(135deg, #5dade2 0%, #3498db 100%);
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(52, 152, 219, 0.4);
+    box-shadow: 0 6px 12px rgba(52, 152, 219, 0.4);
 }
 
 .sliders-toggle-btn:active {
@@ -1012,7 +1016,7 @@ h1 {
 
 .sliders-toggle-btn.has-sliders {
     background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
-    border-color: rgba(230, 126, 34, 0.6);
+    border-color: #ba4a00;
     animation: pulse-glow 2s ease-in-out infinite;
 }
 
@@ -1031,35 +1035,33 @@ h1 {
 
 .code-sliders-overlay {
     position: absolute;
-    bottom: 45px;
+    bottom: calc(100% + 8px);
     right: 0;
-    max-width: 180px;
-    max-height: 300px;
+    max-width: 200px;
+    max-height: min(400px, 60vh);
     overflow-y: auto;
     overflow-x: hidden;
-    background: rgba(13, 17, 23, 0.95);
-    border: 2px solid rgba(52, 152, 219, 0.5);
+    background: rgba(13, 17, 23, 0.98);
+    border: 2px solid rgba(52, 152, 219, 0.6);
     border-radius: 6px;
-    padding: 6px;
-    backdrop-filter: blur(8px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    padding: 8px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(52, 152, 219, 0.2);
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 6px;
     transform-origin: bottom right;
     transition: all 0.3s ease;
     opacity: 1;
     transform: scale(1);
+    z-index: 2000;
 }
 
 .code-sliders-overlay.collapsed {
     opacity: 0;
     transform: scale(0.8);
     pointer-events: none;
-}
-
-.code-sliders-overlay:empty {
-    display: none;
+    visibility: hidden;
 }
 
 .code-sliders-overlay::-webkit-scrollbar {
@@ -1215,8 +1217,15 @@ h1 {
         flex: 1 1 100%;
     }
 
+    .sliders-toggle-btn {
+        min-width: 80px;
+        padding: 8px 10px;
+        font-size: clamp(6px, 1.4vw, 8px);
+    }
+
     .code-sliders-overlay {
-        max-width: 150px;
-        max-height: 250px;
+        max-width: 180px;
+        max-height: min(300px, 50vh);
+        padding: 6px;
     }
 }

@@ -1569,21 +1569,21 @@ function renderCodeSliders() {
     }
 
     const toggleBtn = document.getElementById('slidersToggleBtn');
-    const panel = document.getElementById('codeSlidersPanel');
+    const wrapper = document.querySelector('.sliders-panel-wrapper');
+    const overlay = document.getElementById('codeSlidersOverlay');
 
     if (!slidersEnabled || currentAIMode !== 'normal') {
-        // Скрываем всю панель в AI режиме
-        panel.style.display = 'none';
+        // Скрываем wrapper в AI режиме
+        if (wrapper) wrapper.style.display = 'none';
         return;
     }
 
     const textarea = document.getElementById('codeEditor');
-    const overlay = document.getElementById('codeSlidersOverlay');
     const code = textarea.value;
 
     if (!code.trim()) {
         overlay.innerHTML = '';
-        panel.style.display = 'none';
+        if (wrapper) wrapper.style.display = 'none';
         return;
     }
 
@@ -1593,16 +1593,16 @@ function renderCodeSliders() {
     // Очищаем overlay
     overlay.innerHTML = '';
 
-    // Если нет слайдеров, скрываем панель
+    // Если нет слайдеров, скрываем wrapper
     if (codeSliders.length === 0) {
-        panel.style.display = 'none';
-        toggleBtn.classList.remove('has-sliders');
+        if (wrapper) wrapper.style.display = 'none';
+        if (toggleBtn) toggleBtn.classList.remove('has-sliders');
         return;
     }
 
-    // Показываем панель и обновляем кнопку
-    panel.style.display = 'block';
-    toggleBtn.classList.add('has-sliders');
+    // Показываем wrapper и обновляем класс кнопки
+    if (wrapper) wrapper.style.display = 'inline-block';
+    if (toggleBtn) toggleBtn.classList.add('has-sliders');
 
     // Создаем слайдеры в вертикальном списке
     codeSliders.forEach((num, index) => {
