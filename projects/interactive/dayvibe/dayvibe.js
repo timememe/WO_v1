@@ -399,6 +399,9 @@ async function switchToLoop(index) {
 
         updateLoopsGrid();
 
+        // Обновляем слайдеры для нового кода
+        renderCodeSliders();
+
         if (isPlaying) {
             await playCode();
         }
@@ -634,17 +637,25 @@ async function stopCode() {
     }
 }
 
-// Загрузка примера
+// Загрузка примера (можно вызвать из консоли)
 function loadExample() {
     const exampleCode = `// DAYVIBE Example - Roland TR-909 Beat
 s("rolandtr909bd rolandtr909sd rolandtr909hh rolandtr909sd")
   .gain(0.8)
+  .speed(1.0)
+  .room(0.3)
+  .pan(0.0)
 
 // Try also:
 // s("rolandtr808bd*2, rolandtr808sd(3,8)")
 // s("bd cp sd cp").speed("1 2 0.5 1.5")`;
 
     document.getElementById('codeEditor').value = exampleCode;
+
+    // Рендерим слайдеры для примера
+    renderCodeSliders();
+
+    console.log('✅ Example code loaded! Try the sliders in the bottom-right corner.');
 }
 
 // AI Generation functions
@@ -682,6 +693,8 @@ function setEditorMode(mode, title, placeholder) {
         editorStatus.classList.remove('active');
         // Update Loop кнопка контролируется checkEditorChanges()
         checkEditorChanges();
+        // Включаем слайдеры
+        renderCodeSliders();
     } else {
         // AI режим
         generateBtn.style.display = 'inline-block';
@@ -689,6 +702,8 @@ function setEditorMode(mode, title, placeholder) {
         editBtn.style.display = 'none';
         addToLoopsBtn.style.display = 'none';
         updateBtn.style.display = 'none'; // Скрываем в AI режиме
+        // Скрываем слайдеры в AI режиме
+        renderCodeSliders();
     }
 }
 
@@ -1269,6 +1284,320 @@ async function generateContinuation() {
 }
 
 
+// === Interactive Code Sliders ===
+
+let codeSliders = []; // Массив найденных слайдеров { value, start, end, line, context }
+let slidersEnabled = true; // Можно отключать слайдеры
+let slidersPanelExpanded = false; // Состояние панели (свернута/развернута)
+let isUpdatingSlider = false; // Флаг для предотвращения конкурентных обновлений
+let sliderUpdateTimeout = null; // Таймаут для debounce рендеринга
+
+// Парсинг чисел из кода
+function parseNumbersFromCode(code) {
+    const lines = code.split('\n');
+    const numbers = [];
+
+    lines.forEach((line, lineIndex) => {
+        // Пропускаем комментарии
+        if (line.trim().startsWith('//')) return;
+
+        // Регулярка для чисел (целые и дробные, включая отрицательные)
+        // Ищем числа в контексте функций: .func(0.5) или func(2)
+        const numberRegex = /([a-z_]\w*)\s*\(\s*(-?\d+\.?\d*)\s*\)/gi;
+        let match;
+
+        while ((match = numberRegex.exec(line)) !== null) {
+            const funcName = match[1];
+            const numValue = parseFloat(match[2]);
+            const numStart = match.index + match[1].length + 1; // После "func("
+            const numEnd = numStart + match[2].length;
+            const originalMatch = match[0]; // Сохраняем весь матч для точной замены
+
+            // Определяем разумные границы для слайдера в зависимости от контекста
+            let min = 0;
+            let max = 1;
+            let step = 0.01;
+
+            // Эвристика для разных параметров
+            if (funcName === 'gain' || funcName === 'volume' || funcName === 'amp') {
+                min = 0;
+                max = 2;
+                step = 0.05;
+            } else if (funcName === 'speed' || funcName === 'fast' || funcName === 'slow') {
+                min = 0.1;
+                max = 4;
+                step = 0.1;
+            } else if (funcName === 'note' || funcName === 'n') {
+                min = 0;
+                max = 127;
+                step = 1;
+            } else if (funcName === 'pan') {
+                min = -1;
+                max = 1;
+                step = 0.1;
+            } else if (funcName === 'cutoff' || funcName === 'lpf' || funcName === 'hpf') {
+                min = 100;
+                max = 10000;
+                step = 100;
+            } else if (funcName === 'delay' || funcName === 'room' || funcName === 'size') {
+                min = 0;
+                max = 1;
+                step = 0.05;
+            } else {
+                // По умолчанию
+                if (numValue > 10) {
+                    min = 0;
+                    max = numValue * 2;
+                    step = 1;
+                } else if (numValue > 1) {
+                    min = 0;
+                    max = 10;
+                    step = 0.5;
+                } else {
+                    min = 0;
+                    max = 2;
+                    step = 0.05;
+                }
+            }
+
+            numbers.push({
+                value: numValue,
+                start: numStart,
+                end: numEnd,
+                line: lineIndex,
+                lineText: line,
+                context: funcName,
+                originalMatch: originalMatch,
+                matchIndex: match.index, // Позиция всего матча для точной замены
+                uniqueId: `${lineIndex}_${match.index}_${funcName}`, // Уникальный ID
+                min,
+                max,
+                step
+            });
+        }
+    });
+
+    return numbers;
+}
+
+// Переключение панели слайдеров
+function toggleSlidersPanel() {
+    slidersPanelExpanded = !slidersPanelExpanded;
+    const overlay = document.getElementById('codeSlidersOverlay');
+    const toggleBtn = document.getElementById('slidersToggleBtn');
+
+    if (slidersPanelExpanded) {
+        overlay.classList.remove('collapsed');
+        toggleBtn.textContent = '×';
+    } else {
+        overlay.classList.add('collapsed');
+        toggleBtn.textContent = '🎚️';
+    }
+
+    console.log(`🎚️ Sliders panel ${slidersPanelExpanded ? 'expanded' : 'collapsed'}`);
+}
+
+// Рендеринг слайдеров
+function renderCodeSliders() {
+    // Не рендерим во время обновления
+    if (isUpdatingSlider) {
+        return;
+    }
+
+    const toggleBtn = document.getElementById('slidersToggleBtn');
+    const panel = document.getElementById('codeSlidersPanel');
+
+    if (!slidersEnabled || currentAIMode !== 'normal') {
+        // Скрываем всю панель в AI режиме
+        panel.style.display = 'none';
+        return;
+    }
+
+    const textarea = document.getElementById('codeEditor');
+    const overlay = document.getElementById('codeSlidersOverlay');
+    const code = textarea.value;
+
+    if (!code.trim()) {
+        overlay.innerHTML = '';
+        panel.style.display = 'none';
+        return;
+    }
+
+    // Парсим числа
+    codeSliders = parseNumbersFromCode(code);
+
+    // Очищаем overlay
+    overlay.innerHTML = '';
+
+    // Если нет слайдеров, скрываем панель
+    if (codeSliders.length === 0) {
+        panel.style.display = 'none';
+        toggleBtn.classList.remove('has-sliders');
+        return;
+    }
+
+    // Показываем панель и обновляем кнопку
+    panel.style.display = 'block';
+    toggleBtn.classList.add('has-sliders');
+
+    // Создаем слайдеры в вертикальном списке
+    codeSliders.forEach((num, index) => {
+        const slider = document.createElement('div');
+        slider.className = 'code-slider';
+        slider.dataset.index = index;
+
+        // Header с названием и значением
+        const header = document.createElement('div');
+        header.className = 'slider-header';
+
+        const label = document.createElement('span');
+        label.className = 'slider-label';
+        label.textContent = num.context;
+
+        const valueDisplay = document.createElement('span');
+        valueDisplay.className = 'slider-value';
+        valueDisplay.textContent = num.value.toFixed(num.step >= 1 ? 0 : 2);
+
+        header.appendChild(label);
+        header.appendChild(valueDisplay);
+
+        // Range input
+        const input = document.createElement('input');
+        input.type = 'range';
+        input.min = num.min;
+        input.max = num.max;
+        input.step = num.step;
+        input.value = num.value;
+
+        // Обработчик изменения с debounce для каждого слайдера
+        let sliderDebounce = null;
+        input.addEventListener('input', (e) => {
+            const newValue = parseFloat(e.target.value);
+
+            // Обновляем отображаемое значение мгновенно
+            valueDisplay.textContent = newValue.toFixed(num.step >= 1 ? 0 : 2);
+
+            // Обновляем код с debounce
+            clearTimeout(sliderDebounce);
+            sliderDebounce = setTimeout(() => {
+                updateCodeWithSlider(index, newValue);
+            }, 50); // Короткий debounce для плавности
+        });
+
+        slider.appendChild(header);
+        slider.appendChild(input);
+        overlay.appendChild(slider);
+    });
+}
+
+// Обновление кода при изменении слайдера
+function updateCodeWithSlider(sliderIndex, newValue) {
+    // Блокируем конкурентные обновления
+    if (isUpdatingSlider) {
+        return;
+    }
+
+    isUpdatingSlider = true;
+
+    try {
+        const textarea = document.getElementById('codeEditor');
+        const num = codeSliders[sliderIndex];
+
+        if (!num) {
+            isUpdatingSlider = false;
+            return;
+        }
+
+        // Получаем СВЕЖИЙ код из textarea
+        const lines = textarea.value.split('\n');
+        const line = lines[num.line];
+
+        if (!line) {
+            console.warn('⚠️ Line not found');
+            isUpdatingSlider = false;
+            return;
+        }
+
+        // Формируем новое значение
+        const newValueStr = num.step >= 1 ? Math.round(newValue).toString() : newValue.toFixed(2);
+
+        // ВАЖНО: Находим ВСЕ вхождения паттерна на этой строке
+        const funcPattern = new RegExp(`(${num.context})\\s*\\(\\s*(-?\\d+\\.?\\d*)\\s*\\)`, 'gi');
+        const matches = [];
+        let match;
+
+        while ((match = funcPattern.exec(line)) !== null) {
+            matches.push({
+                index: match.index,
+                fullMatch: match[0],
+                funcName: match[1],
+                value: match[2]
+            });
+        }
+
+        // Находим матч, который соответствует нашему слайдеру по позиции
+        const targetMatch = matches.find(m => m.index === num.matchIndex);
+
+        if (!targetMatch) {
+            console.warn('⚠️ Slider update failed - specific match not found');
+            isUpdatingSlider = false;
+            return;
+        }
+
+        // Заменяем КОНКРЕТНОЕ вхождение по позиции
+        const before = line.substring(0, targetMatch.index);
+        const after = line.substring(targetMatch.index + targetMatch.fullMatch.length);
+        const newFunctionCall = `${targetMatch.funcName}(${newValueStr})`;
+        const newLine = before + newFunctionCall + after;
+
+        // Проверяем что замена произошла корректно
+        if (!newLine || newLine.trim() === '') {
+            console.warn('⚠️ Slider update failed - invalid replacement');
+            isUpdatingSlider = false;
+            return;
+        }
+
+        lines[num.line] = newLine;
+
+        // Обновляем textarea
+        const newCode = lines.join('\n');
+        textarea.value = newCode;
+
+        // Обновляем текущий луп если есть
+        if (currentLoopIndex >= 0 && loops[currentLoopIndex]) {
+            loops[currentLoopIndex].code = newCode;
+        }
+
+        // Триггерим live reload если играет
+        if (isPlaying && currentLoopIndex >= 0) {
+            clearTimeout(liveReloadTimeout);
+            liveReloadTimeout = setTimeout(() => {
+                liveReloadCode();
+            }, 150); // Увеличен debounce для стабильности
+        }
+
+        // Отменяем предыдущий таймаут рендеринга
+        clearTimeout(sliderUpdateTimeout);
+
+        // Перерендериваем слайдеры с новыми позициями (с debounce)
+        sliderUpdateTimeout = setTimeout(() => {
+            renderCodeSliders();
+            isUpdatingSlider = false;
+        }, 200); // Увеличен debounce для стабильности
+
+    } catch (error) {
+        console.error('❌ Slider update error:', error);
+        isUpdatingSlider = false;
+    }
+}
+
+// Обработчики для включения/выключения слайдеров
+function toggleCodeSliders() {
+    slidersEnabled = !slidersEnabled;
+    renderCodeSliders();
+    console.log(`🎚️ Code sliders ${slidersEnabled ? 'enabled' : 'disabled'}`);
+}
+
 // Горячие клавиши
 document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -1283,6 +1612,11 @@ document.addEventListener('keydown', (e) => {
             stopCode();
         }
     }
+    // Toggle sliders с Ctrl+Shift+S
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'S') {
+        e.preventDefault();
+        toggleCodeSliders();
+    }
 });
 
 // Инициализация при загрузке
@@ -1295,8 +1629,32 @@ window.addEventListener('DOMContentLoaded', () => {
     const codeEditor = document.getElementById('codeEditor');
     if (codeEditor) {
         codeEditor.addEventListener('input', checkEditorChanges);
+
+        // Рендерим слайдеры при вводе (с debounce)
+        let sliderRenderTimeout;
+        codeEditor.addEventListener('input', () => {
+            clearTimeout(sliderRenderTimeout);
+            sliderRenderTimeout = setTimeout(() => {
+                renderCodeSliders();
+            }, 300);
+        });
+
+        // Рендерим слайдеры при скролле
+        codeEditor.addEventListener('scroll', () => {
+            renderCodeSliders();
+        });
     }
 
+    // Рендерим слайдеры при ресайзе окна
+    window.addEventListener('resize', () => {
+        renderCodeSliders();
+    });
+
     console.log('🎵 DAYVIBE initialized');
-    console.log('⌨️  Hotkeys: Ctrl+Enter (Play) | Ctrl+. (Stop)');
+    console.log('⌨️  Hotkeys:');
+    console.log('   Ctrl+Enter - Play');
+    console.log('   Ctrl+. - Stop');
+    console.log('   Ctrl+Shift+S - Toggle Sliders Panel');
+    console.log('');
+    console.log('💡 Tip: Type loadExample() to load example code with sliders');
 });

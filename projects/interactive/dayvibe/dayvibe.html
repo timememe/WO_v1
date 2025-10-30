@@ -48,10 +48,10 @@
             text-shadow: 0 0 10px rgba(52, 152, 219, 0.6);
             margin-bottom: 10px;
             letter-spacing: 2px;
-            animation: pulse-glow 3s ease-in-out infinite;
+            animation: title-glow 3s ease-in-out infinite;
         }
 
-        @keyframes pulse-glow {
+        @keyframes title-glow {
             0%, 100% {
                 text-shadow: 0 0 10px rgba(52, 152, 219, 0.6);
             }
@@ -73,6 +73,7 @@
             border-radius: 8px;
             overflow: hidden;
             transition: all 0.3s ease;
+            position: relative;
         }
 
         /* AI Mode Colors */
@@ -871,6 +872,203 @@
             padding: 10px;
         }
 
+        /* Code Sliders Panel */
+        .code-sliders-panel {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            z-index: 10;
+            pointer-events: auto;
+        }
+
+        .sliders-toggle-btn {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            border: 2px solid rgba(52, 152, 219, 0.6);
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        .sliders-toggle-btn:hover {
+            background: linear-gradient(135deg, #5dade2 0%, #3498db 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(52, 152, 219, 0.4);
+        }
+
+        .sliders-toggle-btn:active {
+            transform: translateY(0);
+        }
+
+        .sliders-toggle-btn.has-sliders {
+            background: linear-gradient(135deg, #e67e22 0%, #d35400 100%);
+            border-color: rgba(230, 126, 34, 0.6);
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        .sliders-toggle-btn.has-sliders:hover {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% {
+                box-shadow: 0 4px 12px rgba(230, 126, 34, 0.5);
+            }
+            50% {
+                box-shadow: 0 4px 20px rgba(230, 126, 34, 0.8);
+            }
+        }
+
+        .code-sliders-overlay {
+            position: absolute;
+            bottom: 50px;
+            right: 0;
+            max-width: 200px;
+            max-height: 350px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            background: rgba(13, 17, 23, 0.95);
+            border: 2px solid rgba(52, 152, 219, 0.5);
+            border-radius: 6px;
+            padding: 8px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transform-origin: bottom right;
+            transition: all 0.3s ease;
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .code-sliders-overlay.collapsed {
+            opacity: 0;
+            transform: scale(0.8);
+            pointer-events: none;
+        }
+
+        .code-sliders-overlay:empty {
+            display: none;
+        }
+
+        .code-sliders-overlay::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .code-sliders-overlay::-webkit-scrollbar-track {
+            background: rgba(13, 17, 23, 0.5);
+            border-radius: 3px;
+        }
+
+        .code-sliders-overlay::-webkit-scrollbar-thumb {
+            background: rgba(52, 152, 219, 0.5);
+            border-radius: 3px;
+        }
+
+        .code-sliders-overlay::-webkit-scrollbar-thumb:hover {
+            background: rgba(52, 152, 219, 0.7);
+        }
+
+        .code-slider {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            background: rgba(22, 27, 34, 0.8);
+            border: 1px solid rgba(52, 152, 219, 0.3);
+            border-radius: 4px;
+            padding: 6px 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .code-slider:hover {
+            background: rgba(22, 27, 34, 1);
+            border-color: rgba(52, 152, 219, 0.6);
+            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2px;
+        }
+
+        .slider-label {
+            color: #3498db;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .slider-value {
+            color: #888;
+            font-size: 10px;
+            min-width: 40px;
+            text-align: right;
+        }
+
+        .slider-control {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .code-slider input[type="range"] {
+            flex: 1;
+            height: 4px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(52, 152, 219, 0.3);
+            outline: none;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+
+        .code-slider input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            background: #3498db;
+            cursor: pointer;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+        }
+
+        .code-slider input[type="range"]::-webkit-slider-thumb:hover {
+            background: #5dade2;
+            transform: scale(1.2);
+        }
+
+        .code-slider input[type="range"]::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            background: #3498db;
+            cursor: pointer;
+            border: none;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+        }
+
+        .code-slider input[type="range"]::-moz-range-thumb:hover {
+            background: #5dade2;
+            transform: scale(1.2);
+        }
+
         @media (max-width: 600px) {
             .container {
                 padding: 15px;
@@ -893,6 +1091,23 @@
                 min-width: 70px;
                 width: 70px;
                 height: 70px;
+            }
+
+            .code-sliders-panel {
+                bottom: 5px;
+                right: 5px;
+            }
+
+            .sliders-toggle-btn {
+                width: 36px;
+                height: 36px;
+                font-size: 16px;
+            }
+
+            .code-sliders-overlay {
+                max-width: 160px;
+                max-height: 250px;
+                bottom: 45px;
             }
         }
     </style>
@@ -957,8 +1172,16 @@
                 <span class="editor-title" id="editorTitle">Code Editor</span>
                 <span class="editor-lang">Strudel</span>
             </div>
-            <textarea id="codeEditor" placeholder="// Напиши свой Strudel-паттерн или загрузи пример...
+            <div style="position: relative;">
+                <textarea id="codeEditor" placeholder="// Напиши свой Strudel-паттерн...
 // Нажми Play чтобы запустить!"></textarea>
+                <div class="code-sliders-panel" id="codeSlidersPanel">
+                    <div class="sliders-toggle-btn" id="slidersToggleBtn" onclick="toggleSlidersPanel()" title="Toggle Sliders">
+                        🎚️
+                    </div>
+                    <div class="code-sliders-overlay collapsed" id="codeSlidersOverlay"></div>
+                </div>
+            </div>
             <div class="editor-status" id="editorStatus"></div>
             <div class="editor-footer">
                 <button class="btn btn-cancel btn-editor-action" id="cancelBtn" onclick="cancelAIMode()" style="display: none;">✖ Cancel</button>
