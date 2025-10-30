@@ -1212,11 +1212,6 @@ h1 {
         font-size: clamp(6px, 1.4vw, 8px);
     }
 
-    .ai-buttons .btn {
-        min-width: 100%;
-        flex: 1 1 100%;
-    }
-
     .sliders-toggle-btn {
         min-width: 80px;
         padding: 8px 10px;
