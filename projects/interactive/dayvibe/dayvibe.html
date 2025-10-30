@@ -79,17 +79,22 @@
 // Make transition делает переход между выбранными лупами
 // Edit loop корректирует выбранный луп
 // Крути слайдеры чтобы менять луп вручную!"></textarea>
+
+            <!-- Sliders Grid View -->
+            <div class="sliders-grid-view" id="slidersGridView" style="display: none;">
+                <div class="sliders-grid-content" id="slidersGridContent">
+                    <!-- Слайдеры будут созданы динамически -->
+                </div>
+            </div>
+
             <div class="editor-status" id="editorStatus"></div>
             <div class="editor-footer">
-                <button class="btn btn-cancel btn-editor-action" id="cancelBtn" onclick="cancelAIMode()" style="display: none;">✖ Cancel</button>
+                <button class="btn btn-cancel btn-editor-action" id="cancelBtn" onclick="cancelAIMode()" style="display: none;">✖ Close</button>
                 <button class="btn btn-generate btn-editor-action" id="generateBtn" onclick="executeAIGeneration()" style="display: none;">Generate</button>
-                <button class="btn btn-add-loop btn-editor-action" id="addToLoopsBtn" onclick="addGeneratedLoop()" style="display: none;">+ Add to Loops</button>
+                <button class="btn btn-add-loop btn-editor-action" id="addToLoopsBtn" onclick="addGeneratedLoop()" style="display: none;">Add to Loops</button>
                 <button class="btn btn-update btn-editor-action" id="updateBtn" onclick="updateCurrentLoop()" style="display: none;" title="Update Loop">🔄 Update Loop</button>
                 <button class="btn btn-edit btn-editor-action" id="editBtn" onclick="openEditMode()">✏️ Edit loop</button>
-                <div class="sliders-panel-wrapper">
-                    <button class="sliders-toggle-btn" id="slidersToggleBtn" onclick="toggleSlidersPanel()" title="Toggle Sliders">🎚️</button>
-                    <div class="code-sliders-overlay collapsed" id="codeSlidersOverlay"></div>
-                </div>
+                <button class="btn btn-sliders btn-editor-action" id="slidersBtn" onclick="openSlidersMode()" style="display: none;">🎚️ Sliders</button>
             </div>
         </div>
         </div> <!-- /container -->

@@ -399,8 +399,8 @@ async function switchToLoop(index) {
 
         updateLoopsGrid();
 
-        // Обновляем слайдеры для нового кода
-        renderCodeSliders();
+        // Обновляем видимость кнопки слайдеров для нового кода
+        updateSlidersButtonVisibility();
 
         if (isPlaying) {
             await playCode();
@@ -672,20 +672,24 @@ function setEditorMode(mode, title, placeholder) {
     const container = document.getElementById('editorContainer');
     const editorTitle = document.getElementById('editorTitle');
     const codeEditor = document.getElementById('codeEditor');
+    const slidersGridView = document.getElementById('slidersGridView');
     const editorStatus = document.getElementById('editorStatus');
     const generateBtn = document.getElementById('generateBtn');
     const cancelBtn = document.getElementById('cancelBtn');
     const editBtn = document.getElementById('editBtn');
     const addToLoopsBtn = document.getElementById('addToLoopsBtn');
     const updateBtn = document.getElementById('updateBtn');
+    const slidersBtn = document.getElementById('slidersBtn');
 
     currentAIMode = mode;
     container.setAttribute('data-mode', mode);
     editorTitle.textContent = title;
-    codeEditor.placeholder = placeholder;
+    if (placeholder) codeEditor.placeholder = placeholder;
 
     if (mode === 'normal') {
         // Обычный режим
+        codeEditor.style.display = 'block';
+        slidersGridView.style.display = 'none';
         generateBtn.style.display = 'none';
         cancelBtn.style.display = 'none';
         editBtn.style.display = 'inline-block';
@@ -693,17 +697,29 @@ function setEditorMode(mode, title, placeholder) {
         editorStatus.classList.remove('active');
         // Update Loop кнопка контролируется checkEditorChanges()
         checkEditorChanges();
-        // Включаем слайдеры
-        renderCodeSliders();
+        // Управляем видимостью кнопки слайдеров
+        updateSlidersButtonVisibility();
+    } else if (mode === 'sliders') {
+        // Режим слайдеров
+        codeEditor.style.display = 'none';
+        slidersGridView.style.display = 'block';
+        generateBtn.style.display = 'none';
+        cancelBtn.style.display = 'inline-block';
+        editBtn.style.display = 'none';
+        addToLoopsBtn.style.display = 'none';
+        updateBtn.style.display = 'none';
+        slidersBtn.style.display = 'none';
+        editorStatus.classList.remove('active');
     } else {
         // AI режим
+        codeEditor.style.display = 'block';
+        slidersGridView.style.display = 'none';
         generateBtn.style.display = 'inline-block';
         cancelBtn.style.display = 'inline-block';
         editBtn.style.display = 'none';
         addToLoopsBtn.style.display = 'none';
         updateBtn.style.display = 'none'; // Скрываем в AI режиме
-        // Скрываем слайдеры в AI режиме
-        renderCodeSliders();
+        slidersBtn.style.display = 'none'; // Скрываем в AI режиме
     }
 }
 
@@ -801,7 +817,13 @@ function openTransitionMode() {
 
 function cancelAIMode() {
     const codeEditor = document.getElementById('codeEditor');
-    codeEditor.value = savedCode;
+
+    // Если выходим из режима слайдеров - не восстанавливаем savedCode
+    // т.к. код уже обновлен через слайдеры
+    if (currentAIMode !== 'sliders') {
+        codeEditor.value = savedCode;
+    }
+
     codeEditor.readOnly = false;
     setEditorMode('normal', 'Code Editor', '// Напиши свой Strudel-паттерн или загрузи пример...\n// Нажми Play чтобы запустить!');
     savedCode = '';
@@ -841,17 +863,22 @@ function addGeneratedLoop() {
         name: `AI Loop ${loops.length + 1}`
     });
 
+    const newLoopIndex = loops.length - 1;
+
     updateLoopsGrid();
 
     // Переходим в обычный режим, сохраняя код
     savedCode = code;
     cancelAIMode();
 
+    // Переключаемся на только что добавленный луп
+    switchToLoop(newLoopIndex);
+
     // Обновляем отслеживание изменений
     saveOriginalCode();
     checkEditorChanges();
 
-    console.log(`✅ Добавлен AI луп ${loops.length}`);
+    console.log(`✅ Добавлен AI луп ${loops.length}, переключились на него`);
 }
 
 // === Update Current Loop ===
@@ -1545,113 +1572,249 @@ function parseNumbersFromCode(code) {
 }
 
 // Переключение панели слайдеров
-function toggleSlidersPanel() {
-    slidersPanelExpanded = !slidersPanelExpanded;
-    const overlay = document.getElementById('codeSlidersOverlay');
-    const toggleBtn = document.getElementById('slidersToggleBtn');
-
-    if (slidersPanelExpanded) {
-        overlay.classList.remove('collapsed');
-        toggleBtn.textContent = '×';
-    } else {
-        overlay.classList.add('collapsed');
-        toggleBtn.textContent = '🎚️';
-    }
-
-    console.log(`🎚️ Sliders panel ${slidersPanelExpanded ? 'expanded' : 'collapsed'}`);
+// Открытие режима слайдеров
+function openSlidersMode() {
+    savedCode = document.getElementById('codeEditor').value;
+    setEditorMode('sliders', '🎚️ Sliders', '');
+    renderSlidersGrid();
+    console.log('🎚️ Sliders mode opened');
 }
 
-// Рендеринг слайдеров
-function renderCodeSliders() {
-    // Не рендерим во время обновления
-    if (isUpdatingSlider) {
-        return;
-    }
-
-    const toggleBtn = document.getElementById('slidersToggleBtn');
-    const wrapper = document.querySelector('.sliders-panel-wrapper');
-    const overlay = document.getElementById('codeSlidersOverlay');
-
-    if (!slidersEnabled || currentAIMode !== 'normal') {
-        // Скрываем wrapper в AI режиме
-        if (wrapper) wrapper.style.display = 'none';
-        return;
-    }
-
+// Рендеринг сетки слайдеров (режим слайдеров)
+function renderSlidersGrid() {
+    const slidersGridContent = document.getElementById('slidersGridContent');
     const textarea = document.getElementById('codeEditor');
     const code = textarea.value;
 
     if (!code.trim()) {
-        overlay.innerHTML = '';
-        if (wrapper) wrapper.style.display = 'none';
+        slidersGridContent.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">Нет кода для анализа</div>';
+        codeSliders = [];
         return;
     }
 
-    // Парсим числа
+    // Парсим числа и обновляем глобальный массив
     codeSliders = parseNumbersFromCode(code);
 
-    // Очищаем overlay
-    overlay.innerHTML = '';
-
-    // Если нет слайдеров, скрываем wrapper
     if (codeSliders.length === 0) {
-        if (wrapper) wrapper.style.display = 'none';
-        if (toggleBtn) toggleBtn.classList.remove('has-sliders');
+        slidersGridContent.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">В коде не найдено параметров для слайдеров</div>';
         return;
     }
 
-    // Показываем wrapper и обновляем класс кнопки
-    if (wrapper) wrapper.style.display = 'inline-block';
-    if (toggleBtn) toggleBtn.classList.add('has-sliders');
-
-    // Создаем слайдеры в вертикальном списке
+    // Группируем слайдеры по строкам
+    const lineGroups = {};
     codeSliders.forEach((num, index) => {
-        const slider = document.createElement('div');
-        slider.className = 'code-slider';
-        slider.dataset.index = index;
+        if (!lineGroups[num.line]) {
+            lineGroups[num.line] = {
+                lineNumber: num.line,
+                lineText: num.lineText,
+                sliders: []
+            };
+        }
+        lineGroups[num.line].sliders.push({ ...num, originalIndex: index });
+    });
 
-        // Header с названием и значением
-        const header = document.createElement('div');
-        header.className = 'slider-header';
+    // Очищаем и создаем HTML
+    slidersGridContent.innerHTML = '';
 
-        const label = document.createElement('span');
-        label.className = 'slider-label';
-        label.textContent = num.context;
+    // Сортируем по номеру строки
+    const sortedLines = Object.values(lineGroups).sort((a, b) => a.lineNumber - b.lineNumber);
 
-        const valueDisplay = document.createElement('span');
-        valueDisplay.className = 'slider-value';
-        valueDisplay.textContent = num.value.toFixed(num.step >= 1 ? 0 : 2);
+    sortedLines.forEach(group => {
+        // Создаем группу для строки
+        const lineGroup = document.createElement('div');
+        lineGroup.className = 'slider-line-group';
 
-        header.appendChild(label);
-        header.appendChild(valueDisplay);
+        // Заголовок только с кодом строки
+        const lineHeader = document.createElement('div');
+        lineHeader.className = 'slider-line-header';
+        lineHeader.textContent = group.lineText.trim();
+        lineGroup.appendChild(lineHeader);
 
-        // Range input
-        const input = document.createElement('input');
-        input.type = 'range';
-        input.min = num.min;
-        input.max = num.max;
-        input.step = num.step;
-        input.value = num.value;
+        // Контейнер для слайдеров
+        const slidersContainer = document.createElement('div');
+        slidersContainer.className = 'slider-line-sliders';
 
-        // Обработчик изменения с debounce для каждого слайдера
-        let sliderDebounce = null;
-        input.addEventListener('input', (e) => {
-            const newValue = parseFloat(e.target.value);
+        group.sliders.forEach(num => {
+            const sliderBox = document.createElement('div');
+            sliderBox.className = 'slider-box';
 
-            // Обновляем отображаемое значение мгновенно
-            valueDisplay.textContent = newValue.toFixed(num.step >= 1 ? 0 : 2);
+            // Header слайдера с label и value на одной строке
+            const sliderHeader = document.createElement('div');
+            sliderHeader.className = 'slider-box-header';
 
-            // Обновляем код с debounce
-            clearTimeout(sliderDebounce);
-            sliderDebounce = setTimeout(() => {
-                updateCodeWithSlider(index, newValue);
-            }, 50); // Короткий debounce для плавности
+            const label = document.createElement('span');
+            label.className = 'slider-box-label';
+            label.textContent = num.context;
+
+            const valueDisplay = document.createElement('span');
+            valueDisplay.className = 'slider-box-value';
+            valueDisplay.textContent = num.value.toFixed(num.step >= 1 ? 0 : 2);
+
+            sliderHeader.appendChild(label);
+            sliderHeader.appendChild(valueDisplay);
+
+            const input = document.createElement('input');
+            input.type = 'range';
+            input.className = 'slider-box-input';
+            input.min = num.min;
+            input.max = num.max;
+            input.step = num.step;
+            input.value = num.value;
+
+            // Обработчик изменения
+            let sliderDebounce = null;
+            input.addEventListener('input', (e) => {
+                const newValue = parseFloat(e.target.value);
+
+                // Обновляем отображаемое значение мгновенно
+                valueDisplay.textContent = newValue.toFixed(num.step >= 1 ? 0 : 2);
+
+                // Обновляем код с debounce
+                clearTimeout(sliderDebounce);
+                sliderDebounce = setTimeout(() => {
+                    updateCodeWithSliderInGrid(num.originalIndex, newValue);
+                }, 50);
+            });
+
+            sliderBox.appendChild(sliderHeader);
+            sliderBox.appendChild(input);
+            slidersContainer.appendChild(sliderBox);
         });
 
-        slider.appendChild(header);
-        slider.appendChild(input);
-        overlay.appendChild(slider);
+        lineGroup.appendChild(slidersContainer);
+        slidersGridContent.appendChild(lineGroup);
     });
+}
+
+// Обновление кода из слайдера в режиме сетки
+function updateCodeWithSliderInGrid(sliderIndex, newValue) {
+    // Блокируем конкурентные обновления
+    if (isUpdatingSlider) {
+        return;
+    }
+
+    isUpdatingSlider = true;
+
+    try {
+        const textarea = document.getElementById('codeEditor');
+        const num = codeSliders[sliderIndex];
+
+        if (!num) {
+            isUpdatingSlider = false;
+            return;
+        }
+
+        // Получаем СВЕЖИЙ код из textarea
+        const lines = textarea.value.split('\n');
+        const line = lines[num.line];
+
+        if (!line) {
+            console.warn('⚠️ Line not found');
+            isUpdatingSlider = false;
+            return;
+        }
+
+        // Формируем новое значение
+        const newValueStr = num.step >= 1 ? Math.round(newValue).toString() : newValue.toFixed(2);
+
+        // Находим ВСЕ вхождения паттерна на этой строке
+        const funcPattern = new RegExp(`(${num.context})\\s*\\(\\s*(-?\\d+\\.?\\d*)\\s*\\)`, 'gi');
+        const matches = [];
+        let match;
+
+        while ((match = funcPattern.exec(line)) !== null) {
+            matches.push({
+                index: match.index,
+                fullMatch: match[0],
+                funcName: match[1],
+                value: match[2]
+            });
+        }
+
+        // Находим матч, который соответствует нашему слайдеру по позиции
+        const targetMatch = matches.find(m => m.index === num.matchIndex);
+
+        if (!targetMatch) {
+            console.warn('⚠️ Slider update failed - specific match not found');
+            isUpdatingSlider = false;
+            return;
+        }
+
+        // Заменяем КОНКРЕТНОЕ вхождение по позиции
+        const before = line.substring(0, targetMatch.index);
+        const after = line.substring(targetMatch.index + targetMatch.fullMatch.length);
+        const newFunctionCall = `${targetMatch.funcName}(${newValueStr})`;
+        const newLine = before + newFunctionCall + after;
+
+        // Проверяем что замена произошла корректно
+        if (!newLine || newLine.trim() === '') {
+            console.warn('⚠️ Slider update failed - invalid replacement');
+            isUpdatingSlider = false;
+            return;
+        }
+
+        lines[num.line] = newLine;
+
+        // Обновляем textarea
+        const newCode = lines.join('\n');
+        textarea.value = newCode;
+
+        // Обновляем текущий луп если есть
+        if (currentLoopIndex >= 0 && loops[currentLoopIndex]) {
+            loops[currentLoopIndex].code = newCode;
+        }
+
+        // Триггерим live reload если играет
+        if (isPlaying && currentLoopIndex >= 0) {
+            clearTimeout(liveReloadTimeout);
+            liveReloadTimeout = setTimeout(() => {
+                liveReloadCode();
+            }, 150);
+        }
+
+        // Перерендериваем сетку через debounce
+        clearTimeout(sliderUpdateTimeout);
+        sliderUpdateTimeout = setTimeout(() => {
+            if (currentAIMode === 'sliders') {
+                renderSlidersGrid();
+            }
+            isUpdatingSlider = false;
+        }, 200);
+
+    } catch (error) {
+        console.error('❌ Slider update error:', error);
+        isUpdatingSlider = false;
+    }
+}
+
+// Обновление видимости кнопки слайдеров
+function updateSlidersButtonVisibility() {
+    const slidersBtn = document.getElementById('slidersBtn');
+    const textarea = document.getElementById('codeEditor');
+    const code = textarea.value;
+
+    if (!slidersBtn) return;
+
+    // Показываем кнопку только если:
+    // 1. В коде есть параметры для слайдеров
+    // 2. Мы в режиме normal
+    // 3. Есть выбранный луп
+    if (currentAIMode === 'normal' && currentLoopIndex >= 0) {
+        const numbers = parseNumbersFromCode(code);
+        if (numbers.length > 0) {
+            slidersBtn.style.display = 'inline-block';
+        } else {
+            slidersBtn.style.display = 'none';
+        }
+    } else {
+        slidersBtn.style.display = 'none';
+    }
+}
+
+// Обновление видимости кнопки слайдеров (вызывается при изменениях кода)
+function renderCodeSliders() {
+    // Просто обновляем видимость кнопки
+    updateSlidersButtonVisibility();
 }
 
 // Обновление кода при изменении слайдера
