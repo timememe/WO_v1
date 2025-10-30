@@ -980,15 +980,15 @@ async function editLoop() {
     const generateBtn = document.getElementById('generateBtn');
     const addToLoopsBtn = document.getElementById('addToLoopsBtn');
 
-    const prompt = codeEditor.value.trim();
+    const userPrompt = codeEditor.value.trim();
 
-    if (!prompt) {
+    if (!userPrompt) {
         statusDiv.textContent = 'Опиши что нужно изменить';
         statusDiv.className = 'editor-status active error';
         return;
     }
 
-    if (prompt.length > 300) {
+    if (userPrompt.length > 300) {
         statusDiv.textContent = 'Промпт слишком длинный (максимум 300 символов)';
         statusDiv.className = 'editor-status active error';
         return;
@@ -996,9 +996,23 @@ async function editLoop() {
 
     const currentLoop = savedCode; // savedCode содержит оригинальный код
 
+    // Анализируем музыкальный контекст текущего лупа
+    const musicContext = analyzeMusicalContext(currentLoop);
+    const contextualPrompt = buildContextualPrompt(userPrompt, musicContext);
+
+    console.log('🎵 Musical context for edit:', musicContext);
+    console.log('📝 Enhanced edit prompt:', contextualPrompt);
+
+    // Показываем контекст в статусе
+    let contextHint = '';
+    if (musicContext) {
+        if (musicContext.bpm) contextHint += ` BPM:${musicContext.bpm}`;
+        if (musicContext.complexity) contextHint += ` [${musicContext.complexity}]`;
+    }
+
     try {
         generateBtn.disabled = true;
-        statusDiv.textContent = 'Редактирование лупа...';
+        statusDiv.textContent = `Редактирование лупа...${contextHint}`;
         statusDiv.className = 'editor-status active loading';
 
         const response = await fetch('https://wo-server-v1.onrender.com/api/edit-strudel-loop', {
@@ -1007,7 +1021,7 @@ async function editLoop() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                prompt,
+                prompt: contextualPrompt,
                 currentLoop
             })
         });
@@ -1151,13 +1165,45 @@ async function generateTransition() {
     const fromLoop = loops[fromIndex];
     const toLoop = loops[toIndex];
 
+    // Анализируем контекст обоих лупов
+    const fromContext = analyzeMusicalContext(fromLoop.code);
+    const toContext = analyzeMusicalContext(toLoop.code);
+
+    // Создаем специальный контекст для перехода
+    let transitionInfo = [];
+
+    if (fromContext && toContext) {
+        if (fromContext.bpm && toContext.bpm) {
+            transitionInfo.push(`BPM: ${fromContext.bpm} → ${toContext.bpm}`);
+        }
+        if (fromContext.tempo !== toContext.tempo) {
+            transitionInfo.push(`Tempo: ${fromContext.tempo} → ${toContext.tempo}`);
+        }
+        if (fromContext.samples.length > 0 && toContext.samples.length > 0) {
+            transitionInfo.push(`Samples: ${fromContext.samples.slice(0, 3).join(', ')} → ${toContext.samples.slice(0, 3).join(', ')}`);
+        }
+        transitionInfo.push(`Style: ${fromContext.complexity} → ${toContext.complexity}`);
+    }
+
+    const transitionContext = transitionInfo.length > 0 ? transitionInfo.join(' | ') : '';
+
+    console.log('🎵 Transition analysis:', { fromContext, toContext, transitionContext });
+
+    // Показываем контекст перехода в статусе
+    let contextHint = '';
+    if (fromContext && toContext) {
+        if (fromContext.bpm && toContext.bpm) {
+            contextHint = ` ${fromContext.bpm}→${toContext.bpm} BPM`;
+        }
+    }
+
     try {
         // UI: начало генерации
         generateBtn.disabled = true;
-        statusDiv.textContent = 'Генерация перехода...';
+        statusDiv.textContent = `Генерация перехода...${contextHint}`;
         statusDiv.className = 'editor-status active loading';
 
-        // Отправка запроса
+        // Отправка запроса с контекстом
         const response = await fetch(TRANSITION_API_URL, {
             method: 'POST',
             headers: {
@@ -1165,7 +1211,8 @@ async function generateTransition() {
             },
             body: JSON.stringify({
                 fromLoop: fromLoop.code,
-                toLoop: toLoop.code
+                toLoop: toLoop.code,
+                context: transitionContext // Добавляем контекст перехода
             })
         });
 
@@ -1208,6 +1255,109 @@ async function generateTransition() {
     }
 }
 
+// === Musical Context Analysis ===
+
+// Анализ музыкального контекста из кода
+function analyzeMusicalContext(code) {
+    if (!code || !code.trim()) {
+        return null;
+    }
+
+    const context = {
+        bpm: null,
+        tempo: 'normal',
+        samples: [],
+        structure: null,
+        complexity: 'medium',
+        effects: []
+    };
+
+    // Извлекаем BPM/tempo модификаторы
+    const speedMatch = code.match(/\.speed\s*\(\s*([\d.]+)\s*\)/);
+    if (speedMatch) {
+        const speed = parseFloat(speedMatch[1]);
+        context.bpm = Math.round(120 * speed); // Базовый BPM = 120
+        if (speed < 0.8) context.tempo = 'slow';
+        else if (speed > 1.2) context.tempo = 'fast';
+    }
+
+    const fastMatch = code.match(/\.fast\s*\(\s*([\d.]+)\s*\)/);
+    if (fastMatch) {
+        context.tempo = 'fast';
+        context.bpm = Math.round(120 * parseFloat(fastMatch[1]));
+    }
+
+    const slowMatch = code.match(/\.slow\s*\(\s*([\d.]+)\s*\)/);
+    if (slowMatch) {
+        context.tempo = 'slow';
+        context.bpm = Math.round(120 / parseFloat(slowMatch[1]));
+    }
+
+    // Извлекаем используемые сэмплы
+    const sampleMatches = code.matchAll(/s\s*\(\s*["']([^"']+)["']\s*\)/g);
+    for (const match of sampleMatches) {
+        const samples = match[1].split(/[\s,]+/).filter(s => s.length > 0);
+        context.samples.push(...samples);
+    }
+    context.samples = [...new Set(context.samples)]; // Уникальные
+
+    // Определяем сложность по количеству эффектов/методов
+    const methodCount = (code.match(/\.\w+\(/g) || []).length;
+    if (methodCount < 3) context.complexity = 'simple';
+    else if (methodCount > 6) context.complexity = 'complex';
+
+    // Извлекаем эффекты
+    if (code.includes('.room(')) context.effects.push('reverb');
+    if (code.includes('.delay(')) context.effects.push('delay');
+    if (code.includes('.lpf(') || code.includes('.hpf(')) context.effects.push('filter');
+    if (code.includes('.gain(') || code.includes('.volume(')) context.effects.push('dynamics');
+
+    // Определяем структуру паттерна (euclidean, mini-notation)
+    if (code.includes('euclid')) context.structure = 'euclidean';
+    else if (code.match(/["'][^"']*\*\d+[^"']*["']/)) context.structure = 'rhythmic';
+    else context.structure = 'basic';
+
+    return context;
+}
+
+// Создание контекстного промпта для AI
+function buildContextualPrompt(userPrompt, musicContext) {
+    if (!musicContext) {
+        return userPrompt;
+    }
+
+    let contextInfo = [];
+
+    // BPM/Tempo
+    if (musicContext.bpm) {
+        contextInfo.push(`BPM: ${musicContext.bpm}`);
+    } else if (musicContext.tempo !== 'normal') {
+        contextInfo.push(`Tempo: ${musicContext.tempo}`);
+    }
+
+    // Samples
+    if (musicContext.samples.length > 0) {
+        contextInfo.push(`Using samples: ${musicContext.samples.slice(0, 5).join(', ')}`);
+    }
+
+    // Complexity
+    contextInfo.push(`Complexity: ${musicContext.complexity}`);
+
+    // Structure
+    if (musicContext.structure) {
+        contextInfo.push(`Structure: ${musicContext.structure}`);
+    }
+
+    // Effects
+    if (musicContext.effects.length > 0) {
+        contextInfo.push(`Effects: ${musicContext.effects.join(', ')}`);
+    }
+
+    // Формируем финальный промпт
+    const contextString = contextInfo.join(' | ');
+    return `[Context: ${contextString}]\n\nUser request: ${userPrompt}`;
+}
+
 // Continue Loop Generation functions
 const CONTINUE_API_URL = 'https://wo-server-v1.onrender.com/api/generate-strudel-continuation';
 
@@ -1216,9 +1366,9 @@ async function generateContinuation() {
     const statusDiv = document.getElementById('editorStatus');
     const generateBtn = document.getElementById('generateBtn');
     const addToLoopsBtn = document.getElementById('addToLoopsBtn');
-    const prompt = codeEditor.value.trim();
+    const userPrompt = codeEditor.value.trim();
 
-    if (!prompt) {
+    if (!userPrompt) {
         statusDiv.textContent = 'Пожалуйста, опиши как развить луп';
         statusDiv.className = 'editor-status active error';
         return;
@@ -1227,20 +1377,34 @@ async function generateContinuation() {
     // Берем текущий луп как базу для продолжения (из savedCode)
     const previousLoop = savedCode;
 
+    // Анализируем музыкальный контекст
+    const musicContext = analyzeMusicalContext(previousLoop);
+    const contextualPrompt = buildContextualPrompt(userPrompt, musicContext);
+
+    console.log('🎵 Musical context:', musicContext);
+    console.log('📝 Enhanced prompt:', contextualPrompt);
+
+    // Показываем найденный контекст пользователю
+    let contextHint = '';
+    if (musicContext) {
+        if (musicContext.bpm) contextHint += ` BPM:${musicContext.bpm}`;
+        if (musicContext.samples.length > 0) contextHint += ` [${musicContext.samples.slice(0, 2).join(', ')}]`;
+    }
+
     try {
         // UI: начало генерации
         generateBtn.disabled = true;
-        statusDiv.textContent = 'Генерация продолжения...';
+        statusDiv.textContent = `Генерация продолжения...${contextHint}`;
         statusDiv.className = 'editor-status active loading';
 
-        // Отправка запроса
+        // Отправка запроса с контекстным промптом
         const response = await fetch(CONTINUE_API_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                prompt: prompt,
+                prompt: contextualPrompt,
                 previousLoop: previousLoop
             })
         });
@@ -1655,6 +1819,11 @@ window.addEventListener('DOMContentLoaded', () => {
     console.log('   Ctrl+Enter - Play');
     console.log('   Ctrl+. - Stop');
     console.log('   Ctrl+Shift+S - Toggle Sliders Panel');
+    console.log('');
+    console.log('🎯 Smart AI Features:');
+    console.log('   ✓ Auto-detects BPM, tempo, samples from your loops');
+    console.log('   ✓ Preserves musical context in Continue/Edit/Transition modes');
+    console.log('   ✓ Check console for context analysis during generation');
     console.log('');
     console.log('💡 Tip: Type loadExample() to load example code with sliders');
 });
