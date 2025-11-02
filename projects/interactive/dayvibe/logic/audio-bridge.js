@@ -127,18 +127,45 @@ class StrudelBridge {
     }
 }
 
-// Create singleton instances
-export const sequencerBridge = new StrudelBridge('sequencerFrame', 'Sequencer');
-export const loopsBridge = new StrudelBridge('loopsFrame', 'Loops');
+// Singleton instances (created lazily)
+let sequencerBridge = null;
+let loopsBridge = null;
+
+// Get or create sequencer bridge
+export function getSequencerBridge() {
+    if (!sequencerBridge) {
+        sequencerBridge = new StrudelBridge('sequencerFrame', 'Sequencer');
+    }
+    return sequencerBridge;
+}
+
+// Get or create loops bridge
+export function getLoopsBridge() {
+    if (!loopsBridge) {
+        loopsBridge = new StrudelBridge('loopsFrame', 'Loops');
+    }
+    return loopsBridge;
+}
+
+// Export bridges for convenience (will be null until first access)
+export { sequencerBridge, loopsBridge };
 
 // Initialize both bridges
 export async function initAudioBridges() {
     console.log('🎵 Initializing audio bridges...');
 
     try {
+        // Create bridges NOW (when DOM is ready)
+        const seqBridge = getSequencerBridge();
+        const loopBridge = getLoopsBridge();
+
+        // Update exports
+        sequencerBridge = seqBridge;
+        loopsBridge = loopBridge;
+
         await Promise.all([
-            sequencerBridge.init(),
-            loopsBridge.init()
+            seqBridge.init(),
+            loopBridge.init()
         ]);
 
         console.log('✅ Both audio bridges ready');

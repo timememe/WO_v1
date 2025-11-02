@@ -2,7 +2,7 @@
 // ===================================
 // Manages audio output device selection for dual Strudel instances
 
-import { sequencerBridge, loopsBridge } from './audio-bridge.js';
+import { getSequencerBridge, getLoopsBridge } from './audio-bridge.js';
 
 // Populate audio output selectors with available devices
 export async function populateAudioOutputs() {
@@ -11,8 +11,8 @@ export async function populateAudioOutputs() {
 
         // Get available outputs from both bridges
         const [sequencerOutputs, loopsOutputs] = await Promise.all([
-            sequencerBridge.getAudioOutputs(),
-            loopsBridge.getAudioOutputs()
+            getSequencerBridge().getAudioOutputs(),
+            getLoopsBridge().getAudioOutputs()
         ]);
 
         console.log('Sequencer outputs:', sequencerOutputs);
@@ -53,7 +53,7 @@ export async function populateAudioOutputs() {
 export async function changeSequencerOutput(deviceId) {
     try {
         console.log(`🔊 Changing Sequencer output to: ${deviceId || 'Default'}`);
-        await sequencerBridge.setAudioOutput(deviceId);
+        await getSequencerBridge().setAudioOutput(deviceId);
         console.log('✅ Sequencer output changed');
     } catch (error) {
         console.error('❌ Failed to change Sequencer output:', error);
@@ -65,7 +65,7 @@ export async function changeSequencerOutput(deviceId) {
 export async function changeLoopsOutput(deviceId) {
     try {
         console.log(`🔊 Changing Loops output to: ${deviceId || 'Default'}`);
-        await loopsBridge.setAudioOutput(deviceId);
+        await getLoopsBridge().setAudioOutput(deviceId);
         console.log('✅ Loops output changed');
     } catch (error) {
         console.error('❌ Failed to change Loops output:', error);

@@ -11,7 +11,7 @@ import {
     createVisualizer, updateStatus, playCode, stopCode, loadExample,
     openSlidersMode, updateSlidersButtonVisibility, setupHotkeys, setupEditorListeners
 } from './logic/ui.js';
-import { initAudioBridges, sequencerBridge, loopsBridge } from './logic/audio-bridge.js';
+import { initAudioBridges, getSequencerBridge, getLoopsBridge } from './logic/audio-bridge.js';
 import { populateAudioOutputs, changeSequencerOutput, changeLoopsOutput } from './logic/audio-outputs.js';
 
 // ============== GLOBAL EXPORTS FOR HTML ==============
@@ -36,9 +36,9 @@ window.loadExample = loadExample;
 window.changeSequencerOutput = changeSequencerOutput;
 window.changeLoopsOutput = changeLoopsOutput;
 
-// Export bridges for testing
-window.sequencerBridge = sequencerBridge;
-window.loopsBridge = loopsBridge;
+// Export bridge getters for testing
+window.getSequencerBridge = getSequencerBridge;
+window.getLoopsBridge = getLoopsBridge;
 
 // Test function for dual audio
 window.testDualAudio = async () => {
@@ -47,10 +47,10 @@ window.testDualAudio = async () => {
     try {
         // Play different patterns in each instance
         console.log('Playing bd on Sequencer (Master)...');
-        await sequencerBridge.evaluate('sound("bd hh sd hh")');
+        await getSequencerBridge().evaluate('sound("bd hh sd hh")');
 
         console.log('Playing cp on Loops (Cue)...');
-        await loopsBridge.evaluate('sound("cp cp")');
+        await getLoopsBridge().evaluate('sound("cp cp")');
 
         console.log('✅ Both instances playing! Check your audio outputs.');
         console.log('💡 To stop: testDualAudioStop()');
@@ -65,8 +65,8 @@ window.testDualAudio = async () => {
 window.testDualAudioStop = async () => {
     console.log('⏹️ Stopping both instances...');
     await Promise.all([
-        sequencerBridge.stop(),
-        loopsBridge.stop()
+        getSequencerBridge().stop(),
+        getLoopsBridge().stop()
     ]);
     console.log('✅ Both stopped');
 };
