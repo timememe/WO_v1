@@ -477,12 +477,55 @@ h1 {
     padding: 8px 10px;
 }
 
+/* Sequencer Grid (визуально отличается) */
+.sequencer-container {
+    background-color: rgba(30, 20, 40, 0.92);
+    border: 2px solid #6b46c1;
+    box-shadow: 0 0 10px rgba(107, 70, 193, 0.3);
+}
+
+.sequencer-container .loops-header {
+    color: #a78bfa;
+}
+
 .loops-header {
     font-size: clamp(7px, 1.6vw, 8px);
     color: #888;
     margin-bottom: 6px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.audio-output-select {
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #888;
+    padding: 3px 6px;
+    border-radius: 3px;
+    font-size: clamp(6px, 1.4vw, 7px);
+    font-family: 'Press Start 2P', monospace;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.audio-output-select:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #aaa;
+}
+
+.audio-output-select:focus {
+    border-color: #00ff00;
+    box-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+}
+
+.sequencer-container .audio-output-select:focus {
+    border-color: #a78bfa;
+    box-shadow: 0 0 5px rgba(167, 139, 250, 0.3);
 }
 
 .loops-grid {

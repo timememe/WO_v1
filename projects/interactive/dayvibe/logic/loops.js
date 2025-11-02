@@ -36,6 +36,32 @@ export function updateLoopsGrid() {
     updateAIButtonsState();
 }
 
+// Sequencer Grid (пока просто клон, позже будет независимым)
+export function updateSequencerGrid() {
+    const grid = document.getElementById('sequencerGrid');
+    if (!grid) return;
+
+    grid.innerHTML = '';
+
+    // Пока рендерим те же loops что и в основном гриде
+    for (let i = 0; i < MAX_LOOPS; i++) {
+        const tile = LoopTile({
+            index: i,
+            loop: loops[i] || null,
+            isActive: false, // Sequencer не активен пока
+            isPlaying: false,
+            onSelect: (index) => console.log('Sequencer tile clicked:', index),
+            onDelete: (index) => console.log('Sequencer delete:', index),
+            onMoveUp: null, // Пока без перемещения
+            onMoveDown: null,
+            canMoveUp: false,
+            canMoveDown: false,
+        });
+
+        grid.appendChild(tile);
+    }
+}
+
 export function updateAIButtonsState() {
     const transitionBtn = document.getElementById('transitionBtn');
     const continueBtn = document.getElementById('continueBtn');

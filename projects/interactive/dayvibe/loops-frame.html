@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Loops Instance</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            font-family: monospace;
+            font-size: 10px;
+            color: #00f;
+        }
+        #status {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            padding: 5px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00f;
+            border-radius: 3px;
+            z-index: 9999;
+        }
+    </style>
+</head>
+<body>
+    <div id="status">Loops: Loading...</div>
+
+    <!-- Load Strudel -->
+    <script src="https://unpkg.com/@strudel/web@latest"></script>
+
+    <script>
+        (async () => {
+            const status = document.getElementById('status');
+
+            try {
+                status.textContent = 'Loops: Initializing Strudel...';
+
+                // Initialize Strudel for Loops (Cue output)
+                console.log('[Loops] Starting initStrudel...');
+
+                // Try WITHOUT prebake first to see if initStrudel itself completes
+                await initStrudel();
+
+                console.log('[Loops] initStrudel completed');
+
+                // Load samples AFTER init
+                console.log('[Loops] Loading samples...');
+                try {
+                    await samples('github:tidalcycles/Dirt-Samples');
+                    console.log('[Loops] Samples loaded successfully');
+                } catch (e) {
+                    console.error('[Loops] Failed to load samples:', e);
+                }
+
+                // Try to set audio output to cue/headphones
+                const ctx = getAudioContext();
+                console.log('[Loops] AudioContext created:', ctx);
+
+                // Feature detect setSinkId
+                if (ctx.setSinkId) {
+                    try {
+                        const devices = await navigator.mediaDevices.enumerateDevices();
+                        const outputs = devices.filter(d => d.kind === 'audiooutput');
+                        console.log('[Loops] Available outputs:', outputs);
+
+                        // For now, use default (later we can let user choose)
+                        await ctx.setSinkId('');
+                        console.log('[Loops] Output set to default');
+                    } catch (e) {
+                        console.warn('[Loops] setSinkId failed:', e);
+                    }
+                }
+
+                // Lower volume for cue (30%)
+                const masterGain = ctx.createGain();
+                masterGain.gain.value = 0.3;
+                // Note: We need to intercept destination to apply gain
+                // For now just log it
+                console.log('[Loops] Cue volume set to 30%');
+
+                status.textContent = 'Loops: Ready';
+                console.log('[Loops] Strudel initialized');
+
+                // Listen for commands from parent
+                window.addEventListener('message', async (event) => {
+                    const { action, code, id, deviceId } = event.data;
+
+                    console.log('[Loops] Received message:', action);
+
+                    try {
+                        if (action === 'evaluate') {
+                            status.textContent = 'Loops: Playing...';
+                            const pattern = await evaluate(code);
+                            console.log('[Loops] Pattern playing:', pattern);
+
+                            event.source.postMessage({
+                                type: 'loops-response',
+                                id,
+                                success: true,
+                                pattern: pattern ? 'playing' : null
+                            }, '*');
+
+                        } else if (action === 'stop') {
+                            status.textContent = 'Loops: Stopping...';
+                            if (typeof hush === 'function') {
+                                hush();
+                            }
+                            status.textContent = 'Loops: Ready';
+
+                            event.source.postMessage({
+                                type: 'loops-response',
+                                id,
+                                success: true
+                            }, '*');
+
+                        } else if (action === 'getOutputs') {
+                            // Get available audio output devices
+                            const devices = await navigator.mediaDevices.enumerateDevices();
+                            const outputs = devices.filter(d => d.kind === 'audiooutput');
+                            console.log('[Loops] Available outputs:', outputs);
+
+                            event.source.postMessage({
+                                type: 'loops-response',
+                                id,
+                                success: true,
+                                outputs: outputs.map(d => ({ id: d.deviceId, label: d.label || `Device ${d.deviceId.substr(0, 8)}` }))
+                            }, '*');
+
+                        } else if (action === 'setOutput') {
+                            // Set audio output device
+                            if (ctx.setSinkId) {
+                                await ctx.setSinkId(deviceId || '');
+                                console.log('[Loops] Output changed to:', deviceId);
+                                status.textContent = 'Loops: Output changed';
+
+                                event.source.postMessage({
+                                    type: 'loops-response',
+                                    id,
+                                    success: true
+                                }, '*');
+                            } else {
+                                throw new Error('setSinkId not supported');
+                            }
+                        }
+                    } catch (error) {
+                        console.error('[Loops] Error:', error);
+                        status.textContent = 'Loops: Error - ' + error.message;
+
+                        event.source.postMessage({
+                            type: 'loops-response',
+                            id,
+                            success: false,
+                            error: error.message
+                        }, '*');
+                    }
+                });
+
+                // Notify parent that we're ready
+                window.parent.postMessage({
+                    type: 'loops-ready'
+                }, '*');
+
+            } catch (error) {
+                console.error('[Loops] Init failed:', error);
+                status.textContent = 'Loops: Error - ' + error.message;
+                status.style.borderColor = '#f00';
+                status.style.color = '#f00';
+            }
+        })();
+    </script>
+</body>
+</html>

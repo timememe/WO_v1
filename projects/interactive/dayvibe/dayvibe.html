@@ -26,9 +26,27 @@
             </div>
         </div>
 
-        <!-- Loops Grid -->
+        <!-- Sequencer Grid (top) -->
+        <div class="loops-container sequencer-container">
+            <div class="loops-header">
+                <span>Sequencer (Master)</span>
+                <select id="sequencerOutput" class="audio-output-select" onchange="changeSequencerOutput(this.value)">
+                    <option value="">Default Output</option>
+                </select>
+            </div>
+            <div class="loops-grid" id="sequencerGrid">
+                <!-- Будут созданы плитки динамически -->
+            </div>
+        </div>
+
+        <!-- Loops Grid (bottom) -->
         <div class="loops-container">
-            <div class="loops-header">Loops</div>
+            <div class="loops-header">
+                <span>Loops (Cue)</span>
+                <select id="loopsOutput" class="audio-output-select" onchange="changeLoopsOutput(this.value)">
+                    <option value="">Default Output</option>
+                </select>
+            </div>
             <div class="loops-grid" id="loopsGrid">
                 <!-- Будут созданы плитки динамически -->
             </div>
@@ -99,6 +117,20 @@
         </div>
         </div> <!-- /container -->
     </div> <!-- /app-wrapper -->
+
+    <!-- Hidden IFrames for Dual Strudel Instances -->
+    <iframe
+        id="sequencerFrame"
+        src="./sequencer-frame.html"
+        style="display: none;"
+        title="Sequencer Audio Instance">
+    </iframe>
+    <iframe
+        id="loopsFrame"
+        src="./loops-frame.html"
+        style="display: none;"
+        title="Loops Audio Instance">
+    </iframe>
 
     <!-- Загружаем @strudel/web для создания своего интерфейса -->
     <script src="https://unpkg.com/@strudel/web@latest"></script>
