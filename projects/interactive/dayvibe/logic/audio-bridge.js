@@ -2,6 +2,18 @@
 // =======================
 // Manages communication with Strudel IFrame instances
 
+// Store early messages that arrive before bridges are created
+const earlyMessages = [];
+
+// Setup global message listener IMMEDIATELY (at module load time)
+// This catches messages even before bridges are created
+window.addEventListener('message', (event) => {
+    earlyMessages.push({
+        timestamp: Date.now(),
+        data: event.data
+    });
+});
+
 class StrudelBridge {
     constructor(frameId, name) {
         this.frameId = frameId;
@@ -15,13 +27,22 @@ class StrudelBridge {
 
         console.log(`[${this.name}Bridge] Initializing...`);
 
+        // Check early messages for ready message that might have arrived before constructor
+        const readyMessageType = `${this.name.toLowerCase()}-ready`;
+        const earlyReadyMessage = earlyMessages.find(msg => msg.data.type === readyMessageType);
+
+        if (earlyReadyMessage) {
+            console.log(`[${this.name}Bridge] Found early ready message from ${earlyReadyMessage.timestamp}`);
+            this.ready = true;
+        }
+
         // Setup message listeners IMMEDIATELY in constructor
         // to catch ready messages that might come before init() is called
         window.addEventListener('message', (event) => {
             const { type, id, success, error } = event.data;
 
             // Handle ready message
-            if (type === `${this.name.toLowerCase()}-ready`) {
+            if (type === readyMessageType) {
                 console.log(`[${this.name}Bridge] ✅ Frame ready!`);
                 this.ready = true;
                 if (this.initResolver) {
