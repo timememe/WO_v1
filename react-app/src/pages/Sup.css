@@ -1,124 +1,278 @@
-.sup-page {
+/* MAIN CONTAINER - Game-like Layout */
+.sup-game-container {
   width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
-}
-
-.sup-hero {
-  text-align: center;
-  margin-bottom: 3rem;
-  padding: 3rem 0;
-  border-bottom: 2px solid #333;
-}
-
-.sup-title {
-  font-size: 4rem;
-  font-weight: bold;
-  margin: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.sup-subtitle {
-  font-size: 1.25rem;
-  color: #888;
-  margin-top: 1rem;
-}
-
-.sup-content {
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 3rem;
+  background: #0a0a0a;
 }
 
-.sup-section {
-  padding: 2rem 0;
+/* ВЕРХНЯЯ ЧАСТЬ - GAME VIEWPORT */
+.sup-viewport {
+  width: 100%;
+  padding: 2rem 2rem 0 2rem;
+  flex-shrink: 0;
 }
 
-.sup-section h2 {
-  font-size: 2rem;
-  margin-bottom: 1.5rem;
-  color: #fff;
-}
-
-.sup-section p {
-  font-size: 1.1rem;
-  line-height: 1.6;
-  color: #ccc;
-}
-
-.sup-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 2rem;
-  margin-top: 1.5rem;
-}
-
-.sup-card {
-  background: #1a1a1a;
-  border: 1px solid #333;
+.sup-viewport-inner {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border: 3px solid #333;
   border-radius: 12px;
-  padding: 2rem;
-  transition: transform 0.3s ease, border-color 0.3s ease;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
-.sup-card:hover {
-  transform: translateY(-4px);
-  border-color: #667eea;
+.sup-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
 }
 
-.sup-card h3 {
-  font-size: 1.5rem;
-  margin: 0 0 1rem 0;
-  color: #fff;
-}
-
-.sup-card p {
-  font-size: 1rem;
-  color: #aaa;
-  margin: 0;
-}
-
-.sup-tags {
+/* Временный placeholder */
+.sup-viewport-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.sup-viewport-placeholder h2 {
+  font-size: 3rem;
+  margin: 0;
+  color: #667eea;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.sup-viewport-placeholder p {
+  font-size: 1rem;
+  color: #888;
+  margin: 0.5rem 0;
+}
+
+.sup-active-section {
+  margin-top: 2rem !important;
+  font-size: 1.2rem !important;
+  color: #00ff88 !important;
+  font-family: monospace;
+}
+
+/* STATUS PANEL - AI STATS */
+.sup-status-panel {
+  width: 100%;
+  max-width: 1400px;
+  margin: 1.5rem auto 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  gap: 2rem;
+}
+
+.sup-status-section {
+  flex: 1;
+  background: #1a1a1a;
+  border: 2px solid #333;
+  border-radius: 8px;
+  padding: 1rem 1.5rem;
+}
+
+.sup-status-section h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.75rem;
+  color: #888;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sup-status-value {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #fff;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.sup-status-goal {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.9rem;
+  color: #667eea;
+}
+
+.sup-status-timer {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.9rem;
+  color: #f59e0b;
+}
+
+.sup-needs-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sup-need-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sup-need-label {
+  font-size: 0.85rem;
+  color: #aaa;
+  min-width: 60px;
+}
+
+.sup-need-bar {
+  flex: 1;
+  height: 8px;
+  background: #2a2a2a;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.sup-need-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+.sup-need-value {
+  font-size: 0.85rem;
+  color: #fff;
+  min-width: 45px;
+  text-align: right;
+  font-weight: 600;
+}
+
+/* НИЖНЯЯ ЧАСТЬ - CONTROL PANEL */
+.sup-control-panel {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.sup-menu {
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
   margin-top: 1.5rem;
 }
 
-.sup-tag {
-  background: #2a2a2a;
-  border: 1px solid #444;
-  border-radius: 20px;
-  padding: 0.5rem 1.25rem;
-  font-size: 0.9rem;
-  color: #ddd;
-  transition: background 0.3s ease, border-color 0.3s ease;
+.sup-menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #1a1a1a;
+  border: 2px solid #333;
+  border-radius: 12px;
+  padding: 2rem 2.5rem;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
 }
 
-.sup-tag:hover {
-  background: #333;
+.sup-menu-item.active {
+  border-color: #00ff88;
+  background: rgba(0, 255, 136, 0.05);
+}
+
+.sup-menu-item.active .sup-menu-arrow {
+  color: #00ff88;
+}
+
+.sup-menu-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, rgba(102, 126, 234, 0.1) 0%, transparent 100%);
+  transition: width 0.3s ease;
+  z-index: 0;
+}
+
+.sup-menu-item:hover::before {
+  width: 100%;
+}
+
+.sup-menu-item:hover {
   border-color: #667eea;
+  transform: translateX(8px);
+}
+
+.sup-menu-content {
+  position: relative;
+  z-index: 1;
+}
+
+.sup-menu-item h3 {
+  font-size: 1.75rem;
+  font-weight: bold;
+  margin: 0 0 0.5rem 0;
+  color: #fff;
+  letter-spacing: 0.05em;
+}
+
+.sup-menu-item p {
+  font-size: 0.95rem;
+  color: #888;
+  margin: 0;
+}
+
+.sup-menu-arrow {
+  font-size: 2rem;
+  color: #667eea;
+  transition: transform 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.sup-menu-item:hover .sup-menu-arrow {
+  transform: translateX(8px);
 }
 
 @media (max-width: 768px) {
-  .sup-title {
-    font-size: 3rem;
+  .sup-viewport {
+    padding: 1rem 1rem 0 1rem;
   }
 
-  .sup-subtitle {
-    font-size: 1rem;
+  .sup-status-panel {
+    flex-direction: column;
+    padding: 0 1rem;
+    gap: 1rem;
   }
 
-  .sup-section h2 {
+  .sup-control-panel {
+    padding: 1rem;
+  }
+
+  .sup-menu-item {
+    padding: 1.5rem;
+  }
+
+  .sup-menu-item h3 {
     font-size: 1.5rem;
-  }
-
-  .sup-grid {
-    grid-template-columns: 1fr;
   }
 }
