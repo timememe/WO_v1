@@ -93,17 +93,23 @@ export class CharacterAI {
       return;
     }
 
-    // 4. Если нет текущего действия, выбираем новое
+    // 4. Если в состоянии walking, путь пуст и персонаж не движется - начать действие
+    if (this.currentState === 'walking' && this.path.length === 0 && !this.scene.isMoving) {
+      this.startAction();
+      return;
+    }
+
+    // 5. Если нет текущего действия, выбираем новое
     if (this.currentState === 'idle') {
       this.decideNextAction();
     }
 
-    // 5. Если есть цель и нет пути, строим путь
-    if (this.currentGoal && this.path.length === 0) {
+    // 6. Если есть цель и нет пути, строим путь
+    if (this.currentGoal && this.path.length === 0 && this.currentState === 'walking') {
       this.buildPathToGoal();
     }
 
-    // 6. Если есть путь, двигаемся по нему
+    // 7. Если есть путь, двигаемся по нему
     if (this.path.length > 0) {
       this.followPath();
     }
@@ -155,20 +161,20 @@ export class CharacterAI {
 
     switch (activity) {
       case 'rest':
-        targetLocation = this.locations.home;
+        targetLocation = this.locations.home; // Дом - энергия
         break;
       case 'eat':
-        targetLocation = this.locations.home;
-        break;
-      case 'work':
-        // Случайно выбираем между projects и cases
-        targetLocation = Math.random() > 0.5 ? this.locations.projects : this.locations.cases;
+        targetLocation = this.locations.tree; // Дерево - голод
         break;
       case 'play':
-        targetLocation = this.locations.tree;
+        targetLocation = this.locations.projects; // Проекты - развлечение
         break;
       case 'socialize':
-        targetLocation = this.locations.tree;
+        targetLocation = this.locations.cases; // Кейсы - социализация
+        break;
+      case 'work':
+        // Если все потребности в норме, случайно выбираем
+        targetLocation = Math.random() > 0.5 ? this.locations.projects : this.locations.cases;
         break;
       default:
         return;
@@ -223,8 +229,6 @@ export class CharacterAI {
   // Следовать по пути
   followPath() {
     if (this.path.length === 0) {
-      this.currentState = 'idle';
-      this.startAction();
       return;
     }
 
@@ -251,16 +255,20 @@ export class CharacterAI {
     // Восстанавливаем потребности в зависимости от локации
     switch (this.currentGoal.type) {
       case 'home':
-        this.needs.energy = Math.min(100, this.needs.energy + 30);
+        // Дом - восстанавливает энергию
+        this.needs.energy = Math.min(100, this.needs.energy + 40);
+        break;
+      case 'tree':
+        // Дерево - восстанавливает голод
         this.needs.hunger = Math.min(100, this.needs.hunger + 40);
         break;
       case 'projects':
-      case 'cases':
-        this.needs.fun = Math.min(100, this.needs.fun + 20);
+        // Проекты - восстанавливают развлечение
+        this.needs.fun = Math.min(100, this.needs.fun + 35);
         break;
-      case 'tree':
-        this.needs.fun = Math.min(100, this.needs.fun + 30);
-        this.needs.social = Math.min(100, this.needs.social + 25);
+      case 'cases':
+        // Кейсы - восстанавливают социализацию
+        this.needs.social = Math.min(100, this.needs.social + 35);
         break;
     }
 

@@ -173,7 +173,7 @@ export default function Sup() {
               onClick={() => setActiveSection('old-portfolio')}
             >
               <div className="sup-menu-content">
-                <h3>OLD PORTFOLIO</h3>
+                <h3>OLD</h3>
                 <p>Archive & previous works</p>
               </div>
               <span className="sup-menu-arrow">→</span>

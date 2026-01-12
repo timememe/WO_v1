@@ -12,7 +12,9 @@
       "Bash(dir:*)",
       "Bash(node:*)",
       "Bash(del test_variants.js)",
-      "Bash(start duelogue.html)"
+      "Bash(start duelogue.html)",
+      "Bash(npm run dev)",
+      "Bash(npm install)"
     ],
     "deny": [],
     "ask": []
