@@ -73,7 +73,7 @@ export class IsometricScene {
   async loadAssets() {
     try {
       // Загружаем текстуры
-      this.grassTileTexture = await Assets.load('/assets/tile_grass_512.png');
+      this.grassTileTexture = await Assets.load('/assets/tile_grass_512v2.png');
       this.projectsObjTexture = await Assets.load('/assets/obj_projects.png');
       this.treeObjTexture = await Assets.load('/assets/obj_tree.png');
       this.homeObjTexture = await Assets.load('/assets/obj_home.png');
@@ -296,9 +296,13 @@ export class IsometricScene {
 
   // Показать баббл с анимацией над локацией
   showActivityBubble(locationType) {
-    // Скрываем персонажа
+    // Скрываем персонажа полностью
     if (this.character) {
       this.character.visible = false;
+      // Также скрываем все дочерние спрайты
+      this.character.children.forEach(child => {
+        if (child) child.visible = false;
+      });
     }
 
     // Определяем какую анимацию показать
@@ -332,8 +336,12 @@ export class IsometricScene {
       this.sortableContainer.addChild(this.activityBubble);
     }
 
-    // Очищаем предыдущее содержимое
-    this.activityBubble.removeChildren();
+    // Очищаем предыдущее содержимое и уничтожаем старые элементы
+    this.activityBubble.removeChildren().forEach(child => {
+      if (child && child.destroy) {
+        child.destroy({ children: true, texture: false, baseTexture: false });
+      }
+    });
 
     // Клонируем GIF для независимого воспроизведения
     const gif = gifAnimation.clone();
@@ -388,13 +396,29 @@ export class IsometricScene {
 
   // Скрыть баббл и показать персонажа
   hideActivityBubble() {
+    // Скрываем и очищаем баббл
     if (this.activityBubble) {
       this.activityBubble.visible = false;
+      // Уничтожаем содержимое баббла для освобождения памяти
+      this.activityBubble.removeChildren().forEach(child => {
+        if (child && child.destroy) {
+          child.destroy({ children: true, texture: false, baseTexture: false });
+        }
+      });
     }
 
-    // Показываем персонажа
+    // Показываем персонажа и все его спрайты
     if (this.character) {
       this.character.visible = true;
+      // Показываем только активный спрайт направления
+      this.character.children.forEach(child => {
+        // Спрайты персонажа должны быть видимы только если это активное направление
+        if (child && this.characterSprites) {
+          const isActiveDirection = Object.values(this.characterSprites).includes(child) &&
+                                   child === this.characterSprites[this.currentDirection];
+          child.visible = isActiveDirection || !Object.values(this.characterSprites).includes(child);
+        }
+      });
     }
   }
 
