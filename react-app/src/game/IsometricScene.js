@@ -1,4 +1,5 @@
 import { Graphics, Container, Sprite, Assets, Text } from 'pixi.js';
+import { AnimatedGIF } from '@pixi/gif';
 import { CharacterAI } from './CharacterAI';
 
 export class IsometricScene {
@@ -13,7 +14,7 @@ export class IsometricScene {
     // Фиксированные размеры тайлов (логические размеры сетки)
     this.tileWidth = 128;  // Ширина изометрического тайла
     this.tileHeight = 64;  // Высота изометрического тайла
-    this.gridSize = 8;
+    this.gridSize = 16;
 
     // Размер спрайта тайла (если спрайт 2048x2048)
     const tileSpriteSize = 512;
@@ -34,8 +35,8 @@ export class IsometricScene {
     this.shadowOffsetY = 0; // Тень на 60px ниже точки позиции
 
     // Позиция персонажа на сетке
-    this.playerGridX = 0;
-    this.playerGridY = 0;
+    this.playerGridX = 5;
+    this.playerGridY = 5;
 
     // Состояние движения
     this.isMoving = false;
@@ -52,6 +53,19 @@ export class IsometricScene {
 
     // AI для управления персонажем
     this.characterAI = null;
+
+    // Баббл с анимацией активности
+    this.activityBubble = null;
+    this.activityAnimations = {}; // Текстуры анимаций
+
+    // Настройки баббла
+    this.bubbleOffsetY = -40; // Вертикальное смещение баббла от центра тайла (отрицательное = выше)
+    this.bubbleGifScale = 0.5; // Масштаб GIF (270px * 0.35 = 94.5px)
+    this.bubbleFramePadding = 8; // Отступ рамки от GIF
+    this.bubbleFrameColor = 0x000000; // Цвет рамки
+    this.bubbleFrameWidth = 3; // Толщина рамки
+    this.bubbleBackgroundColor = 0x000000; // Цвет фона
+    this.bubbleBackgroundAlpha = 0.7; // Прозрачность фона
 
     this.init();
   }
@@ -85,6 +99,17 @@ export class IsometricScene {
       // back-left - зеркалированный me_idle_b
       this.characterSprites['back-left'] = Sprite.from(backTexture);
       this.characterSprites['back-left'].scale.set(-this.spriteScale, this.spriteScale); // зеркалим по X
+
+      // Загружаем GIF анимации активностей через Assets
+      // Assets.load() автоматически создаст AnimatedGIF объекты
+      this.activityAnimations = {
+        'sleep': await Assets.load('/assets/sleep.gif'),
+        'eat': await Assets.load('/assets/eat.gif'),
+        'work': await Assets.load('/assets/work.gif'),
+        'cases': await Assets.load('/assets/cases.gif')
+      };
+
+      console.log('GIF animations loaded:', this.activityAnimations);
 
       return true;
     } catch (error) {
@@ -269,6 +294,110 @@ export class IsometricScene {
     this.container.y += (targetY - this.container.y) * this.cameraSmoothing;
   }
 
+  // Показать баббл с анимацией над локацией
+  showActivityBubble(locationType) {
+    // Скрываем персонажа
+    if (this.character) {
+      this.character.visible = false;
+    }
+
+    // Определяем какую анимацию показать
+    let animationKey = null;
+    switch (locationType) {
+      case 'home':
+        animationKey = 'sleep';
+        break;
+      case 'tree':
+        animationKey = 'eat';
+        break;
+      case 'projects':
+        animationKey = 'work';
+        break;
+      case 'cases':
+        animationKey = 'cases';
+        break;
+    }
+
+    if (!animationKey || !this.activityAnimations[animationKey]) {
+      console.error('Animation not found for key:', animationKey);
+      return;
+    }
+
+    // Получаем предзагруженный AnimatedGIF
+    const gifAnimation = this.activityAnimations[animationKey];
+
+    // Создаем баббл если его еще нет
+    if (!this.activityBubble) {
+      this.activityBubble = new Container();
+      this.sortableContainer.addChild(this.activityBubble);
+    }
+
+    // Очищаем предыдущее содержимое
+    this.activityBubble.removeChildren();
+
+    // Клонируем GIF для независимого воспроизведения
+    const gif = gifAnimation.clone();
+    gif.anchor.set(0.5, 0.5); // Якорь в центре
+    gif.scale.set(this.bubbleGifScale);
+
+    // Настройки анимации
+    gif.loop = true;
+    gif.animationSpeed = 1;
+    gif.play();
+
+    // Вычисляем размеры GIF после масштабирования
+    const gifWidth = 270 * this.bubbleGifScale;
+    const gifHeight = 270 * this.bubbleGifScale;
+
+    // Создаем фон (черный квадрат с закругленными углами)
+    const background = new Graphics();
+    background.roundRect(
+      -gifWidth / 2 - this.bubbleFramePadding,
+      -gifHeight / 2 - this.bubbleFramePadding,
+      gifWidth + this.bubbleFramePadding * 2,
+      gifHeight + this.bubbleFramePadding * 2,
+      8 // Радиус закругления
+    );
+    background.fill({ color: this.bubbleBackgroundColor, alpha: this.bubbleBackgroundAlpha });
+
+    // Создаем рамку
+    const frame = new Graphics();
+    frame.roundRect(
+      -gifWidth / 2 - this.bubbleFramePadding,
+      -gifHeight / 2 - this.bubbleFramePadding,
+      gifWidth + this.bubbleFramePadding * 2,
+      gifHeight + this.bubbleFramePadding * 2,
+      8 // Радиус закругления
+    );
+    frame.stroke({ width: this.bubbleFrameWidth, color: this.bubbleFrameColor, alpha: 1 });
+
+    // Добавляем элементы в правильном порядке
+    this.activityBubble.addChild(background);
+    this.activityBubble.addChild(gif);
+    this.activityBubble.addChild(frame);
+
+    // Позиционируем баббл над персонажем с настраиваемым оффсетом
+    const screenPos = this.isoToScreen(this.playerGridX, this.playerGridY);
+    this.activityBubble.x = screenPos.x;
+    this.activityBubble.y = screenPos.y + this.bubbleOffsetY;
+
+    // Устанавливаем очень высокий zIndex чтобы баббл был поверх всего
+    this.activityBubble.zIndex = 9999;
+    this.activityBubble.visible = true;
+  }
+
+  // Скрыть баббл и показать персонажа
+  hideActivityBubble() {
+    if (this.activityBubble) {
+      this.activityBubble.visible = false;
+    }
+
+    // Показываем персонажа
+    if (this.character) {
+      this.character.visible = true;
+    }
+  }
+
   // Движение персонажа в указанном направлении
   movePlayer(dx, dy) {
     if (this.isMoving) return; // Уже двигается
@@ -400,11 +529,12 @@ export class IsometricScene {
 
     // Конфигурация объектов: текстура, целевой размер, якорь и бонус глубины
     // depthBonus - сколько дополнительных "тайлов глубины" добавить для высоких объектов
+    // tileSize - сколько тайлов занимает объект (1 или 2 для 2x2)
     const objectConfig = {
-      'projects': { texture: this.projectsObjTexture, size: 128, anchor: [0.5, 0.5], depthBonus: 0 },
-      'tree': { texture: this.treeObjTexture, size: 128, anchor: [0.5, 0.35], depthBonus: 3 }, // Дерево высокое - крона занимает 3 тайла
-      'home': { texture: this.homeObjTexture, size: 128, anchor: [0.5, 0.5], depthBonus: 0 },
-      'cases': { texture: this.casesObjTexture, size: 128, anchor: [0.5, 0.5], depthBonus: 0 },
+      'projects': { texture: this.projectsObjTexture, size: 256, anchor: [0.5, 0.5], depthBonus: 0, tileSize: 2 },
+      'tree': { texture: this.treeObjTexture, size: 128, anchor: [0.5, 0.35], depthBonus: 3, tileSize: 1 }, // Дерево высокое - крона занимает 3 тайла
+      'home': { texture: this.homeObjTexture, size: 256, anchor: [0.5, 0.5], depthBonus: 0, tileSize: 2 },
+      'cases': { texture: this.casesObjTexture, size: 256, anchor: [0.5, 0.5], depthBonus: 0, tileSize: 2 },
     };
 
     let depthBonus = 0; // По умолчанию нет бонуса
@@ -438,18 +568,29 @@ export class IsometricScene {
       decorationContainer.addChild(decoration);
     }
 
-    // Позиционируем весь контейнер в центр тайла
-    const screenPos = this.isoToScreen(x, y);
+    // Если объект занимает 2x2 тайла, центрируем его на пересечении 4 тайлов
+    const config = objectConfig[type];
+    let centerX = x;
+    let centerY = y;
+
+    if (config && config.tileSize === 2) {
+      // Смещаем центр на 0.5 тайла в обе стороны для центрирования на пересечении
+      centerX = x + 0.5;
+      centerY = y + 0.5;
+    }
+
+    // Позиционируем весь контейнер в центр тайла (или пересечение 4 тайлов)
+    const screenPos = this.isoToScreen(centerX, centerY);
     decorationContainer.x = screenPos.x;
     decorationContainer.y = screenPos.y;
 
     // Сохраняем координаты сетки для сортировки по глубине
-    decorationContainer.gridX = x;
-    decorationContainer.gridY = y;
+    decorationContainer.gridX = centerX;
+    decorationContainer.gridY = centerY;
 
     // Устанавливаем zIndex на основе глубины + бонус для высоких объектов
     // (чем больше x+y, тем ближе к камере)
-    decorationContainer.zIndex = x + y + depthBonus;
+    decorationContainer.zIndex = centerX + centerY + depthBonus;
 
     return decorationContainer;
   }
@@ -501,6 +642,12 @@ export class IsometricScene {
     if (this.characterAI) {
       this.characterAI.stop();
       this.characterAI = null;
+    }
+
+    // Очищаем баббл
+    if (this.activityBubble) {
+      this.activityBubble.destroy({ children: true });
+      this.activityBubble = null;
     }
 
     if (this.idleAnimationFn) {

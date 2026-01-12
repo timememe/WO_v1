@@ -72,76 +72,90 @@ export default function Sup() {
         <div className="sup-viewport">
           <div className="sup-viewport-inner">
             <canvas ref={canvasRef} className="sup-canvas"></canvas>
+
+            {/* OVERLAY - AI STATUS */}
+            {aiStatus && (
+              <>
+                {/* СТРОКА СТАТУСА - STATE & ACTIVITY */}
+                <div className="sup-status-bar">
+                  <div className="sup-status-bar-item">
+                    <span className="sup-status-bar-label">State:</span>
+                    <span className="sup-status-bar-value">{aiStatus.state}</span>
+                  </div>
+                  <div className="sup-status-bar-divider">|</div>
+                  <div className="sup-status-bar-item">
+                    <span className="sup-status-bar-label">Activity:</span>
+                    <span className="sup-status-bar-value">{aiStatus.activity}</span>
+                  </div>
+                  {aiStatus.goal && (
+                    <>
+                      <div className="sup-status-bar-divider">|</div>
+                      <div className="sup-status-bar-item">
+                        <span className="sup-status-bar-label">Goal:</span>
+                        <span className="sup-status-bar-value">{aiStatus.goal}</span>
+                      </div>
+                    </>
+                  )}
+                  {aiStatus.actionTimer > 0 && (
+                    <>
+                      <div className="sup-status-bar-divider">|</div>
+                      <div className="sup-status-bar-item">
+                        <span className="sup-status-bar-value">{aiStatus.actionTimer}s</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* NEEDS OVERLAY */}
+                <div className="sup-needs-overlay">
+                  <div className="sup-need-item">
+                    <span className="sup-need-label">Energy</span>
+                    <div className="sup-need-bar">
+                      <div
+                        className="sup-need-fill"
+                        style={{ width: `${aiStatus.needs.energy}%`, backgroundColor: '#667eea' }}
+                      ></div>
+                    </div>
+                    <span className="sup-need-value">{aiStatus.needs.energy}%</span>
+                  </div>
+
+                  <div className="sup-need-item">
+                    <span className="sup-need-label">Hunger</span>
+                    <div className="sup-need-bar">
+                      <div
+                        className="sup-need-fill"
+                        style={{ width: `${aiStatus.needs.hunger}%`, backgroundColor: '#00ff88' }}
+                      ></div>
+                    </div>
+                    <span className="sup-need-value">{aiStatus.needs.hunger}%</span>
+                  </div>
+
+                  <div className="sup-need-item">
+                    <span className="sup-need-label">Fun</span>
+                    <div className="sup-need-bar">
+                      <div
+                        className="sup-need-fill"
+                        style={{ width: `${aiStatus.needs.fun}%`, backgroundColor: '#f59e0b' }}
+                      ></div>
+                    </div>
+                    <span className="sup-need-value">{aiStatus.needs.fun}%</span>
+                  </div>
+
+                  <div className="sup-need-item">
+                    <span className="sup-need-label">Social</span>
+                    <div className="sup-need-bar">
+                      <div
+                        className="sup-need-fill"
+                        style={{ width: `${aiStatus.needs.social}%`, backgroundColor: '#ec4899' }}
+                      ></div>
+                    </div>
+                    <span className="sup-need-value">{aiStatus.needs.social}%</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
-
-        {/* СТАТУС ПАНЕЛЬ - AI STATS */}
-        {aiStatus && (
-          <div className="sup-status-panel">
-            <div className="sup-status-section">
-              <h4>STATE</h4>
-              <p className="sup-status-value">{aiStatus.state}</p>
-              {aiStatus.goal && <p className="sup-status-goal">→ {aiStatus.goal}</p>}
-            </div>
-
-            <div className="sup-status-section">
-              <h4>NEEDS</h4>
-              <div className="sup-needs-grid">
-                <div className="sup-need-item">
-                  <span className="sup-need-label">Energy</span>
-                  <div className="sup-need-bar">
-                    <div
-                      className="sup-need-fill"
-                      style={{ width: `${aiStatus.needs.energy}%`, backgroundColor: '#667eea' }}
-                    ></div>
-                  </div>
-                  <span className="sup-need-value">{aiStatus.needs.energy}%</span>
-                </div>
-
-                <div className="sup-need-item">
-                  <span className="sup-need-label">Hunger</span>
-                  <div className="sup-need-bar">
-                    <div
-                      className="sup-need-fill"
-                      style={{ width: `${aiStatus.needs.hunger}%`, backgroundColor: '#00ff88' }}
-                    ></div>
-                  </div>
-                  <span className="sup-need-value">{aiStatus.needs.hunger}%</span>
-                </div>
-
-                <div className="sup-need-item">
-                  <span className="sup-need-label">Fun</span>
-                  <div className="sup-need-bar">
-                    <div
-                      className="sup-need-fill"
-                      style={{ width: `${aiStatus.needs.fun}%`, backgroundColor: '#f59e0b' }}
-                    ></div>
-                  </div>
-                  <span className="sup-need-value">{aiStatus.needs.fun}%</span>
-                </div>
-
-                <div className="sup-need-item">
-                  <span className="sup-need-label">Social</span>
-                  <div className="sup-need-bar">
-                    <div
-                      className="sup-need-fill"
-                      style={{ width: `${aiStatus.needs.social}%`, backgroundColor: '#ec4899' }}
-                    ></div>
-                  </div>
-                  <span className="sup-need-value">{aiStatus.needs.social}%</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="sup-status-section">
-              <h4>ACTIVITY</h4>
-              <p className="sup-status-value">{aiStatus.activity}</p>
-              {aiStatus.actionTimer > 0 && (
-                <p className="sup-status-timer">{aiStatus.actionTimer}s remaining</p>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* НИЖНЯЯ ЧАСТЬ - GAME UI / CONTROL PANEL */}
         <div className="sup-control-panel">

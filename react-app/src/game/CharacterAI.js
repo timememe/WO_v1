@@ -36,11 +36,12 @@ export class CharacterAI {
     this.actionDuration = 0;
 
     // Локации для различных активностей (координаты на сетке)
+    // size - количество тайлов, которые занимает объект (1 = 1x1, 2 = 2x2)
     this.locations = {
-      home: { x: 4, y: 2, type: 'home' },        // Дом - отдых
-      projects: { x: 2, y: 6, type: 'projects' }, // Проекты - работа
-      cases: { x: 6, y: 5, type: 'cases' },      // Кейсы - работа
-      tree: { x: 1, y: 1, type: 'tree' },        // Дерево - отдых/развлечение
+      home: { x: 4, y: 2, type: 'home', size: 2 },        // Дом - отдых (2x2)
+      projects: { x: 2, y: 6, type: 'projects', size: 2 }, // Проекты - работа (2x2)
+      cases: { x: 6, y: 5, type: 'cases', size: 2 },      // Кейсы - работа (2x2)
+      tree: { x: 1, y: 1, type: 'tree', size: 1 },        // Дерево - отдых/развлечение (1x1)
     };
 
     // Расписание активностей (приоритеты)
@@ -93,10 +94,14 @@ export class CharacterAI {
       return;
     }
 
-    // 4. Если в состоянии walking, путь пуст и персонаж не движется - начать действие
-    if (this.currentState === 'walking' && this.path.length === 0 && !this.scene.isMoving) {
-      this.startAction();
-      return;
+    // 4. Если в состоянии walking и персонаж зашел на территорию объекта - начать действие
+    if (this.currentState === 'walking' && this.currentGoal && !this.scene.isMoving) {
+      if (this.isOnObjectTile(this.currentGoal)) {
+        // Персонаж на территории объекта - очищаем путь и начинаем действие
+        this.path = [];
+        this.startAction();
+        return;
+      }
     }
 
     // 5. Если нет текущего действия, выбираем новое
@@ -120,6 +125,27 @@ export class CharacterAI {
     for (const need in this.needs) {
       this.needs[need] = Math.max(0, this.needs[need] - this.needsDecayRate[need]);
     }
+  }
+
+  // Проверка, находится ли персонаж на территории объекта
+  isOnObjectTile(objectLocation) {
+    if (!objectLocation) return false;
+
+    const playerX = this.scene.playerGridX;
+    const playerY = this.scene.playerGridY;
+    const objX = objectLocation.x;
+    const objY = objectLocation.y;
+    const size = objectLocation.size || 1;
+
+    // Проверяем, находится ли игрок на любом из тайлов объекта
+    for (let dx = 0; dx < size; dx++) {
+      for (let dy = 0; dy < size; dy++) {
+        if (playerX === objX + dx && playerY === objY + dy) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   // Решение о следующем действии
@@ -248,6 +274,11 @@ export class CharacterAI {
   startAction() {
     this.actionTimer = this.actionDuration;
     this.currentState = 'performing_action';
+
+    // Показываем баббл с анимацией активности
+    if (this.currentGoal && this.currentGoal.type) {
+      this.scene.showActivityBubble(this.currentGoal.type);
+    }
   }
 
   // Завершить действие
@@ -271,6 +302,9 @@ export class CharacterAI {
         this.needs.social = Math.min(100, this.needs.social + 35);
         break;
     }
+
+    // Скрываем баббл и показываем персонажа
+    this.scene.hideActivityBubble();
 
     // Сбрасываем состояние
     this.currentState = 'idle';

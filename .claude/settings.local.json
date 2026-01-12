@@ -14,7 +14,9 @@
       "Bash(del test_variants.js)",
       "Bash(start duelogue.html)",
       "Bash(npm run dev)",
-      "Bash(npm install)"
+      "Bash(npm install)",
+      "Bash(ls:*)",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []

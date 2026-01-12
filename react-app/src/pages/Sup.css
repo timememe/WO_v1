@@ -18,7 +18,7 @@
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 4 / 5;
   background: #000;
   border: 3px solid #333;
   border-radius: 12px;
@@ -73,56 +73,63 @@
   font-family: monospace;
 }
 
-/* STATUS PANEL - AI STATS */
-.sup-status-panel {
-  width: 100%;
-  max-width: 1400px;
-  margin: 1.5rem auto 0 auto;
-  padding: 0 2rem;
+/* STATUS BAR OVERLAY - Top of screen */
+.sup-status-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  border-bottom: 2px solid rgba(102, 126, 234, 0.3);
+  padding: 0.75rem 1.5rem;
   display: flex;
-  gap: 2rem;
+  align-items: center;
+  gap: 1rem;
+  z-index: 10;
+  font-family: monospace;
 }
 
-.sup-status-section {
-  flex: 1;
-  background: #1a1a1a;
-  border: 2px solid #333;
-  border-radius: 8px;
-  padding: 1rem 1.5rem;
+.sup-status-bar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.sup-status-section h4 {
-  margin: 0 0 0.75rem 0;
-  font-size: 0.75rem;
+.sup-status-bar-label {
+  font-size: 0.85rem;
   color: #888;
-  letter-spacing: 0.1em;
   text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-.sup-status-value {
-  margin: 0;
-  font-size: 1.25rem;
+.sup-status-bar-value {
+  font-size: 0.9rem;
   color: #fff;
   font-weight: 600;
   text-transform: capitalize;
 }
 
-.sup-status-goal {
-  margin: 0.5rem 0 0 0;
+.sup-status-bar-divider {
+  color: #444;
   font-size: 0.9rem;
-  color: #667eea;
 }
 
-.sup-status-timer {
-  margin: 0.5rem 0 0 0;
-  font-size: 0.9rem;
-  color: #f59e0b;
-}
-
-.sup-needs-grid {
+/* NEEDS OVERLAY - Top right corner */
+.sup-needs-overlay {
+  position: absolute;
+  top: 4rem;
+  right: 1.5rem;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(102, 126, 234, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  z-index: 10;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  min-width: 250px;
 }
 
 .sup-need-item {
@@ -258,10 +265,31 @@
     padding: 1rem 1rem 0 1rem;
   }
 
-  .sup-status-panel {
-    flex-direction: column;
-    padding: 0 1rem;
-    gap: 1rem;
+  .sup-status-bar {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+  }
+
+  .sup-status-bar-label,
+  .sup-status-bar-value {
+    font-size: 0.75rem;
+  }
+
+  .sup-needs-overlay {
+    top: 3rem;
+    right: 1rem;
+    padding: 0.75rem;
+    min-width: 200px;
+  }
+
+  .sup-need-label {
+    font-size: 0.75rem;
+    min-width: 50px;
+  }
+
+  .sup-need-value {
+    font-size: 0.75rem;
+    min-width: 35px;
   }
 
   .sup-control-panel {
