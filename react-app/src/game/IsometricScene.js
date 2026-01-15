@@ -58,6 +58,15 @@ export class IsometricScene {
     this.activityBubble = null;
     this.activityAnimations = {}; // Текстуры анимаций
 
+    // Фоновые тайлы (трава вокруг активной области)
+    this.backgroundTiles = [];
+    this.backgroundPadding = 10; // Сколько тайлов добавить вокруг активной области
+
+    // Стены на границах
+    this.walls = [];
+    this.wallHeight = 80; // Высота стены в пикселях
+    this.wallColor = 0x8B7355; // Цвет стены (коричневый placeholder)
+
     // Настройки баббла
     this.bubbleOffsetY = -40; // Вертикальное смещение баббла от центра тайла (отрицательное = выше)
     this.bubbleGifScale = 0.5; // Масштаб GIF (270px * 0.35 = 94.5px)
@@ -72,8 +81,9 @@ export class IsometricScene {
 
   async loadAssets() {
     try {
-      // Загружаем текстуры
+      // Загружаем текстуры тайлов
       this.grassTileTexture = await Assets.load('/assets/tile_grass_512v2.png');
+      this.floorTileTexture = await Assets.load('/assets/tile_floor_512.png');
       this.projectsObjTexture = await Assets.load('/assets/obj_projects.png');
       this.treeObjTexture = await Assets.load('/assets/obj_tree.png');
       this.homeObjTexture = await Assets.load('/assets/obj_home.png');
@@ -140,6 +150,94 @@ export class IsometricScene {
     });
   }
 
+  // Создание фоновых тайлов (трава вокруг активной области)
+  createBackgroundTiles() {
+    this.backgroundTiles = [];
+
+    // Создаём тайлы вокруг активной области
+    const padding = this.backgroundPadding;
+
+    for (let y = -padding; y < this.gridSize + padding; y++) {
+      for (let x = -padding; x < this.gridSize + padding; x++) {
+        // Пропускаем активную область (она создаётся отдельно)
+        if (x >= 0 && x < this.gridSize && y >= 0 && y < this.gridSize) {
+          continue;
+        }
+
+        const tile = this.createTile(x, y, true); // true = фоновый тайл (трава)
+        this.backgroundTiles.push(tile);
+        this.container.addChild(tile);
+      }
+    }
+  }
+
+  // Создание стен на границах (placeholder)
+  createWalls() {
+    // Стена вдоль Y=0 (верхняя правая граница в изометрии)
+    for (let x = 0; x < this.gridSize; x++) {
+      const wall = this.createWallSegment(x, -1, 'right');
+      this.walls.push(wall);
+      this.container.addChild(wall);
+    }
+
+    // Стена вдоль X=0 (верхняя левая граница в изометрии)
+    for (let y = 0; y < this.gridSize; y++) {
+      const wall = this.createWallSegment(-1, y, 'left');
+      this.walls.push(wall);
+      this.container.addChild(wall);
+    }
+
+    // Угловой элемент
+    const cornerWall = this.createWallSegment(-1, -1, 'corner');
+    this.walls.push(cornerWall);
+    this.container.addChild(cornerWall);
+  }
+
+  // Создание одного сегмента стены (placeholder графика)
+  createWallSegment(gridX, gridY, side) {
+    const wallContainer = new Container();
+    const wall = new Graphics();
+
+    // Позиция в экранных координатах
+    const pos = this.isoToScreen(gridX, gridY);
+
+    if (side === 'right') {
+      // Стена справа от тайла (видна слева в изометрии)
+      // Рисуем параллелограмм
+      wall.moveTo(0, -this.wallHeight);
+      wall.lineTo(this.tileWidth / 2, -this.wallHeight + this.tileHeight / 2);
+      wall.lineTo(this.tileWidth / 2, this.tileHeight / 2);
+      wall.lineTo(0, 0);
+      wall.closePath();
+      wall.fill({ color: this.wallColor, alpha: 0.9 });
+      wall.stroke({ width: 2, color: 0x5D4E37, alpha: 1 });
+    } else if (side === 'left') {
+      // Стена слева от тайла (видна справа в изометрии)
+      wall.moveTo(0, -this.wallHeight);
+      wall.lineTo(-this.tileWidth / 2, -this.wallHeight + this.tileHeight / 2);
+      wall.lineTo(-this.tileWidth / 2, this.tileHeight / 2);
+      wall.lineTo(0, 0);
+      wall.closePath();
+      wall.fill({ color: 0x6B5D47, alpha: 0.9 }); // Чуть темнее для глубины
+      wall.stroke({ width: 2, color: 0x5D4E37, alpha: 1 });
+    } else if (side === 'corner') {
+      // Угловой элемент - верхушка
+      wall.moveTo(0, -this.wallHeight);
+      wall.lineTo(this.tileWidth / 2, -this.wallHeight + this.tileHeight / 2);
+      wall.lineTo(0, -this.wallHeight + this.tileHeight);
+      wall.lineTo(-this.tileWidth / 2, -this.wallHeight + this.tileHeight / 2);
+      wall.closePath();
+      wall.fill({ color: 0x9B8B75, alpha: 0.9 }); // Светлее - верх
+      wall.stroke({ width: 2, color: 0x5D4E37, alpha: 1 });
+    }
+
+    wallContainer.addChild(wall);
+    wallContainer.x = pos.x;
+    wallContainer.y = pos.y;
+
+    return wallContainer;
+  }
+
   // Конвертация изометрических координат в экранные
   isoToScreen(x, y) {
     const screenX = (x - y) * (this.tileWidth / 2);
@@ -155,10 +253,12 @@ export class IsometricScene {
   }
 
   // Создание изометрической плитки (спрайт с текстурой)
-  createTile(x, y) {
+  // isBackground = true для фоновых тайлов (трава), false для активных (пол)
+  createTile(x, y, isBackground = false) {
     const tileContainer = new Container();
 
-    const tileSprite = Sprite.from(this.grassTileTexture);
+    const texture = isBackground ? this.grassTileTexture : this.floorTileTexture;
+    const tileSprite = Sprite.from(texture);
 
     // Якорь в центре спрайта
     tileSprite.anchor.set(0.5, 0.5);
@@ -623,6 +723,12 @@ export class IsometricScene {
     // Загружаем ассеты
     await this.loadAssets();
 
+    // Добавляем фоновые тайлы (трава вокруг)
+    this.createBackgroundTiles();
+
+    // Добавляем стены на границах
+    this.createWalls();
+
     // Создаем изометрическую сетку из тайлов
     for (let y = 0; y < this.gridSize; y++) {
       for (let x = 0; x < this.gridSize; x++) {
@@ -667,6 +773,16 @@ export class IsometricScene {
       this.characterAI.stop();
       this.characterAI = null;
     }
+
+    // Очищаем фоновые тайлы
+    if (this.backgroundTiles) {
+      this.backgroundTiles.forEach(tile => tile.destroy());
+      this.backgroundTiles = [];
+    }
+
+    // Очищаем стены
+    this.walls.forEach(wall => wall.destroy());
+    this.walls = [];
 
     // Очищаем баббл
     if (this.activityBubble) {
