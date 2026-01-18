@@ -42,6 +42,7 @@ export class CharacterAI {
       projects: { x: 2, y: 6, type: 'projects', size: 2 }, // Проекты - работа (2x2)
       cases: { x: 6, y: 5, type: 'cases', size: 2 },      // Кейсы - работа (2x2)
       tree: { x: 1, y: 1, type: 'tree', size: 1 },        // Дерево - отдых/развлечение (1x1)
+      cafe: { x: 1, y: 4, type: 'cafe', size: 1 },        // Кафе - еда (1x1)
     };
 
     // Расписание активностей (приоритеты)
@@ -190,7 +191,7 @@ export class CharacterAI {
         targetLocation = this.locations.home; // Дом - энергия
         break;
       case 'eat':
-        targetLocation = this.locations.tree; // Дерево - голод
+        targetLocation = this.locations.cafe; // Кафе - голод
         break;
       case 'play':
         targetLocation = this.locations.projects; // Проекты - развлечение
@@ -289,8 +290,8 @@ export class CharacterAI {
         // Дом - восстанавливает энергию
         this.needs.energy = Math.min(100, this.needs.energy + 40);
         break;
-      case 'tree':
-        // Дерево - восстанавливает голод
+      case 'cafe':
+        // Кафе - восстанавливает голод
         this.needs.hunger = Math.min(100, this.needs.hunger + 40);
         break;
       case 'projects':

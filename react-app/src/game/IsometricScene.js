@@ -16,7 +16,7 @@ export class IsometricScene {
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ СЕТКИ И ТАЙЛОВ ПОЛА
     // ═══════════════════════════════════════════════════════════════
-    this.gridSize = 16;                // Размер сетки (16x16 тайлов)
+    this.gridSize = 8;                // Размер сетки (16x16 тайлов)
     this.tileWidth = 128;              // Ширина изометрического тайла
     this.tileHeight = 64;              // Высота изометрического тайла
     this.backgroundPadding = 10;       // Тайлов травы вокруг активной области
@@ -31,8 +31,10 @@ export class IsometricScene {
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ ЗДАНИЙ
     // ═══════════════════════════════════════════════════════════════
+    this.buildingWallOffsetX = 0;      // Горизонтальный оффсет стен
+    this.buildingWallOffsetY = 35;      // Вертикальный оффсет стен (меньше = выше)
     this.buildingRoofOffsetX = 0;      // Горизонтальный оффсет крыши
-    this.buildingRoofOffsetY = 35;     // Вертикальный оффсет крыши (меньше = выше)
+    this.buildingRoofOffsetY = 70;     // Вертикальный оффсет крыши (меньше = выше)
 
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ ПЕРСОНАЖА
@@ -48,8 +50,8 @@ export class IsometricScene {
     // НАСТРОЙКИ КАМЕРЫ И УПРАВЛЕНИЯ
     // ═══════════════════════════════════════════════════════════════
     this.cameraSmoothing = 0.1;        // Плавность следования камеры (0-1)
-    this.controllerMode = true;        // true = ручное управление, false = AI
-    this.debugMode = false;            // Показывать debug графику
+    this.controllerMode = false;        // true = ручное управление, false = AI
+    this.debugMode = true;            // Показывать debug графику
 
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ UI (БАББЛ АКТИВНОСТИ)
@@ -74,6 +76,7 @@ export class IsometricScene {
     this.activityAnimations = {};
     this.backgroundTiles = [];
     this.walls = [];
+    this.occupiedTiles = new Map(); // Карта занятых клеток: "x,y" -> objectType
 
     this.init();
   }
@@ -335,7 +338,7 @@ export class IsometricScene {
     const tileContainer = new Container();
 
     // Выбираем атлас тайлов
-    const tiles = isBackground ? this.grassTiles : this.floorTiles;
+    const tiles = isBackground ? this.grassTiles : this.grassTiles;
 
     if (tiles && tiles.length > 0) {
       // Выбираем тайл из атласа
@@ -513,6 +516,9 @@ export class IsometricScene {
       case 'tree':
         animationKey = 'eat';
         break;
+      case 'cafe':
+        animationKey = 'eat';
+        break;
       case 'projects':
         animationKey = 'work';
         break;
@@ -633,6 +639,17 @@ export class IsometricScene {
       return;
     }
 
+    // Проверка коллизий с объектами
+    if (this.isTileOccupied(newX, newY)) {
+      if (this.controllerMode) {
+        // В режиме ручного управления - блокируем движение
+        return;
+      } else {
+        // В режиме AI - скрываем персонажа перед входом на клетку объекта
+        this.character.visible = false;
+      }
+    }
+
     // Определяем направление спрайта по движению
     this.updateDirectionByMovement(dx, dy);
 
@@ -746,6 +763,24 @@ export class IsometricScene {
     });
   }
 
+  // Регистрация занятой клетки объектом
+  registerOccupiedTile(x, y, objectType) {
+    const key = `${x},${y}`;
+    this.occupiedTiles.set(key, objectType);
+  }
+
+  // Проверка, занята ли клетка
+  isTileOccupied(x, y) {
+    const key = `${x},${y}`;
+    return this.occupiedTiles.has(key);
+  }
+
+  // Получить тип объекта на клетке
+  getObjectAtTile(x, y) {
+    const key = `${x},${y}`;
+    return this.occupiedTiles.get(key) || null;
+  }
+
   // Создание здания из тайлов атласа (стены + крыша)
   createBuilding(x, y, wallIndex = 0, roofIndex = 0) {
     const buildingContainer = new Container();
@@ -761,8 +796,8 @@ export class IsometricScene {
       const leftTexture = leftWalls[wallIndex % leftWalls.length];
       const leftSprite = new Sprite(leftTexture);
       leftSprite.anchor.set(1, 1); // Якорь в правом нижнем углу
-      leftSprite.x = 0;
-      leftSprite.y = 0;
+      leftSprite.x = this.buildingWallOffsetX || 0;
+      leftSprite.y = this.buildingWallOffsetY || 0;
       buildingContainer.addChild(leftSprite);
     }
 
@@ -771,8 +806,8 @@ export class IsometricScene {
       const rightTexture = rightWalls[wallIndex % rightWalls.length];
       const rightSprite = new Sprite(rightTexture);
       rightSprite.anchor.set(0, 1); // Якорь в левом нижнем углу
-      rightSprite.x = 0;
-      rightSprite.y = 0;
+      rightSprite.x = this.buildingWallOffsetX || 0;
+      rightSprite.y = this.buildingWallOffsetY || 0;
       buildingContainer.addChild(rightSprite);
     }
 
@@ -795,23 +830,21 @@ export class IsometricScene {
   createDecoration(x, y, type = 'tree') {
     const decorationContainer = new Container();
 
-    // Конфигурация объектов: текстура, целевой размер, якорь и бонус глубины
-    // depthBonus - сколько дополнительных "тайлов глубины" добавить для высоких объектов
+    // Конфигурация объектов: текстура, целевой размер, якорь
     // tileSize - сколько тайлов занимает объект (1 или 2 для 2x2)
     const objectConfig = {
-      'projects': { texture: this.projectsObjTexture, size: 256, anchor: [0.5, 0.5], depthBonus: 0, tileSize: 2 },
-      'tree': { texture: this.treeObjTexture, size: 128, anchor: [0.5, 0.35], depthBonus: 3, tileSize: 1 },
-      'home': { type: 'building', wallIndex: 0, roofIndex: 0, depthBonus: 2, tileSize: 1 },
-      'cases': { type: 'building', wallIndex: 1, roofIndex: 1, depthBonus: 2, tileSize: 1 },
+      'projects': { type: 'building', wallIndex: 2, roofIndex: 2, tileSize: 2 },
+      'tree': { texture: this.treeObjTexture, size: 128, anchor: [0.5, 0.75], tileSize: 1 },
+      'home': { type: 'building', wallIndex: 0, roofIndex: 0, tileSize: 2 },
+      'cases': { type: 'building', wallIndex: 1, roofIndex: 1, tileSize: 2 },
+      'cafe': { type: 'building', wallIndex: 3, roofIndex: 3, tileSize: 2 },
     };
 
-    let depthBonus = 0; // По умолчанию нет бонуса
     const config = objectConfig[type];
 
     if (config && config.type === 'building') {
       // Создаём здание из тайлов атласа
       const building = this.createBuilding(x, y, config.wallIndex, config.roofIndex);
-      depthBonus = config.depthBonus;
       decorationContainer.addChild(building);
     } else if (config && config.texture) {
       // Создаем спрайт для объекта
@@ -829,13 +862,9 @@ export class IsometricScene {
       objSprite.x = 0;
       objSprite.y = 0;
 
-      // Сохраняем бонус глубины для дальнейшего использования
-      depthBonus = config.depthBonus;
-
       decorationContainer.addChild(objSprite);
     } else if (config) {
       // Fallback если текстура не загрузилась
-      depthBonus = config.depthBonus || 0;
       const placeholder = new Graphics();
       const size = config.size || 64;
       placeholder.rect(-size/4, -size/4, size/2, size/2);
@@ -850,10 +879,11 @@ export class IsometricScene {
     }
 
     // Если объект занимает 2x2 тайла, центрируем его на пересечении 4 тайлов
+    const tileSize = config?.tileSize || 1;
     let centerX = x;
     let centerY = y;
 
-    if (config && config.tileSize === 2) {
+    if (tileSize === 2) {
       // Смещаем центр на 0.5 тайла в обе стороны для центрирования на пересечении
       centerX = x + 0.5;
       centerY = y + 0.5;
@@ -868,9 +898,18 @@ export class IsometricScene {
     decorationContainer.gridX = centerX;
     decorationContainer.gridY = centerY;
 
-    // Устанавливаем zIndex на основе глубины + бонус для высоких объектов
-    // (чем больше x+y, тем ближе к камере)
-    decorationContainer.zIndex = centerX + centerY + depthBonus;
+    // zIndex считается от "нижней" точки объекта (ближайшей к камере)
+    // Для 1x1: x + y, для 2x2: (x+1) + (y+1) = x + y + 2
+    const bottomX = x + tileSize - 1;
+    const bottomY = y + tileSize - 1;
+    decorationContainer.zIndex = bottomX + bottomY;
+
+    // Регистрируем занятые клетки
+    for (let dx = 0; dx < tileSize; dx++) {
+      for (let dy = 0; dy < tileSize; dy++) {
+        this.registerOccupiedTile(x + dx, y + dy, type);
+      }
+    }
 
     return decorationContainer;
   }
@@ -882,8 +921,8 @@ export class IsometricScene {
     // Добавляем фоновые тайлы (трава вокруг)
     this.createBackgroundTiles();
 
-    // Добавляем стены на границах
-    this.createWalls();
+    // Добавляем стены на границах (временно отключено)
+    // this.createWalls();
 
     // Создаем изометрическую сетку из тайлов
     for (let y = 0; y < this.gridSize; y++) {
@@ -903,6 +942,7 @@ export class IsometricScene {
     this.sortableContainer.addChild(this.createDecoration(5, 6, 'tree'));
     this.sortableContainer.addChild(this.createDecoration(4, 2, 'home')); // Объект home
     this.sortableContainer.addChild(this.createDecoration(6, 5, 'cases')); // Объект cases
+    this.sortableContainer.addChild(this.createDecoration(1, 4, 'cafe')); // Объект cafe
 
     // Создаем персонажа и добавляем в сортируемый контейнер
     this.character = this.createCharacter();
