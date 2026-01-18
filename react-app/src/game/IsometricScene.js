@@ -1,89 +1,155 @@
-import { Graphics, Container, Sprite, Assets, Text } from 'pixi.js';
+import { Graphics, Container, Sprite, Assets, Text, Texture, Rectangle } from 'pixi.js';
 import { AnimatedGIF } from '@pixi/gif';
 import { CharacterAI } from './CharacterAI';
 
 export class IsometricScene {
   constructor(app) {
     this.app = app;
+
+    // ═══════════════════════════════════════════════════════════════
+    // СИСТЕМНЫЕ КОНТЕЙНЕРЫ
+    // ═══════════════════════════════════════════════════════════════
     this.container = new Container();
-
-    // Контейнер для объектов, требующих сортировки по глубине
     this.sortableContainer = new Container();
-    this.sortableContainer.sortableChildren = true; // Включаем автоматическую сортировку
+    this.sortableContainer.sortableChildren = true;
 
-    // Фиксированные размеры тайлов (логические размеры сетки)
-    this.tileWidth = 128;  // Ширина изометрического тайла
-    this.tileHeight = 64;  // Высота изометрического тайла
-    this.gridSize = 16;
+    // ═══════════════════════════════════════════════════════════════
+    // НАСТРОЙКИ СЕТКИ И ТАЙЛОВ ПОЛА
+    // ═══════════════════════════════════════════════════════════════
+    this.gridSize = 16;                // Размер сетки (16x16 тайлов)
+    this.tileWidth = 128;              // Ширина изометрического тайла
+    this.tileHeight = 64;              // Высота изометрического тайла
+    this.backgroundPadding = 10;       // Тайлов травы вокруг активной области
 
-    // Размер спрайта тайла (если спрайт 2048x2048)
-    const tileSpriteSize = 512;
+    // ═══════════════════════════════════════════════════════════════
+    // НАСТРОЙКИ СТЕН
+    // ═══════════════════════════════════════════════════════════════
+    this.wallTileScale = 0.55;          // Масштаб тайла стены (1 = оригинальный размер)
+    this.wallOffsetX = 0;              // Горизонтальное смещение стен
+    this.wallOffsetY = 32.5;             // Вертикальное смещение стен
 
-    // Рассчитываем масштаб спрайта под нужный размер тайла
-    this.tileScale = this.tileWidth / tileSpriteSize; // 128 / 2048 = 0.0625
+    // ═══════════════════════════════════════════════════════════════
+    // НАСТРОЙКИ ЗДАНИЙ
+    // ═══════════════════════════════════════════════════════════════
+    this.buildingRoofOffsetX = 0;      // Горизонтальный оффсет крыши
+    this.buildingRoofOffsetY = 35;     // Вертикальный оффсет крыши (меньше = выше)
+
+    // ═══════════════════════════════════════════════════════════════
+    // НАСТРОЙКИ ПЕРСОНАЖА
+    // ═══════════════════════════════════════════════════════════════
+    this.spriteScale = 0.05;           // Масштаб спрайта персонажа
+    this.spriteOffsetY = 10;           // Смещение спрайта относительно тени
+    this.shadowOffsetY = 0;            // Смещение тени относительно позиции
+    this.playerGridX = 5;              // Начальная позиция X на сетке
+    this.playerGridY = 5;              // Начальная позиция Y на сетке
+    this.moveSpeed = 0.15;             // Скорость движения (0-1)
+
+    // ═══════════════════════════════════════════════════════════════
+    // НАСТРОЙКИ КАМЕРЫ И УПРАВЛЕНИЯ
+    // ═══════════════════════════════════════════════════════════════
+    this.cameraSmoothing = 0.1;        // Плавность следования камеры (0-1)
+    this.controllerMode = true;        // true = ручное управление, false = AI
+    this.debugMode = false;            // Показывать debug графику
+
+    // ═══════════════════════════════════════════════════════════════
+    // НАСТРОЙКИ UI (БАББЛ АКТИВНОСТИ)
+    // ═══════════════════════════════════════════════════════════════
+    this.bubbleOffsetY = -40;          // Вертикальное смещение баббла
+    this.bubbleGifScale = 0.5;         // Масштаб GIF анимации
+    this.bubbleFramePadding = 8;       // Отступ рамки от GIF
+    this.bubbleFrameColor = 0x000000;  // Цвет рамки
+    this.bubbleFrameWidth = 3;         // Толщина рамки
+    this.bubbleBackgroundColor = 0x000000;
+    this.bubbleBackgroundAlpha = 0.7;
+
+    // ═══════════════════════════════════════════════════════════════
+    // ВНУТРЕННЕЕ СОСТОЯНИЕ (не трогать)
+    // ═══════════════════════════════════════════════════════════════
     this.character = null;
     this.characterSprites = {};
-    this.currentDirection = 'front-left'; // front-left, front-right, back-left, back-right
-
-    // Глобальный размер спрайта персонажа (масштаб)
-    this.spriteScale = 0.05; // 0.15 = 15% от оригинального размера (2048px -> ~307px)
-
-    // Смещение спрайта относительно тени (отрицательное значение = выше тени)
-    this.spriteOffsetY = 10; // Спрайт на 10px выше тени
-
-    // Смещение тени относительно позиции персонажа
-    this.shadowOffsetY = 0; // Тень на 60px ниже точки позиции
-
-    // Позиция персонажа на сетке
-    this.playerGridX = 5;
-    this.playerGridY = 5;
-
-    // Состояние движения
+    this.currentDirection = 'front-left';
     this.isMoving = false;
-    this.moveSpeed = 0.15; // Скорость движения (0-1, чем выше - тем быстрее)
-
-    // Настройки камеры
-    this.cameraSmoothing = 0.1; // Плавность следования камеры (0-1, чем выше - тем быстрее)
-
-    // Debug режим - показывать ли вспомогательную графику
-    this.debugMode = false; // false - скрыть всю debug графику true
-
-    // Контроллер режим - ручное управление или AI
-    this.controllerMode = false; // true - ручное управление, false - AI управление
-
-    // AI для управления персонажем
     this.characterAI = null;
-
-    // Баббл с анимацией активности
     this.activityBubble = null;
-    this.activityAnimations = {}; // Текстуры анимаций
-
-    // Фоновые тайлы (трава вокруг активной области)
+    this.activityAnimations = {};
     this.backgroundTiles = [];
-    this.backgroundPadding = 10; // Сколько тайлов добавить вокруг активной области
-
-    // Стены на границах
     this.walls = [];
-    this.wallHeight = 80; // Высота стены в пикселях
-    this.wallColor = 0x8B7355; // Цвет стены (коричневый placeholder)
-
-    // Настройки баббла
-    this.bubbleOffsetY = -40; // Вертикальное смещение баббла от центра тайла (отрицательное = выше)
-    this.bubbleGifScale = 0.5; // Масштаб GIF (270px * 0.35 = 94.5px)
-    this.bubbleFramePadding = 8; // Отступ рамки от GIF
-    this.bubbleFrameColor = 0x000000; // Цвет рамки
-    this.bubbleFrameWidth = 3; // Толщина рамки
-    this.bubbleBackgroundColor = 0x000000; // Цвет фона
-    this.bubbleBackgroundAlpha = 0.7; // Прозрачность фона
 
     this.init();
   }
 
+  // Загрузка текстурного атласа с парсингом размера тайла из имени файла
+  // Форматы имени: "Name-WIDTHxHEIGHT.png", "Name - WIDTHxHEIGHT.png"
+  // options.alternating = true - разделить на чётные/нечётные (left/right)
+  async loadTileAtlas(path, options = {}) {
+    const filename = path.split('/').pop();
+    // Ищем паттерн WIDTHxHEIGHT перед расширением
+    const match = filename.match(/(\d+)x(\d+)\.[^.]+$/);
+
+    if (!match) {
+      console.error(`Invalid atlas filename format: ${filename}. Expected: Name-WIDTHxHEIGHT.png`);
+      return options.alternating ? { left: [], right: [] } : [];
+    }
+
+    const tileWidth = parseInt(match[1]);
+    const tileHeight = parseInt(match[2]);
+
+    const baseTexture = await Assets.load(path);
+    const atlasWidth = baseTexture.width;
+    const atlasHeight = baseTexture.height;
+
+    const cols = Math.floor(atlasWidth / tileWidth);
+    const rows = Math.floor(atlasHeight / tileHeight);
+
+    const tiles = [];
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const frame = new Rectangle(
+          col * tileWidth,
+          row * tileHeight,
+          tileWidth,
+          tileHeight
+        );
+        const tileTexture = new Texture({
+          source: baseTexture.source,
+          frame: frame,
+          orig: frame,
+        });
+        tiles.push(tileTexture);
+      }
+    }
+
+    console.log(`Loaded atlas ${filename}: ${cols}x${rows} = ${tiles.length} tiles (${tileWidth}x${tileHeight}), atlas size: ${atlasWidth}x${atlasHeight}`);
+
+    // Если тайлы чередуются (левая/правая стена) - разделяем на два массива
+    if (options.alternating) {
+      const left = tiles.filter((_, i) => i % 2 === 0);
+      const right = tiles.filter((_, i) => i % 2 === 1);
+      console.log(`  -> Split to ${left.length} left + ${right.length} right tiles`);
+      return { left, right };
+    }
+
+    return tiles;
+  }
+
   async loadAssets() {
     try {
-      // Загружаем текстуры тайлов
-      this.grassTileTexture = await Assets.load('/assets/tile_grass_512v2.png');
-      this.floorTileTexture = await Assets.load('/assets/tile_floor_512.png');
+      // Загружаем атласы тайлов пола
+      this.grassTiles = await this.loadTileAtlas('/assets/Floor_Grass_01-256x128.png');
+      this.floorTiles = await this.loadTileAtlas('/assets/Floor_Wood_01-256x128.png');
+
+      // Загружаем атлас зданий (чередующиеся левая/правая стена)
+      this.buildingWalls = await this.loadTileAtlas('/assets/Isometric Buildings 2 - 64x96.png', { alternating: true });
+
+      // Загружаем атлас крыш
+      this.roofTiles = await this.loadTileAtlas('/assets/Isometric Town Roofing - 143x92.png');
+
+      // Загружаем атласы стен интерьера (чередующиеся левая/правая)
+      this.interiorWallsWindow = await this.loadTileAtlas('/assets/Thick_Brick_01_WindowA-SE-144x200.png', { alternating: true });
+      this.interiorWalls = await this.loadTileAtlas('/assets/Thick_Brick_01-SE-144x200.png', { alternating: true });
+
+      // Загружаем текстуры объектов
       this.projectsObjTexture = await Assets.load('/assets/obj_projects.png');
       this.treeObjTexture = await Assets.load('/assets/obj_tree.png');
       this.homeObjTexture = await Assets.load('/assets/obj_home.png');
@@ -171,69 +237,80 @@ export class IsometricScene {
     }
   }
 
-  // Создание стен на границах (placeholder)
+  // Создание стен на границах
   createWalls() {
+    const totalWalls = this.gridSize;
+    const midStart = Math.floor(totalWalls / 3);
+    const midEnd = Math.floor(totalWalls * 2 / 3);
+
     // Стена вдоль Y=0 (верхняя правая граница в изометрии)
-    for (let x = 0; x < this.gridSize; x++) {
-      const wall = this.createWallSegment(x, -1, 'right');
+    for (let x = -1; x < this.gridSize - 1; x++) {
+      const index = x + 1;
+      const hasWindow = index >= midStart && index < midEnd;
+      const wall = this.createWallSegment(x, -1, 'right', hasWindow);
       this.walls.push(wall);
       this.container.addChild(wall);
     }
 
     // Стена вдоль X=0 (верхняя левая граница в изометрии)
-    for (let y = 0; y < this.gridSize; y++) {
-      const wall = this.createWallSegment(-1, y, 'left');
+    for (let y = -1; y < this.gridSize - 1; y++) {
+      const index = y + 1;
+      const hasWindow = index >= midStart && index < midEnd;
+      const wall = this.createWallSegment(-1, y, 'left', hasWindow);
       this.walls.push(wall);
       this.container.addChild(wall);
     }
-
-    // Угловой элемент
-    const cornerWall = this.createWallSegment(-1, -1, 'corner');
-    this.walls.push(cornerWall);
-    this.container.addChild(cornerWall);
   }
 
-  // Создание одного сегмента стены (placeholder графика)
-  createWallSegment(gridX, gridY, side) {
+  // Создание одного сегмента стены из атласа текстур
+  createWallSegment(gridX, gridY, side, hasWindow = false) {
     const wallContainer = new Container();
-    const wall = new Graphics();
-
-    // Позиция в экранных координатах
     const pos = this.isoToScreen(gridX, gridY);
 
-    if (side === 'right') {
-      // Стена справа от тайла (видна слева в изометрии)
-      // Рисуем параллелограмм
-      wall.moveTo(0, -this.wallHeight);
-      wall.lineTo(this.tileWidth / 2, -this.wallHeight + this.tileHeight / 2);
-      wall.lineTo(this.tileWidth / 2, this.tileHeight / 2);
-      wall.lineTo(0, 0);
-      wall.closePath();
-      wall.fill({ color: this.wallColor, alpha: 0.9 });
-      wall.stroke({ width: 2, color: 0x5D4E37, alpha: 1 });
-    } else if (side === 'left') {
-      // Стена слева от тайла (видна справа в изометрии)
-      wall.moveTo(0, -this.wallHeight);
-      wall.lineTo(-this.tileWidth / 2, -this.wallHeight + this.tileHeight / 2);
-      wall.lineTo(-this.tileWidth / 2, this.tileHeight / 2);
-      wall.lineTo(0, 0);
-      wall.closePath();
-      wall.fill({ color: 0x6B5D47, alpha: 0.9 }); // Чуть темнее для глубины
-      wall.stroke({ width: 2, color: 0x5D4E37, alpha: 1 });
-    } else if (side === 'corner') {
-      // Угловой элемент - верхушка
-      wall.moveTo(0, -this.wallHeight);
-      wall.lineTo(this.tileWidth / 2, -this.wallHeight + this.tileHeight / 2);
-      wall.lineTo(0, -this.wallHeight + this.tileHeight);
-      wall.lineTo(-this.tileWidth / 2, -this.wallHeight + this.tileHeight / 2);
-      wall.closePath();
-      wall.fill({ color: 0x9B8B75, alpha: 0.9 }); // Светлее - верх
-      wall.stroke({ width: 2, color: 0x5D4E37, alpha: 1 });
+    // Выбираем атлас в зависимости от наличия окна
+    const wallAtlas = hasWindow ? this.interiorWallsWindow : this.interiorWalls;
+    const tiles = side === 'right' ? wallAtlas.right : wallAtlas.left;
+
+    if (tiles && tiles.length > 0) {
+      // Берём первый тайл (можно рандомизировать позже)
+      const texture = tiles[0];
+      const wallSprite = new Sprite(texture);
+
+      // Якорь внизу по центру
+      wallSprite.anchor.set(0.5, 1);
+
+      // Масштабируем с учётом глобального wallTileScale
+      wallSprite.scale.set(this.wallTileScale);
+
+      // Позиция относительно контейнера
+      wallSprite.x = (side === 'right' ? this.tileWidth / 4 : -this.tileWidth / 4) + this.wallOffsetX;
+      wallSprite.y = this.tileHeight / 2;
+
+      wallContainer.addChild(wallSprite);
+    } else {
+      // Fallback на Graphics если текстуры нет
+      const wall = new Graphics();
+      const wallColor = side === 'right' ? 0x8B7355 : 0x6B5D47;
+
+      if (side === 'right') {
+        wall.moveTo(0, -this.wallHeight);
+        wall.lineTo(this.tileWidth / 2, -this.wallHeight + this.tileHeight / 2);
+        wall.lineTo(this.tileWidth / 2, this.tileHeight / 2);
+        wall.lineTo(0, 0);
+        wall.closePath();
+      } else {
+        wall.moveTo(0, -this.wallHeight);
+        wall.lineTo(-this.tileWidth / 2, -this.wallHeight + this.tileHeight / 2);
+        wall.lineTo(-this.tileWidth / 2, this.tileHeight / 2);
+        wall.lineTo(0, 0);
+        wall.closePath();
+      }
+      wall.fill({ color: wallColor, alpha: 0.9 });
+      wallContainer.addChild(wall);
     }
 
-    wallContainer.addChild(wall);
     wallContainer.x = pos.x;
-    wallContainer.y = pos.y;
+    wallContainer.y = pos.y + this.wallOffsetY;
 
     return wallContainer;
   }
@@ -252,21 +329,43 @@ export class IsometricScene {
     };
   }
 
-  // Создание изометрической плитки (спрайт с текстурой)
+  // Создание изометрической плитки (спрайт из атласа)
   // isBackground = true для фоновых тайлов (трава), false для активных (пол)
   createTile(x, y, isBackground = false) {
     const tileContainer = new Container();
 
-    const texture = isBackground ? this.grassTileTexture : this.floorTileTexture;
-    const tileSprite = Sprite.from(texture);
+    // Выбираем атлас тайлов
+    const tiles = isBackground ? this.grassTiles : this.floorTiles;
 
-    // Якорь в центре спрайта
-    tileSprite.anchor.set(0.5, 0.5);
+    if (tiles && tiles.length > 0) {
+      // Выбираем тайл из атласа
+      // const tileIndex = Math.floor(Math.random() * tiles.length); // рандом
+      const tileIndex = 0; // фиксированный для отладки
+      const texture = tiles[tileIndex];
 
-    // Применяем масштабирование
-    tileSprite.scale.set(this.tileScale);
+      const tileSprite = new Sprite(texture);
 
-    tileContainer.addChild(tileSprite);
+      // Якорь в центре спрайта
+      tileSprite.anchor.set(0.5, 0.5);
+
+      // Масштабируем спрайт под размер тайла (256x128 -> tileWidth x tileHeight)
+      const scaleX = this.tileWidth / texture.width;
+      const scaleY = this.tileHeight / texture.height;
+      tileSprite.scale.set(scaleX, scaleY);
+
+      tileContainer.addChild(tileSprite);
+    } else {
+      // Fallback - цветной ромб если атлас не загружен
+      const fallback = new Graphics();
+      const color = isBackground ? 0x4a7c3f : 0x8B7355;
+      fallback.moveTo(0, -this.tileHeight / 2);
+      fallback.lineTo(this.tileWidth / 2, 0);
+      fallback.lineTo(0, this.tileHeight / 2);
+      fallback.lineTo(-this.tileWidth / 2, 0);
+      fallback.closePath();
+      fallback.fill({ color, alpha: 0.9 });
+      tileContainer.addChild(fallback);
+    }
 
     // Debug графика (показывается только если debugMode = true)
     if (this.debugMode) {
@@ -647,6 +746,51 @@ export class IsometricScene {
     });
   }
 
+  // Создание здания из тайлов атласа (стены + крыша)
+  createBuilding(x, y, wallIndex = 0, roofIndex = 0) {
+    const buildingContainer = new Container();
+
+    // В атласе чередуются: left, right, left, right...
+    // left = чётные (0, 2, 4...), right = нечётные (1, 3, 5...)
+    const leftWalls = this.buildingWalls?.left || [];
+    const rightWalls = this.buildingWalls?.right || [];
+    const roofs = this.roofTiles || [];
+
+    // Левая стена
+    if (leftWalls.length > 0) {
+      const leftTexture = leftWalls[wallIndex % leftWalls.length];
+      const leftSprite = new Sprite(leftTexture);
+      leftSprite.anchor.set(1, 1); // Якорь в правом нижнем углу
+      leftSprite.x = 0;
+      leftSprite.y = 0;
+      buildingContainer.addChild(leftSprite);
+    }
+
+    // Правая стена
+    if (rightWalls.length > 0) {
+      const rightTexture = rightWalls[wallIndex % rightWalls.length];
+      const rightSprite = new Sprite(rightTexture);
+      rightSprite.anchor.set(0, 1); // Якорь в левом нижнем углу
+      rightSprite.x = 0;
+      rightSprite.y = 0;
+      buildingContainer.addChild(rightSprite);
+    }
+
+    // Крыша
+    if (roofs.length > 0) {
+      const roofTexture = roofs[roofIndex % roofs.length];
+      const roofSprite = new Sprite(roofTexture);
+      roofSprite.anchor.set(0.5, 1); // Якорь внизу по центру
+      roofSprite.x = this.buildingRoofOffsetX || 0;
+      // Позиция крыши - над стенами
+      const wallHeight = leftWalls.length > 0 ? leftWalls[0].height : 96;
+      roofSprite.y = -wallHeight + (this.buildingRoofOffsetY || 10);
+      buildingContainer.addChild(roofSprite);
+    }
+
+    return buildingContainer;
+  }
+
   // Создание декораций (деревья, камни, объекты и т.д.)
   createDecoration(x, y, type = 'tree') {
     const decorationContainer = new Container();
@@ -656,16 +800,21 @@ export class IsometricScene {
     // tileSize - сколько тайлов занимает объект (1 или 2 для 2x2)
     const objectConfig = {
       'projects': { texture: this.projectsObjTexture, size: 256, anchor: [0.5, 0.5], depthBonus: 0, tileSize: 2 },
-      'tree': { texture: this.treeObjTexture, size: 128, anchor: [0.5, 0.35], depthBonus: 3, tileSize: 1 }, // Дерево высокое - крона занимает 3 тайла
-      'home': { texture: this.homeObjTexture, size: 256, anchor: [0.5, 0.5], depthBonus: 0, tileSize: 2 },
-      'cases': { texture: this.casesObjTexture, size: 256, anchor: [0.5, 0.5], depthBonus: 0, tileSize: 2 },
+      'tree': { texture: this.treeObjTexture, size: 128, anchor: [0.5, 0.35], depthBonus: 3, tileSize: 1 },
+      'home': { type: 'building', wallIndex: 0, roofIndex: 0, depthBonus: 2, tileSize: 1 },
+      'cases': { type: 'building', wallIndex: 1, roofIndex: 1, depthBonus: 2, tileSize: 1 },
     };
 
     let depthBonus = 0; // По умолчанию нет бонуса
+    const config = objectConfig[type];
 
-    if (objectConfig[type]) {
+    if (config && config.type === 'building') {
+      // Создаём здание из тайлов атласа
+      const building = this.createBuilding(x, y, config.wallIndex, config.roofIndex);
+      depthBonus = config.depthBonus;
+      decorationContainer.addChild(building);
+    } else if (config && config.texture) {
       // Создаем спрайт для объекта
-      const config = objectConfig[type];
       const objSprite = Sprite.from(config.texture);
 
       // Устанавливаем якорь из конфигурации
@@ -684,6 +833,14 @@ export class IsometricScene {
       depthBonus = config.depthBonus;
 
       decorationContainer.addChild(objSprite);
+    } else if (config) {
+      // Fallback если текстура не загрузилась
+      depthBonus = config.depthBonus || 0;
+      const placeholder = new Graphics();
+      const size = config.size || 64;
+      placeholder.rect(-size/4, -size/4, size/2, size/2);
+      placeholder.fill(0x888888);
+      decorationContainer.addChild(placeholder);
     } else {
       // Fallback для неизвестных типов - простая графика
       const decoration = new Graphics();
@@ -693,7 +850,6 @@ export class IsometricScene {
     }
 
     // Если объект занимает 2x2 тайла, центрируем его на пересечении 4 тайлов
-    const config = objectConfig[type];
     let centerX = x;
     let centerY = y;
 
