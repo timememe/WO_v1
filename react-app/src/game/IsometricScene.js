@@ -16,10 +16,10 @@ export class IsometricScene {
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ СЕТКИ И ТАЙЛОВ ПОЛА
     // ═══════════════════════════════════════════════════════════════
-    this.gridSize = 8;                // Размер сетки (16x16 тайлов)
+    this.gridSize = 10;                // Размер сетки (16x16 тайлов)
     this.tileWidth = 128;              // Ширина изометрического тайла
     this.tileHeight = 64;              // Высота изометрического тайла
-    this.backgroundPadding = 10;       // Тайлов травы вокруг активной области
+    this.backgroundPadding = 6;       // Тайлов травы вокруг активной области
 
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ СТЕН
@@ -31,10 +31,22 @@ export class IsometricScene {
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ ЗДАНИЙ
     // ═══════════════════════════════════════════════════════════════
-    this.buildingWallOffsetX = 0;      // Горизонтальный оффсет стен
-    this.buildingWallOffsetY = 35;      // Вертикальный оффсет стен (меньше = выше)
-    this.buildingRoofOffsetX = 0;      // Горизонтальный оффсет крыши
-    this.buildingRoofOffsetY = 70;     // Вертикальный оффсет крыши (меньше = выше)
+    this.buildingSize = 192;           // Размер текстуры здания (из атласа 512x512)
+    this.buildingAnchorX = 0.5;        // Якорь X (0.5 = центр)
+    this.buildingAnchorY = 0.75;       // Якорь Y (0.85 = ближе к низу)
+
+    // ═══════════════════════════════════════════════════════════════
+    // НАСТРОЙКИ ДЕРЕВЬЕВ И КУСТОВ
+    // ═══════════════════════════════════════════════════════════════
+    this.treeSizeMin = 96;             // Минимальный размер дерева
+    this.treeSizeMax = 160;            // Максимальный размер дерева
+    this.treeAnchorX = 0.5;            // Якорь X дерева
+    this.treeAnchorY = 0.85;           // Якорь Y дерева
+    this.bushSizeMin = 32;             // Минимальный размер куста
+    this.bushSizeMax = 64;             // Максимальный размер куста
+    this.bushAnchorX = 0.5;            // Якорь X куста
+    this.bushAnchorY = 0.75;           // Якорь Y куста
+    this.vegetationCount = 20;         // Количество деревьев и кустов
 
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ ПЕРСОНАЖА
@@ -50,8 +62,8 @@ export class IsometricScene {
     // НАСТРОЙКИ КАМЕРЫ И УПРАВЛЕНИЯ
     // ═══════════════════════════════════════════════════════════════
     this.cameraSmoothing = 0.1;        // Плавность следования камеры (0-1)
-    this.controllerMode = false;        // true = ручное управление, false = AI
-    this.debugMode = true;            // Показывать debug графику
+    this.controllerMode = true;        // true = ручное управление, false = AI
+    this.debugMode = false;            // Показывать debug графику
 
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ UI (БАББЛ АКТИВНОСТИ)
@@ -136,27 +148,95 @@ export class IsometricScene {
     return tiles;
   }
 
+  // Загрузка атласа зданий (homes.png - 1024x1024, 4 изображения 512x512)
+  // Порядок: [0] home, [1] projects, [2] cases, [3] cafe
+  async loadBuildingsAtlas(path) {
+    const baseTexture = await Assets.load(path);
+
+    const tileSize = 512;
+    const tiles = {};
+
+    // Порядок в атласе (по строкам):
+    // [0,0] home, [1,0] projects
+    // [0,1] cases, [1,1] cafe
+    const positions = {
+      'home': { col: 0, row: 0 },
+      'projects': { col: 1, row: 0 },
+      'cases': { col: 0, row: 1 },
+      'cafe': { col: 1, row: 1 }
+    };
+
+    for (const [name, pos] of Object.entries(positions)) {
+      const frame = new Rectangle(
+        pos.col * tileSize,
+        pos.row * tileSize,
+        tileSize,
+        tileSize
+      );
+      tiles[name] = new Texture({
+        source: baseTexture.source,
+        frame: frame,
+        orig: frame,
+      });
+    }
+
+    console.log(`Loaded buildings atlas: ${Object.keys(tiles).join(', ')}`);
+    return tiles;
+  }
+
+  // Загрузка атласа деревьев (trees.png - 1536x1024, спрайты 512x512)
+  // Ряд 0: кусты (3 шт), Ряд 1: деревья (3 шт)
+  async loadTreesAtlas(path) {
+    const baseTexture = await Assets.load(path);
+
+    const tileSize = 512;
+    const cols = 3;
+    const result = {
+      bushes: [],
+      trees: []
+    };
+
+    // Ряд 0 - кусты
+    for (let col = 0; col < cols; col++) {
+      const frame = new Rectangle(col * tileSize, 0, tileSize, tileSize);
+      result.bushes.push(new Texture({
+        source: baseTexture.source,
+        frame: frame,
+        orig: frame,
+      }));
+    }
+
+    // Ряд 1 - деревья
+    for (let col = 0; col < cols; col++) {
+      const frame = new Rectangle(col * tileSize, tileSize, tileSize, tileSize);
+      result.trees.push(new Texture({
+        source: baseTexture.source,
+        frame: frame,
+        orig: frame,
+      }));
+    }
+
+    console.log(`Loaded trees atlas: ${result.bushes.length} bushes, ${result.trees.length} trees`);
+    return result;
+  }
+
   async loadAssets() {
     try {
       // Загружаем атласы тайлов пола
       this.grassTiles = await this.loadTileAtlas('/assets/Floor_Grass_01-256x128.png');
       this.floorTiles = await this.loadTileAtlas('/assets/Floor_Wood_01-256x128.png');
 
-      // Загружаем атлас зданий (чередующиеся левая/правая стена)
-      this.buildingWalls = await this.loadTileAtlas('/assets/Isometric Buildings 2 - 64x96.png', { alternating: true });
+      // Загружаем атлас зданий (homes.png - 1024x1024, 4 изображения 512x512)
+      // [0,0] home, [1,0] projects, [0,1] cases, [1,1] cafe
+      this.buildingTiles = await this.loadBuildingsAtlas('/assets/homes.png');
 
-      // Загружаем атлас крыш
-      this.roofTiles = await this.loadTileAtlas('/assets/Isometric Town Roofing - 143x92.png');
+      // Загружаем атлас деревьев (trees.png - 1536x1024, спрайты 512x512)
+      // Ряд 0: кусты, Ряд 1: деревья
+      this.treeTiles = await this.loadTreesAtlas('/assets/trees.png');
 
       // Загружаем атласы стен интерьера (чередующиеся левая/правая)
       this.interiorWallsWindow = await this.loadTileAtlas('/assets/Thick_Brick_01_WindowA-SE-144x200.png', { alternating: true });
       this.interiorWalls = await this.loadTileAtlas('/assets/Thick_Brick_01-SE-144x200.png', { alternating: true });
-
-      // Загружаем текстуры объектов
-      this.projectsObjTexture = await Assets.load('/assets/obj_projects.png');
-      this.treeObjTexture = await Assets.load('/assets/obj_tree.png');
-      this.homeObjTexture = await Assets.load('/assets/obj_home.png');
-      this.casesObjTexture = await Assets.load('/assets/obj_cases.png');
 
       // Загружаем спрайты персонажа
       const frontTexture = await Assets.load('/assets/me_idle_f.png');
@@ -338,7 +418,7 @@ export class IsometricScene {
     const tileContainer = new Container();
 
     // Выбираем атлас тайлов
-    const tiles = isBackground ? this.grassTiles : this.grassTiles;
+    const tiles = isBackground ? this.grassTiles : this.floorTiles;
 
     if (tiles && tiles.length > 0) {
       // Выбираем тайл из атласа
@@ -830,39 +910,59 @@ export class IsometricScene {
   createDecoration(x, y, type = 'tree') {
     const decorationContainer = new Container();
 
-    // Конфигурация объектов: текстура, целевой размер, якорь
+    // Конфигурация объектов
     // tileSize - сколько тайлов занимает объект (1 или 2 для 2x2)
     const objectConfig = {
-      'projects': { type: 'building', wallIndex: 2, roofIndex: 2, tileSize: 2 },
-      'tree': { texture: this.treeObjTexture, size: 128, anchor: [0.5, 0.75], tileSize: 1 },
-      'home': { type: 'building', wallIndex: 0, roofIndex: 0, tileSize: 2 },
-      'cases': { type: 'building', wallIndex: 1, roofIndex: 1, tileSize: 2 },
-      'cafe': { type: 'building', wallIndex: 3, roofIndex: 3, tileSize: 2 },
+      'projects': { type: 'building', tileSize: 2 },
+      'home': { type: 'building', tileSize: 2 },
+      'cases': { type: 'building', tileSize: 2 },
+      'cafe': { type: 'building', tileSize: 2 },
+      'tree': { type: 'tree', tileSize: 1 },
+      'bush': { type: 'bush', tileSize: 1 },
     };
 
     const config = objectConfig[type];
 
-    if (config && config.type === 'building') {
-      // Создаём здание из тайлов атласа
-      const building = this.createBuilding(x, y, config.wallIndex, config.roofIndex);
-      decorationContainer.addChild(building);
-    } else if (config && config.texture) {
-      // Создаем спрайт для объекта
-      const objSprite = Sprite.from(config.texture);
+    if (config && config.type === 'building' && this.buildingTiles && this.buildingTiles[type]) {
+      // Создаём здание из нового атласа homes.png
+      const buildingTexture = this.buildingTiles[type];
+      const buildingSprite = new Sprite(buildingTexture);
 
-      // Устанавливаем якорь из конфигурации
-      objSprite.anchor.set(config.anchor[0], config.anchor[1]);
+      buildingSprite.anchor.set(this.buildingAnchorX, this.buildingAnchorY);
 
       // Масштабирование (512x512 -> нужный размер)
-      const objSpriteSize = 512;
-      const objScale = config.size / objSpriteSize;
-      objSprite.scale.set(objScale);
+      const scale = this.buildingSize / 512;
+      buildingSprite.scale.set(scale);
 
-      // Позиция относительно центра тайла (0, 0)
-      objSprite.x = 0;
-      objSprite.y = 0;
+      decorationContainer.addChild(buildingSprite);
+    } else if (config && config.type === 'tree' && this.treeTiles && this.treeTiles.trees.length > 0) {
+      // Создаём дерево из атласа trees.png (случайное из 3)
+      const trees = this.treeTiles.trees;
+      const texture = trees[Math.floor(Math.random() * trees.length)];
+      const treeSprite = new Sprite(texture);
 
-      decorationContainer.addChild(objSprite);
+      treeSprite.anchor.set(this.treeAnchorX, this.treeAnchorY);
+
+      // Случайный размер в диапазоне treeSizeMin - treeSizeMax
+      const randomSize = this.treeSizeMin + Math.random() * (this.treeSizeMax - this.treeSizeMin);
+      const scale = randomSize / 512;
+      treeSprite.scale.set(scale);
+
+      decorationContainer.addChild(treeSprite);
+    } else if (config && config.type === 'bush' && this.treeTiles && this.treeTiles.bushes.length > 0) {
+      // Создаём куст из атласа trees.png (случайное из 3)
+      const bushes = this.treeTiles.bushes;
+      const texture = bushes[Math.floor(Math.random() * bushes.length)];
+      const bushSprite = new Sprite(texture);
+
+      bushSprite.anchor.set(this.bushAnchorX, this.bushAnchorY);
+
+      // Случайный размер в диапазоне bushSizeMin - bushSizeMax
+      const randomSize = this.bushSizeMin + Math.random() * (this.bushSizeMax - this.bushSizeMin);
+      const scale = randomSize / 512;
+      bushSprite.scale.set(scale);
+
+      decorationContainer.addChild(bushSprite);
     } else if (config) {
       // Fallback если текстура не загрузилась
       const placeholder = new Graphics();
@@ -914,6 +1014,45 @@ export class IsometricScene {
     return decorationContainer;
   }
 
+  // Создание случайной растительности вокруг активного поля
+  createVegetation() {
+    const padding = this.backgroundPadding;
+    const count = this.vegetationCount;
+    const placed = [];
+
+    // Собираем все возможные позиции в зоне backgroundPadding
+    const availablePositions = [];
+
+    for (let y = -padding; y < this.gridSize + padding; y++) {
+      for (let x = -padding; x < this.gridSize + padding; x++) {
+        // Пропускаем активную область
+        if (x >= 0 && x < this.gridSize && y >= 0 && y < this.gridSize) {
+          continue;
+        }
+        availablePositions.push({ x, y });
+      }
+    }
+
+    // Перемешиваем позиции
+    for (let i = availablePositions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [availablePositions[i], availablePositions[j]] = [availablePositions[j], availablePositions[i]];
+    }
+
+    // Размещаем растительность
+    for (let i = 0; i < Math.min(count, availablePositions.length); i++) {
+      const pos = availablePositions[i];
+      // 50% деревья, 50% кусты
+      const type = Math.random() < 0.5 ? 'tree' : 'bush';
+      const decoration = this.createDecoration(pos.x, pos.y, type);
+      this.sortableContainer.addChild(decoration);
+      placed.push(decoration);
+    }
+
+    console.log(`Placed ${placed.length} vegetation items (trees and bushes)`);
+    return placed;
+  }
+
   async init() {
     // Загружаем ассеты
     await this.loadAssets();
@@ -935,14 +1074,14 @@ export class IsometricScene {
     // Добавляем контейнер для сортируемых объектов поверх тайлов
     this.container.addChild(this.sortableContainer);
 
-    // Добавляем декорации в сортируемый контейнер
-    this.sortableContainer.addChild(this.createDecoration(1, 1, 'tree'));
-    this.sortableContainer.addChild(this.createDecoration(6, 2, 'tree'));
-    this.sortableContainer.addChild(this.createDecoration(2, 6, 'projects')); // Объект projects
-    this.sortableContainer.addChild(this.createDecoration(5, 6, 'tree'));
-    this.sortableContainer.addChild(this.createDecoration(4, 2, 'home')); // Объект home
-    this.sortableContainer.addChild(this.createDecoration(6, 5, 'cases')); // Объект cases
-    this.sortableContainer.addChild(this.createDecoration(1, 4, 'cafe')); // Объект cafe
+    // Добавляем здания в сортируемый контейнер
+    this.sortableContainer.addChild(this.createDecoration(2, 7, 'projects'));
+    this.sortableContainer.addChild(this.createDecoration(4, 2, 'home'));
+    this.sortableContainer.addChild(this.createDecoration(6, 5, 'cases'));
+    this.sortableContainer.addChild(this.createDecoration(1, 4, 'cafe'));
+
+    // Добавляем случайную растительность вокруг активного поля
+    this.createVegetation();
 
     // Создаем персонажа и добавляем в сортируемый контейнер
     this.character = this.createCharacter();
