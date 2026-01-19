@@ -1,6 +1,7 @@
 import { Graphics, Container, Sprite, Assets, Text, Texture, Rectangle } from 'pixi.js';
 import { AnimatedGIF } from '@pixi/gif';
 import { CharacterAI } from './CharacterAI';
+import { CRTFilter } from './CRTFilter';
 
 export class IsometricScene {
   constructor(app) {
@@ -80,6 +81,17 @@ export class IsometricScene {
     this.bubbleFrameWidth = 3;         // Толщина рамки
     this.bubbleBackgroundColor = 0x000000;
     this.bubbleBackgroundAlpha = 0.7;
+
+    // ═══════════════════════════════════════════════════════════════
+    // НАСТРОЙКИ CRT ШЕЙДЕРА
+    // ═══════════════════════════════════════════════════════════════
+    this.crtEnabled = true;            // Включить CRT эффект
+    this.crtCurvature = 8.0;           // Искривление экрана (больше = меньше искривления)
+    this.crtScanlineIntensity = 0.15;  // Интенсивность scanlines (0-1)
+    this.crtScanlineCount = 1200.0;     // Количество scanlines
+    this.crtVignette = 0.25;           // Затемнение по краям (0-1)
+    this.crtBrightness = 1.3;          // Яркость
+    this.crtChromaOffset = 0.8;        // Хроматическая аберрация
 
     // ═══════════════════════════════════════════════════════════════
     // ВНУТРЕННЕЕ СОСТОЯНИЕ (не трогать)
@@ -275,7 +287,6 @@ export class IsometricScene {
     try {
       // Загружаем атлас травы (grass.png - 1536x1536, спрайты 512x512)
       this.grassTiles = await this.loadGrassAtlas('/assets/grass.png');
-      this.floorTiles = await this.loadTileAtlas('/assets/Floor_Wood_01-256x128.png');
 
       // Загружаем атлас зданий (homes.png - 1024x1024, 4 изображения 512x512)
       // [0,0] home, [1,0] projects, [0,1] cases, [1,1] cafe
@@ -287,10 +298,6 @@ export class IsometricScene {
 
       // Загружаем атлас камней (rocks.png - 1024x1024, спрайты 512x512)
       this.rockTiles = await this.loadRocksAtlas('/assets/rocks.png');
-
-      // Загружаем атласы стен интерьера (чередующиеся левая/правая)
-      this.interiorWallsWindow = await this.loadTileAtlas('/assets/Thick_Brick_01_WindowA-SE-144x200.png', { alternating: true });
-      this.interiorWalls = await this.loadTileAtlas('/assets/Thick_Brick_01-SE-144x200.png', { alternating: true });
 
       // Загружаем спрайты персонажа
       const frontTexture = await Assets.load('/assets/me_idle_f.png');
@@ -1166,9 +1173,39 @@ export class IsometricScene {
       this.characterAI = new CharacterAI(this);
       this.characterAI.start();
     }
+
+    // Инициализируем CRT фильтр
+    if (this.crtEnabled) {
+      this.crtFilter = new CRTFilter({
+        curvature: this.crtCurvature,
+        scanlineIntensity: this.crtScanlineIntensity,
+        scanlineCount: this.crtScanlineCount,
+        vignetteIntensity: this.crtVignette,
+        brightness: this.crtBrightness,
+        chromaOffset: this.crtChromaOffset,
+      });
+      this.crtFilter.setResolution(this.app.screen.width, this.app.screen.height);
+      this.app.stage.filters = [this.crtFilter];
+
+      // Обновляем время для анимации шейдера
+      this.crtTickerFn = () => {
+        this.crtFilter.time += 0.016; // ~60fps
+      };
+      this.app.ticker.add(this.crtTickerFn);
+    }
   }
 
   destroy() {
+    // Останавливаем CRT фильтр
+    if (this.crtTickerFn) {
+      this.app.ticker.remove(this.crtTickerFn);
+    }
+    if (this.crtFilter) {
+      this.app.stage.filters = [];
+      this.crtFilter.destroy();
+      this.crtFilter = null;
+    }
+
     // Останавливаем AI если он запущен
     if (this.characterAI) {
       this.characterAI.stop();
