@@ -288,7 +288,7 @@ export class CharacterAI {
 
     // Показываем баббл с анимацией активности
     if (this.currentGoal && this.currentGoal.type) {
-      this.scene.showActivityBubble(this.currentGoal.type);
+      this.scene.showActivityBubble(this.currentGoal.type, this.currentGoal);
     }
   }
 

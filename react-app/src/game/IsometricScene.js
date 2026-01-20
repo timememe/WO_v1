@@ -101,6 +101,7 @@ export class IsometricScene {
     this.characterSprites = {};
     this.currentDirection = 'down';
     this.isMoving = false;
+    this.cameraTarget = null;
     this.characterAI = null;
     this.activityBubble = null;
     this.activityAnimations = {};
@@ -179,9 +180,9 @@ export class IsometricScene {
     // [0,1] cases, [1,1] cafe
     const positions = {
       'home': { col: 0, row: 0 },
-      'projects': { col: 1, row: 0 },
+      'projects': { col: 1, row: 1 },
       'cases': { col: 0, row: 1 },
-      'cafe': { col: 1, row: 1 }
+      'cafe': { col: 1, row: 0 }
     };
 
     for (const [name, pos] of Object.entries(positions)) {
@@ -689,19 +690,45 @@ export class IsometricScene {
 
   // Обновление позиции камеры (плавное следование за игроком)
   updateCamera() {
-    if (!this.character) return;
+    if (!this.character && !this.cameraTarget) return;
 
-    // Целевая позиция контейнера - игрок в центре экрана
-    const targetX = this.app.screen.width / 2 - this.character.x;
-    const targetY = this.app.screen.height / 2 - this.character.y;
+    let focusX = 0;
+    let focusY = 0;
+
+    if (this.cameraTarget) {
+      const screenPos = this.isoToScreen(this.cameraTarget.x, this.cameraTarget.y);
+      focusX = screenPos.x;
+      focusY = screenPos.y;
+    } else if (this.character) {
+      focusX = this.character.x;
+      focusY = this.character.y;
+    }
+
+    // Целевая позиция контейнера - фокус в центре экрана
+    const targetX = this.app.screen.width / 2 - focusX;
+    const targetY = this.app.screen.height / 2 - focusY;
 
     // Плавная интерполяция камеры
     this.container.x += (targetX - this.container.x) * this.cameraSmoothing;
     this.container.y += (targetY - this.container.y) * this.cameraSmoothing;
   }
 
+  setCameraTarget(target) {
+    if (!target) {
+      this.cameraTarget = null;
+      return;
+    }
+    this.cameraTarget = { x: target.x, y: target.y };
+  }
+
+  getLocationCenter(location) {
+    if (!location) return null;
+    const size = location.size || 1;
+    return { x: location.x + size / 2, y: location.y + size / 2 };
+  }
+
   // Показать баббл с анимацией над локацией
-  showActivityBubble(locationType) {
+  showActivityBubble(locationType, location) {
     // Скрываем персонажа полностью
     if (this.character) {
       this.character.visible = false;
@@ -793,10 +820,17 @@ export class IsometricScene {
     this.activityBubble.addChild(gif);
     this.activityBubble.addChild(frame);
 
-    // Позиционируем баббл над персонажем с настраиваемым оффсетом
-    const screenPos = this.isoToScreen(this.playerX, this.playerY);
+    const locationCenter = this.getLocationCenter(location);
+    if (locationCenter) {
+      this.setCameraTarget(locationCenter);
+    }
+
+    // Позиционируем баббл по центру объекта или персонажа
+    const anchor = locationCenter || { x: this.playerX, y: this.playerY };
+    const screenPos = this.isoToScreen(anchor.x, anchor.y);
+    const bubbleOffset = locationCenter ? 0 : this.bubbleOffsetY;
     this.activityBubble.x = screenPos.x;
-    this.activityBubble.y = screenPos.y + this.bubbleOffsetY;
+    this.activityBubble.y = screenPos.y + bubbleOffset;
 
     // Устанавливаем очень высокий zIndex чтобы баббл был поверх всего
     this.activityBubble.zIndex = 9999;
@@ -815,6 +849,7 @@ export class IsometricScene {
         }
       });
     }
+    this.setCameraTarget(null);
 
     // Показываем персонажа и все его спрайты
     if (this.character) {

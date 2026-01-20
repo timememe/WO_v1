@@ -76,7 +76,6 @@ export default function Sup() {
             {/* OVERLAY - AI STATUS */}
             {aiStatus && (
               <>
-                {/* СТРОКА СТАТУСА - STATE & ACTIVITY */}
                 <div className="sup-status-bar">
                   <div className="sup-status-bar-item">
                     <span className="sup-status-bar-label">State:</span>
@@ -106,50 +105,51 @@ export default function Sup() {
                   )}
                 </div>
 
-                {/* NEEDS OVERLAY */}
-                <div className="sup-needs-overlay">
-                  <div className="sup-need-item">
-                    <span className="sup-need-label">Energy</span>
-                    <div className="sup-need-bar">
-                      <div
-                        className="sup-need-fill"
-                        style={{ width: `${aiStatus.needs.energy}%`, backgroundColor: '#667eea' }}
-                      ></div>
+                <div className="sup-genesis-hud">
+                  <div className="sup-genesis-hud-grid">
+                    <div className="sup-hud-tile sup-hud-need is-energy">
+                      <span className="sup-hud-label">Energy</span>
+                      <div className="sup-hud-need-bar">
+                        <div
+                          className="sup-hud-need-fill"
+                          style={{ width: `${aiStatus.needs.energy}%` }}
+                        ></div>
+                      </div>
+                      <span className="sup-hud-value">{aiStatus.needs.energy}%</span>
                     </div>
-                    <span className="sup-need-value">{aiStatus.needs.energy}%</span>
-                  </div>
 
-                  <div className="sup-need-item">
-                    <span className="sup-need-label">Hunger</span>
-                    <div className="sup-need-bar">
-                      <div
-                        className="sup-need-fill"
-                        style={{ width: `${aiStatus.needs.hunger}%`, backgroundColor: '#00ff88' }}
-                      ></div>
+                    <div className="sup-hud-tile sup-hud-need is-hunger">
+                      <span className="sup-hud-label">Hunger</span>
+                      <div className="sup-hud-need-bar">
+                        <div
+                          className="sup-hud-need-fill"
+                          style={{ width: `${aiStatus.needs.hunger}%` }}
+                        ></div>
+                      </div>
+                      <span className="sup-hud-value">{aiStatus.needs.hunger}%</span>
                     </div>
-                    <span className="sup-need-value">{aiStatus.needs.hunger}%</span>
-                  </div>
 
-                  <div className="sup-need-item">
-                    <span className="sup-need-label">Fun</span>
-                    <div className="sup-need-bar">
-                      <div
-                        className="sup-need-fill"
-                        style={{ width: `${aiStatus.needs.fun}%`, backgroundColor: '#f59e0b' }}
-                      ></div>
+                    <div className="sup-hud-tile sup-hud-need is-fun">
+                      <span className="sup-hud-label">Fun</span>
+                      <div className="sup-hud-need-bar">
+                        <div
+                          className="sup-hud-need-fill"
+                          style={{ width: `${aiStatus.needs.fun}%` }}
+                        ></div>
+                      </div>
+                      <span className="sup-hud-value">{aiStatus.needs.fun}%</span>
                     </div>
-                    <span className="sup-need-value">{aiStatus.needs.fun}%</span>
-                  </div>
 
-                  <div className="sup-need-item">
-                    <span className="sup-need-label">Social</span>
-                    <div className="sup-need-bar">
-                      <div
-                        className="sup-need-fill"
-                        style={{ width: `${aiStatus.needs.social}%`, backgroundColor: '#ec4899' }}
-                      ></div>
+                    <div className="sup-hud-tile sup-hud-need is-social">
+                      <span className="sup-hud-label">Social</span>
+                      <div className="sup-hud-need-bar">
+                        <div
+                          className="sup-hud-need-fill"
+                          style={{ width: `${aiStatus.needs.social}%` }}
+                        ></div>
+                      </div>
+                      <span className="sup-hud-value">{aiStatus.needs.social}%</span>
                     </div>
-                    <span className="sup-need-value">{aiStatus.needs.social}%</span>
                   </div>
                 </div>
               </>
