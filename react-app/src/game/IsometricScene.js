@@ -69,7 +69,7 @@ export class IsometricScene {
     // НАСТРОЙКИ КАМЕРЫ И УПРАВЛЕНИЯ
     // ═══════════════════════════════════════════════════════════════
     this.cameraSmoothing = 0.05;        // Плавность следования камеры (0-1)
-    this.controllerMode = true;        // true = ручное управление, false = AI
+    this.controllerMode = false;        // true = ручное управление, false = AI
     this.debugMode = false;            // Показывать debug графику
 
     // ═══════════════════════════════════════════════════════════════
