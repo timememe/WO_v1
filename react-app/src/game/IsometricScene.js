@@ -35,7 +35,7 @@ export class IsometricScene {
     // ═══════════════════════════════════════════════════════════════
     this.buildingSize = 192;           // Размер текстуры здания (из атласа 512x512)
     this.buildingAnchorX = 0.5;        // Якорь X (0.5 = центр)
-    this.buildingAnchorY = 0.75;       // Якорь Y (0.85 = ближе к низу)
+    this.buildingAnchorY = 0.65;       // Якорь Y (0.85 = ближе к низу)
 
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ ДЕРЕВЬЕВ, КУСТОВ И КАМНЕЙ
@@ -62,15 +62,15 @@ export class IsometricScene {
     this.shadowOffsetY = 0;            // Смещение тени относительно позиции
     this.playerX = 5.0;                // Позиция X (float, свободное движение)
     this.playerY = 5.0;                // Позиция Y (float, свободное движение)
-    this.playerSpeed = 0.08;           // Скорость свободного движения
-    this.playerCollisionRadius = 0.3;  // Радиус коллизии персонажа
+    this.playerSpeed = 0.04;           // Скорость свободного движения
+    this.playerCollisionRadius = 0.2;  // Радиус коллизии персонажа
 
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ КАМЕРЫ И УПРАВЛЕНИЯ
     // ═══════════════════════════════════════════════════════════════
-    this.cameraSmoothing = 0.1;        // Плавность следования камеры (0-1)
+    this.cameraSmoothing = 0.05;        // Плавность следования камеры (0-1)
     this.controllerMode = true;        // true = ручное управление, false = AI
-    this.debugMode = true;            // Показывать debug графику
+    this.debugMode = false;            // Показывать debug графику
 
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ UI (БАББЛ АКТИВНОСТИ)
@@ -1022,11 +1022,19 @@ export class IsometricScene {
       if (this.keysPressed.left) { dx -= 1; dy += 1; }
       if (this.keysPressed.right) { dx += 1; dy -= 1; }
 
-      // Нормализуем вектор движения (чтобы скорость была одинаковой во всех 8 направлениях)
-      const len = Math.sqrt(dx * dx + dy * dy);
-      if (len > 0) {
-        dx /= len;
-        dy /= len;
+      // Нормализуем по ЭКРАННОЙ длине для одинаковой визуальной скорости
+      // Изометрическая проекция: screenX = (dx-dy)*tw/2, screenY = (dx+dy)*th/2
+      // Без этого движение влево/вправо визуально в 2 раза быстрее (tileWidth/tileHeight = 2)
+      if (dx !== 0 || dy !== 0) {
+        const screenDX = (dx - dy) * (this.tileWidth / 2);
+        const screenDY = (dx + dy) * (this.tileHeight / 2);
+        const screenLen = Math.sqrt(screenDX * screenDX + screenDY * screenDY);
+
+        // Масштабируем к базовой screen-длине (tileHeight = длина для направления W/S)
+        const baseScreenLen = this.tileHeight;
+        const scale = baseScreenLen / screenLen;
+        dx *= scale;
+        dy *= scale;
       }
 
       // Обновляем направление спрайта
