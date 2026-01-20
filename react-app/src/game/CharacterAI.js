@@ -40,14 +40,9 @@ export class CharacterAI {
     this.actionTimer = 0;
     this.actionDuration = 0;
 
-    // Локации для различных активностей
+    // Локации для различных активностей берём из сцены
     // Координаты указывают на начальный тайл объекта (левый верхний в grid)
-    this.locations = {
-      home: { x: 4, y: 2, type: 'home', size: 2 },
-      projects: { x: 2, y: 7, type: 'projects', size: 2 },
-      cases: { x: 6, y: 5, type: 'cases', size: 2 },
-      cafe: { x: 1, y: 4, type: 'cafe', size: 2 },
-    };
+    this.locations = this.scene.buildingLocations || {};
 
     // Расписание активностей (приоритеты)
     this.schedule = [

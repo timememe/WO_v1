@@ -36,6 +36,12 @@ export class IsometricScene {
     this.buildingSize = 192;           // Размер текстуры здания (из атласа 512x512)
     this.buildingAnchorX = 0.5;        // Якорь X (0.5 = центр)
     this.buildingAnchorY = 0.65;       // Якорь Y (0.85 = ближе к низу)
+    this.buildingLocations = {
+      home: { x: 6, y: 2, type: 'home', size: 2 },
+      projects: { x: 2, y: 7, type: 'projects', size: 2 },
+      cases: { x: 6, y: 6, type: 'cases', size: 2 },
+      cafe: { x: 1, y: 2, type: 'cafe', size: 2 },
+    };
 
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ ДЕРЕВЬЕВ, КУСТОВ И КАМНЕЙ
@@ -59,7 +65,9 @@ export class IsometricScene {
     // ═══════════════════════════════════════════════════════════════
     this.spriteScale = 0.2;            // Масштаб спрайта персонажа
     this.spriteOffsetY = 10;           // Смещение спрайта относительно тени
-    this.shadowOffsetY = 0;            // Смещение тени относительно позиции
+    this.shadowOffsetY = 20;            // Смещение тени относительно позиции
+    this.ufoScale = 0.12;              // Масштаб UFO спрайта (512x512)
+    this.ufoOffsetY = -10;               // Смещение UFO относительно тени
     this.playerX = 5.0;                // Позиция X (float, свободное движение)
     this.playerY = 5.0;                // Позиция Y (float, свободное движение)
     this.playerSpeed = 0.04;           // Скорость свободного движения
@@ -105,6 +113,7 @@ export class IsometricScene {
     this.characterAI = null;
     this.activityBubble = null;
     this.activityAnimations = {};
+    this.ufoTexture = null;
     this.backgroundTiles = [];
     this.walls = [];
     this.occupiedTiles = new Map(); // Карта занятых клеток: "x,y" -> objectType
@@ -370,6 +379,9 @@ export class IsometricScene {
         'work': await Assets.load('/assets/work.gif'),
         'cases': await Assets.load('/assets/cases.gif')
       };
+
+      // Загружаем UFO под персонажем
+      this.ufoTexture = await Assets.load('/assets/ufo.png');
 
       console.log('GIF animations loaded:', this.activityAnimations);
 
@@ -638,6 +650,14 @@ export class IsometricScene {
     shadow.ellipse(0, this.shadowOffsetY, 25, 10);
     shadow.fill({ color: 0x000000, alpha: 0.4 });
     character.addChild(shadow);
+
+    if (this.ufoTexture) {
+      const ufo = new Sprite(this.ufoTexture);
+      ufo.anchor.set(0.5, 0.5);
+      ufo.scale.set(this.ufoScale);
+      ufo.y = this.shadowOffsetY + this.ufoOffsetY;
+      character.addChild(ufo);
+    }
 
     // Добавляем спрайты (но показываем только активный)
     Object.keys(this.characterSprites).forEach(direction => {
@@ -1515,10 +1535,9 @@ export class IsometricScene {
     this.container.addChild(this.sortableContainer);
 
     // Добавляем здания в сортируемый контейнер
-    this.sortableContainer.addChild(this.createDecoration(2, 7, 'projects'));
-    this.sortableContainer.addChild(this.createDecoration(4, 2, 'home'));
-    this.sortableContainer.addChild(this.createDecoration(6, 5, 'cases'));
-    this.sortableContainer.addChild(this.createDecoration(1, 4, 'cafe'));
+    Object.values(this.buildingLocations).forEach((location) => {
+      this.sortableContainer.addChild(this.createDecoration(location.x, location.y, location.type));
+    });
 
     // Добавляем случайную растительность вокруг активного поля
     this.createVegetation();

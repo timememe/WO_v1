@@ -1,3 +1,11 @@
+@font-face {
+  font-family: "Sonic Genesis";
+  src: url("/assets/sonic-genesis-mega-drive-font.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* MAIN CONTAINER - Game-like Layout */
 .sup-game-container {
   width: 100%;
@@ -119,7 +127,7 @@
   align-items: center;
   gap: 1rem;
   z-index: 10;
-  font-family: monospace;
+  font-family: "Sonic Genesis", "Cascadia Mono", "Fira Code", "Consolas", monospace;
 }
 
 .sup-status-bar-item {
@@ -155,7 +163,7 @@
   padding: 0.75rem 1rem 1rem;
   z-index: 10;
   pointer-events: none;
-  font-family: "Cascadia Mono", "Fira Code", "Consolas", monospace;
+  font-family: "Sonic Genesis", "Cascadia Mono", "Fira Code", "Consolas", monospace;
   --hud-bg: #0b1020;
   --hud-edge: #1d2a4a;
   --hud-accent: #4de3ff;
