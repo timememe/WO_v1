@@ -57,19 +57,20 @@ export class IsometricScene {
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ ПЕРСОНАЖА
     // ═══════════════════════════════════════════════════════════════
-    this.spriteScale = 0.2;           // Масштаб спрайта персонажа
+    this.spriteScale = 0.2;            // Масштаб спрайта персонажа
     this.spriteOffsetY = 10;           // Смещение спрайта относительно тени
     this.shadowOffsetY = 0;            // Смещение тени относительно позиции
-    this.playerGridX = 5;              // Начальная позиция X на сетке
-    this.playerGridY = 5;              // Начальная позиция Y на сетке
-    this.moveSpeed = 0.15;             // Скорость движения (0-1)
+    this.playerX = 5.0;                // Позиция X (float, свободное движение)
+    this.playerY = 5.0;                // Позиция Y (float, свободное движение)
+    this.playerSpeed = 0.08;           // Скорость свободного движения
+    this.playerCollisionRadius = 0.3;  // Радиус коллизии персонажа
 
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ КАМЕРЫ И УПРАВЛЕНИЯ
     // ═══════════════════════════════════════════════════════════════
     this.cameraSmoothing = 0.1;        // Плавность следования камеры (0-1)
     this.controllerMode = true;        // true = ручное управление, false = AI
-    this.debugMode = false;            // Показывать debug графику
+    this.debugMode = true;            // Показывать debug графику
 
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ UI (БАББЛ АКТИВНОСТИ)
@@ -86,7 +87,7 @@ export class IsometricScene {
     // НАСТРОЙКИ CRT ШЕЙДЕРА
     // ═══════════════════════════════════════════════════════════════
     this.crtEnabled = true;            // Включить CRT эффект
-    this.crtCurvature = 8.0;           // Искривление экрана (больше = меньше искривления)
+    this.crtCurvature = 12.0;           // Искривление экрана (больше = меньше искривления)
     this.crtScanlineIntensity = 0.15;  // Интенсивность scanlines (0-1)
     this.crtScanlineCount = 1200.0;     // Количество scanlines
     this.crtVignette = 0.25;           // Затемнение по краям (0-1)
@@ -98,7 +99,7 @@ export class IsometricScene {
     // ═══════════════════════════════════════════════════════════════
     this.character = null;
     this.characterSprites = {};
-    this.currentDirection = 'front-left';
+    this.currentDirection = 'down';
     this.isMoving = false;
     this.characterAI = null;
     this.activityBubble = null;
@@ -283,6 +284,64 @@ export class IsometricScene {
     return grass;
   }
 
+  // Загрузка атласа персонажа (idle.png - 2560x512, спрайты 512x512 = 5 направлений)
+  // 1-down, 2-down-right, 3-right, 4-up-right, 5-up
+  // 2,3,4 зеркалируются для противоположных направлений
+  async loadCharacterAtlas(path) {
+    const baseTexture = await Assets.load(path);
+
+    const tileSize = 512;
+    const textures = [];
+
+    // 5 спрайтов в ряд
+    for (let col = 0; col < 5; col++) {
+      const frame = new Rectangle(col * tileSize, 0, tileSize, tileSize);
+      textures.push(new Texture({
+        source: baseTexture.source,
+        frame: frame,
+        orig: frame,
+      }));
+    }
+
+    // Создаём спрайты для всех 8 направлений
+    const sprites = {};
+
+    // down (1) - без зеркала
+    sprites['down'] = Sprite.from(textures[0]);
+    sprites['down'].scale.set(this.spriteScale);
+
+    // down-right (2) - оригинал
+    sprites['down-right'] = Sprite.from(textures[1]);
+    sprites['down-right'].scale.set(this.spriteScale);
+
+    // down-left (2) - зеркало
+    sprites['down-left'] = Sprite.from(textures[1]);
+    sprites['down-left'].scale.set(-this.spriteScale, this.spriteScale);
+
+    // right (3) - оригинал
+    sprites['right'] = Sprite.from(textures[2]);
+    sprites['right'].scale.set(this.spriteScale);
+
+    // left (3) - зеркало
+    sprites['left'] = Sprite.from(textures[2]);
+    sprites['left'].scale.set(-this.spriteScale, this.spriteScale);
+
+    // up-right (4) - оригинал
+    sprites['up-right'] = Sprite.from(textures[3]);
+    sprites['up-right'].scale.set(this.spriteScale);
+
+    // up-left (4) - зеркало
+    sprites['up-left'] = Sprite.from(textures[3]);
+    sprites['up-left'].scale.set(-this.spriteScale, this.spriteScale);
+
+    // up (5) - без зеркала
+    sprites['up'] = Sprite.from(textures[4]);
+    sprites['up'].scale.set(this.spriteScale);
+
+    console.log(`Loaded character atlas: 8 directions from 5 sprites`);
+    return sprites;
+  }
+
   async loadAssets() {
     try {
       // Загружаем атлас травы (grass.png - 1536x1536, спрайты 512x512)
@@ -299,26 +358,8 @@ export class IsometricScene {
       // Загружаем атлас камней (rocks.png - 1024x1024, спрайты 512x512)
       this.rockTiles = await this.loadRocksAtlas('/assets/rocks.png');
 
-      // Загружаем спрайты персонажа
-      const frontTexture = await Assets.load('/assets/me_idle_f.png');
-      const backTexture = await Assets.load('/assets/me_idle_b.png');
-
-      // Создаем 4 направления
-      // front-left - оригинальный me_idle_f
-      this.characterSprites['front-left'] = Sprite.from(frontTexture);
-      this.characterSprites['front-left'].scale.set(this.spriteScale);
-
-      // front-right - зеркалированный me_idle_f
-      this.characterSprites['front-right'] = Sprite.from(frontTexture);
-      this.characterSprites['front-right'].scale.set(-this.spriteScale, this.spriteScale); // зеркалим по X
-
-      // back-right - оригинальный me_idle_b
-      this.characterSprites['back-right'] = Sprite.from(backTexture);
-      this.characterSprites['back-right'].scale.set(this.spriteScale);
-
-      // back-left - зеркалированный me_idle_b
-      this.characterSprites['back-left'] = Sprite.from(backTexture);
-      this.characterSprites['back-left'].scale.set(-this.spriteScale, this.spriteScale); // зеркалим по X
+      // Загружаем атлас персонажа (idle.png - 2560x512, 8 направлений)
+      this.characterSprites = await this.loadCharacterAtlas('/assets/idle.png');
 
       // Загружаем GIF анимации активностей через Assets
       // Assets.load() автоматически создаст AnimatedGIF объекты
@@ -341,12 +382,16 @@ export class IsometricScene {
   }
 
   createFallbackSprites() {
-    // Создаем простые графические объекты если изображения не загрузились
+    // Создаем простые графические объекты если изображения не загрузились (8 направлений)
     const colors = {
-      'front-left': 0x667eea,
-      'front-right': 0x4ecdc4,
-      'back-left': 0xff6b6b,
-      'back-right': 0xffe66d
+      'down': 0x667eea,
+      'down-right': 0x5a7dd4,
+      'down-left': 0x7380f0,
+      'right': 0x4ecdc4,
+      'left': 0x45b7af,
+      'up-right': 0xffe66d,
+      'up-left': 0xffd93d,
+      'up': 0xff6b6b
     };
 
     Object.keys(colors).forEach(direction => {
@@ -530,7 +575,7 @@ export class IsometricScene {
         text: `${x},${y}`,
         style: {
           fontFamily: 'Arial',
-          fontSize: 10,
+          fontSize: 30,
           fill: 0xffffff,
           align: 'center',
         }
@@ -564,6 +609,27 @@ export class IsometricScene {
       posMarker.circle(0, 0, 5);
       posMarker.fill({ color: 0xff0000, alpha: 0.8 });
       character.addChild(posMarker);
+
+      // Визуализация радиуса коллизии (изометрический ромб)
+      // В grid-координатах это круг радиусом playerCollisionRadius
+      // В изометрии круг превращается в ромб
+      const collisionViz = new Graphics();
+      const r = this.playerCollisionRadius;
+      // Конвертируем 4 точки круга в grid-пространстве в экранные координаты
+      // Точки: (r, 0), (0, r), (-r, 0), (0, -r) относительно центра персонажа
+      const p1 = { x: r * (this.tileWidth / 2), y: r * (this.tileHeight / 2) };      // (+r, 0)
+      const p2 = { x: -r * (this.tileWidth / 2), y: r * (this.tileHeight / 2) };     // (0, +r)
+      const p3 = { x: -r * (this.tileWidth / 2), y: -r * (this.tileHeight / 2) };    // (-r, 0)
+      const p4 = { x: r * (this.tileWidth / 2), y: -r * (this.tileHeight / 2) };     // (0, -r)
+
+      collisionViz.moveTo(p1.x, p1.y);
+      collisionViz.lineTo(p2.x, p2.y);
+      collisionViz.lineTo(p3.x, p3.y);
+      collisionViz.lineTo(p4.x, p4.y);
+      collisionViz.lineTo(p1.x, p1.y);
+      collisionViz.stroke({ width: 2, color: 0xff0000, alpha: 0.8 });
+      collisionViz.fill({ color: 0xff0000, alpha: 0.2 });
+      character.addChild(collisionViz);
     }
 
     // Тень под персонажем
@@ -598,7 +664,7 @@ export class IsometricScene {
       }
 
       // Применяем bounce offset к персонажу
-      const basePos = this.isoToScreen(this.playerGridX, this.playerGridY);
+      const basePos = this.isoToScreen(this.playerX, this.playerY);
       character.y = basePos.y - bounceOffset; // Минус, чтобы прыгал вверх
 
       // Обновляем камеру каждый кадр для плавного следования
@@ -613,12 +679,12 @@ export class IsometricScene {
   updateCharacterPosition() {
     if (!this.character) return;
 
-    const screenPos = this.isoToScreen(this.playerGridX, this.playerGridY);
+    const screenPos = this.isoToScreen(this.playerX, this.playerY);
     this.character.x = screenPos.x;
     this.character.y = screenPos.y;
 
     // Обновляем zIndex для правильной сортировки по глубине
-    this.character.zIndex = this.playerGridX + this.playerGridY;
+    this.character.zIndex = this.playerX + this.playerY;
   }
 
   // Обновление позиции камеры (плавное следование за игроком)
@@ -728,7 +794,7 @@ export class IsometricScene {
     this.activityBubble.addChild(frame);
 
     // Позиционируем баббл над персонажем с настраиваемым оффсетом
-    const screenPos = this.isoToScreen(this.playerGridX, this.playerGridY);
+    const screenPos = this.isoToScreen(this.playerX, this.playerY);
     this.activityBubble.x = screenPos.x;
     this.activityBubble.y = screenPos.y + this.bubbleOffsetY;
 
@@ -769,8 +835,8 @@ export class IsometricScene {
   movePlayer(dx, dy) {
     if (this.isMoving) return; // Уже двигается
 
-    const newX = this.playerGridX + dx;
-    const newY = this.playerGridY + dy;
+    const newX = this.playerX + dx;
+    const newY = this.playerY + dy;
 
     // Проверка границ (сетка от 0 до gridSize-1)
     if (newX < 0 || newX >= this.gridSize || newY < 0 || newY >= this.gridSize) {
@@ -795,23 +861,34 @@ export class IsometricScene {
     this.animateMovement(newX, newY);
   }
 
-  // Определение направления спрайта по вектору движения
+  // Определение направления спрайта по вектору движения (8 направлений)
   updateDirectionByMovement(dx, dy) {
-    // Изометрические направления:
-    // dx=1, dy=0  -> front-right (вправо)
-    // dx=-1, dy=0 -> back-left (влево)
-    // dx=0, dy=1  -> front-left (вниз)
-    // dx=0, dy=-1 -> back-right (вверх)
-    // Диагонали - комбинации
+    // Изометрические направления (сетка -> экран):
+    // dx=1, dy=0   -> down-right (по X+)
+    // dx=-1, dy=0  -> up-left (по X-)
+    // dx=0, dy=1   -> down-left (по Y+)
+    // dx=0, dy=-1  -> up-right (по Y-)
+    // dx=1, dy=1   -> down (диагональ вниз)
+    // dx=-1, dy=-1 -> up (диагональ вверх)
+    // dx=1, dy=-1  -> right (диагональ вправо)
+    // dx=-1, dy=1  -> left (диагональ влево)
 
-    if (dx > 0 && dy >= 0) {
-      this.setCharacterDirection('front-right');
-    } else if (dx < 0 && dy <= 0) {
-      this.setCharacterDirection('back-left');
-    } else if (dx <= 0 && dy > 0) {
-      this.setCharacterDirection('front-left');
-    } else if (dx >= 0 && dy < 0) {
-      this.setCharacterDirection('back-right');
+    if (dx === 1 && dy === 0) {
+      this.setCharacterDirection('down-right');
+    } else if (dx === -1 && dy === 0) {
+      this.setCharacterDirection('up-left');
+    } else if (dx === 0 && dy === 1) {
+      this.setCharacterDirection('down-left');
+    } else if (dx === 0 && dy === -1) {
+      this.setCharacterDirection('up-right');
+    } else if (dx === 1 && dy === 1) {
+      this.setCharacterDirection('down');
+    } else if (dx === -1 && dy === -1) {
+      this.setCharacterDirection('up');
+    } else if (dx === 1 && dy === -1) {
+      this.setCharacterDirection('right');
+    } else if (dx === -1 && dy === 1) {
+      this.setCharacterDirection('left');
     }
   }
 
@@ -819,7 +896,7 @@ export class IsometricScene {
   animateMovement(targetX, targetY) {
     this.isMoving = true;
 
-    const startPos = this.isoToScreen(this.playerGridX, this.playerGridY);
+    const startPos = this.isoToScreen(this.playerX, this.playerY);
     const endPos = this.isoToScreen(targetX, targetY);
 
     let progress = 0;
@@ -829,13 +906,13 @@ export class IsometricScene {
 
       if (progress >= 1) {
         // Движение завершено
-        this.playerGridX = targetX;
-        this.playerGridY = targetY;
+        this.playerX = targetX;
+        this.playerY = targetY;
         this.character.x = endPos.x;
         this.character.y = endPos.y;
 
         // Обновляем zIndex для правильной сортировки по глубине
-        this.character.zIndex = this.playerGridX + this.playerGridY;
+        this.character.zIndex = this.playerX + this.playerY;
 
         this.isMoving = false;
         this.app.ticker.remove(animateTicker);
@@ -856,37 +933,245 @@ export class IsometricScene {
     return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
   }
 
-  // Обработка клавиш (только если контроллер режим включен)
+  // ═══════════════════════════════════════════════════════════════
+  // СТАРЫЙ КОНТРОЛЛЕР (grid-based движение)
+  // ═══════════════════════════════════════════════════════════════
+  /*
+  setupControls_GridBased() {
+    if (!this.controllerMode) return;
+
+    this.keysPressed = { up: false, down: false, left: false, right: false };
+
+    const handleKeyDown = (e) => {
+      if (this.isMoving) return;
+      const key = e.key.toLowerCase();
+      if (key === 'w' || key === 'arrowup') this.keysPressed.up = true;
+      if (key === 's' || key === 'arrowdown') this.keysPressed.down = true;
+      if (key === 'a' || key === 'arrowleft') this.keysPressed.left = true;
+      if (key === 'd' || key === 'arrowright') this.keysPressed.right = true;
+
+      let dx = 0, dy = 0;
+      if (this.keysPressed.up) { dx -= 1; dy -= 1; }
+      if (this.keysPressed.down) { dx += 1; dy += 1; }
+      if (this.keysPressed.left) { dx -= 1; dy += 1; }
+      if (this.keysPressed.right) { dx += 1; dy -= 1; }
+      dx = Math.max(-1, Math.min(1, dx));
+      dy = Math.max(-1, Math.min(1, dy));
+      if (dx !== 0 || dy !== 0) this.movePlayer(dx, dy);
+    };
+
+    const handleKeyUp = (e) => {
+      const key = e.key.toLowerCase();
+      if (key === 'w' || key === 'arrowup') this.keysPressed.up = false;
+      if (key === 's' || key === 'arrowdown') this.keysPressed.down = false;
+      if (key === 'a' || key === 'arrowleft') this.keysPressed.left = false;
+      if (key === 'd' || key === 'arrowright') this.keysPressed.right = false;
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    this.keyDownHandler = handleKeyDown;
+    this.keyUpHandler = handleKeyUp;
+  }
+  */
+
+  // ═══════════════════════════════════════════════════════════════
+  // НОВЫЙ КОНТРОЛЛЕР (свободное движение с коллизиями)
+  // ═══════════════════════════════════════════════════════════════
   setupControls() {
     if (!this.controllerMode) {
       return;
     }
 
-    const handleKeyDown = (e) => {
-      switch(e.key.toLowerCase()) {
-        case 'w':
-        case 'arrowup':
-          this.movePlayer(0, -1); // Вверх (back-right)
-          break;
-        case 's':
-        case 'arrowdown':
-          this.movePlayer(0, 1); // Вниз (front-left)
-          break;
-        case 'a':
-        case 'arrowleft':
-          this.movePlayer(-1, 0); // Влево (back-left)
-          break;
-        case 'd':
-        case 'arrowright':
-          this.movePlayer(1, 0); // Вправо (front-right)
-          break;
-      }
+    // Состояние нажатых клавиш
+    this.keysPressed = {
+      up: false,
+      down: false,
+      left: false,
+      right: false
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    // Velocity персонажа
+    this.velocityX = 0;
+    this.velocityY = 0;
 
-    // Сохраняем для очистки
+    const handleKeyDown = (e) => {
+      const key = e.key.toLowerCase();
+      if (key === 'w' || key === 'arrowup') this.keysPressed.up = true;
+      if (key === 's' || key === 'arrowdown') this.keysPressed.down = true;
+      if (key === 'a' || key === 'arrowleft') this.keysPressed.left = true;
+      if (key === 'd' || key === 'arrowright') this.keysPressed.right = true;
+    };
+
+    const handleKeyUp = (e) => {
+      const key = e.key.toLowerCase();
+      if (key === 'w' || key === 'arrowup') this.keysPressed.up = false;
+      if (key === 's' || key === 'arrowdown') this.keysPressed.down = false;
+      if (key === 'a' || key === 'arrowleft') this.keysPressed.left = false;
+      if (key === 'd' || key === 'arrowright') this.keysPressed.right = false;
+    };
+
+    // Главный цикл движения
+    this.movementTickerFn = () => {
+      // Вычисляем направление движения (изометрический маппинг)
+      let dx = 0;
+      let dy = 0;
+
+      if (this.keysPressed.up) { dx -= 1; dy -= 1; }
+      if (this.keysPressed.down) { dx += 1; dy += 1; }
+      if (this.keysPressed.left) { dx -= 1; dy += 1; }
+      if (this.keysPressed.right) { dx += 1; dy -= 1; }
+
+      // Нормализуем вектор движения (чтобы скорость была одинаковой во всех 8 направлениях)
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len > 0) {
+        dx /= len;
+        dy /= len;
+      }
+
+      // Обновляем направление спрайта
+      if (dx !== 0 || dy !== 0) {
+        this.updateDirectionFromVelocity(dx, dy);
+        this.isMoving = true;
+      } else {
+        this.isMoving = false;
+      }
+
+      // Применяем скорость
+      const speed = this.playerSpeed;
+      let newX = this.playerX + dx * speed;
+      let newY = this.playerY + dy * speed;
+
+      // Проверяем коллизии и границы
+      const collision = this.checkCollision(newX, newY);
+
+      if (!collision.x) {
+        this.playerX = newX;
+      }
+      if (!collision.y) {
+        this.playerY = newY;
+      }
+
+      // Обновляем позицию персонажа на экране
+      this.updateCharacterPosition();
+    };
+
+    this.app.ticker.add(this.movementTickerFn);
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
     this.keyDownHandler = handleKeyDown;
+    this.keyUpHandler = handleKeyUp;
+  }
+
+  // Проверка пересечения круга персонажа с границами тайла (AABB)
+  checkCircleTileCollision(cx, cy, radius, tileX, tileY) {
+    // Тайл (tileX, tileY) визуально центрирован на координатах (tileX, tileY)
+    // Его границы в grid-координатах: [tileX-0.5, tileX+0.5] x [tileY-0.5, tileY+0.5]
+    const minX = tileX - 0.5;
+    const maxX = tileX + 0.5;
+    const minY = tileY - 0.5;
+    const maxY = tileY + 0.5;
+
+    // Находим ближайшую точку на границе тайла к центру круга
+    const closestX = Math.max(minX, Math.min(cx, maxX));
+    const closestY = Math.max(minY, Math.min(cy, maxY));
+
+    // Проверяем расстояние до ближайшей точки
+    const distanceX = cx - closestX;
+    const distanceY = cy - closestY;
+
+    return (distanceX * distanceX + distanceY * distanceY) < (radius * radius);
+  }
+
+  // Проверка коллизий с объектами и границами
+  checkCollision(newX, newY) {
+    const radius = this.playerCollisionRadius;
+    const result = { x: false, y: false };
+
+    // Проверка границ поля
+    if (newX - radius < 0 || newX + radius >= this.gridSize) {
+      result.x = true;
+    }
+    if (newY - radius < 0 || newY + radius >= this.gridSize) {
+      result.y = true;
+    }
+
+    // Проверка коллизий с объектами (занятые тайлы)
+    // Проверяем пересечение круга персонажа с границами занятых тайлов
+
+    // Проверка по X (новая позиция X, текущая Y)
+    const tilesX = this.getTilesInRadius(newX, this.playerY, radius);
+    for (const tile of tilesX) {
+      if (this.isTileOccupied(tile.x, tile.y)) {
+        // Проверяем реальное пересечение круга с границами тайла
+        if (this.checkCircleTileCollision(newX, this.playerY, radius, tile.x, tile.y)) {
+          result.x = true;
+          break;
+        }
+      }
+    }
+
+    // Проверка по Y (текущая X, новая позиция Y)
+    const tilesY = this.getTilesInRadius(this.playerX, newY, radius);
+    for (const tile of tilesY) {
+      if (this.isTileOccupied(tile.x, tile.y)) {
+        // Проверяем реальное пересечение круга с границами тайла
+        if (this.checkCircleTileCollision(this.playerX, newY, radius, tile.x, tile.y)) {
+          result.y = true;
+          break;
+        }
+      }
+    }
+
+    return result;
+  }
+
+  // Получить тайлы в радиусе от позиции
+  getTilesInRadius(x, y, radius) {
+    const tiles = [];
+    // Тайлы центрированы: тайл (tx, ty) имеет границы [tx-0.5, tx+0.5] x [ty-0.5, ty+0.5]
+    // Нужно найти все тайлы, чьи границы могут пересекаться с кругом персонажа
+    const minX = Math.ceil(x - radius - 0.5);
+    const maxX = Math.floor(x + radius + 0.5);
+    const minY = Math.ceil(y - radius - 0.5);
+    const maxY = Math.floor(y + radius + 0.5);
+
+    for (let tx = minX; tx <= maxX; tx++) {
+      for (let ty = minY; ty <= maxY; ty++) {
+        tiles.push({ x: tx, y: ty });
+      }
+    }
+    return tiles;
+  }
+
+  // Определение направления спрайта по velocity (8 направлений)
+  updateDirectionFromVelocity(dx, dy) {
+    // Вычисляем угол и определяем направление
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+    // 8 направлений по углу
+    let direction;
+    if (angle >= -22.5 && angle < 22.5) {
+      direction = 'down-right';
+    } else if (angle >= 22.5 && angle < 67.5) {
+      direction = 'down';
+    } else if (angle >= 67.5 && angle < 112.5) {
+      direction = 'down-left';
+    } else if (angle >= 112.5 && angle < 157.5) {
+      direction = 'left';
+    } else if (angle >= 157.5 || angle < -157.5) {
+      direction = 'up-left';
+    } else if (angle >= -157.5 && angle < -112.5) {
+      direction = 'up';
+    } else if (angle >= -112.5 && angle < -67.5) {
+      direction = 'up-right';
+    } else {
+      direction = 'right';
+    }
+
+    this.setCharacterDirection(direction);
   }
 
   // Смена направления персонажа
@@ -903,19 +1188,19 @@ export class IsometricScene {
 
   // Регистрация занятой клетки объектом
   registerOccupiedTile(x, y, objectType) {
-    const key = `${x},${y}`;
+    const key = `${Math.floor(x)},${Math.floor(y)}`;
     this.occupiedTiles.set(key, objectType);
   }
 
   // Проверка, занята ли клетка
   isTileOccupied(x, y) {
-    const key = `${x},${y}`;
+    const key = `${Math.floor(x)},${Math.floor(y)}`;
     return this.occupiedTiles.has(key);
   }
 
   // Получить тип объекта на клетке
   getObjectAtTile(x, y) {
-    const key = `${x},${y}`;
+    const key = `${Math.floor(x)},${Math.floor(y)}`;
     return this.occupiedTiles.get(key) || null;
   }
 
@@ -1083,6 +1368,45 @@ export class IsometricScene {
       }
     }
 
+    // Debug: визуализация общей границы коллизии объекта
+    if (this.debugMode) {
+      // Для области tileSize x tileSize, занятые тайлы: (x,y) до (x+tileSize-1, y+tileSize-1)
+      // Внешние углы этой области - это углы крайних тайлов:
+      // - Верхний угол = верхняя точка тайла (x, y)
+      // - Правый угол = правая точка тайла (x+tileSize-1, y)
+      // - Нижний угол = нижняя точка тайла (x+tileSize-1, y+tileSize-1)
+      // - Левый угол = левая точка тайла (x, y+tileSize-1)
+
+      const hw = this.tileWidth / 2;
+      const hh = this.tileHeight / 2;
+
+      // Центры крайних тайлов
+      const topTileCenter = this.isoToScreen(x, y);
+      const rightTileCenter = this.isoToScreen(x + tileSize - 1, y);
+      const bottomTileCenter = this.isoToScreen(x + tileSize - 1, y + tileSize - 1);
+      const leftTileCenter = this.isoToScreen(x, y + tileSize - 1);
+
+      // Углы области (смещение от центра тайла к его углу)
+      const topCorner = { x: topTileCenter.x, y: topTileCenter.y - hh };
+      const rightCorner = { x: rightTileCenter.x + hw, y: rightTileCenter.y };
+      const bottomCorner = { x: bottomTileCenter.x, y: bottomTileCenter.y + hh };
+      const leftCorner = { x: leftTileCenter.x - hw, y: leftTileCenter.y };
+
+      // Позиция объекта (для относительных координат)
+      const objPos = this.isoToScreen(centerX, centerY);
+
+      const collisionBorder = new Graphics();
+      collisionBorder.moveTo(topCorner.x - objPos.x, topCorner.y - objPos.y);
+      collisionBorder.lineTo(rightCorner.x - objPos.x, rightCorner.y - objPos.y);
+      collisionBorder.lineTo(bottomCorner.x - objPos.x, bottomCorner.y - objPos.y);
+      collisionBorder.lineTo(leftCorner.x - objPos.x, leftCorner.y - objPos.y);
+      collisionBorder.lineTo(topCorner.x - objPos.x, topCorner.y - objPos.y);
+      collisionBorder.stroke({ width: 3, color: 0x00ffff, alpha: 0.9 });
+      collisionBorder.fill({ color: 0x00ffff, alpha: 0.15 });
+
+      decorationContainer.addChild(collisionBorder);
+    }
+
     return decorationContainer;
   }
 
@@ -1206,6 +1530,11 @@ export class IsometricScene {
       this.crtFilter = null;
     }
 
+    // Останавливаем движение
+    if (this.movementTickerFn) {
+      this.app.ticker.remove(this.movementTickerFn);
+    }
+
     // Останавливаем AI если он запущен
     if (this.characterAI) {
       this.characterAI.stop();
@@ -1233,6 +1562,9 @@ export class IsometricScene {
     }
     if (this.keyDownHandler) {
       window.removeEventListener('keydown', this.keyDownHandler);
+    }
+    if (this.keyUpHandler) {
+      window.removeEventListener('keyup', this.keyUpHandler);
     }
     this.container.destroy({ children: true });
   }
