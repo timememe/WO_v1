@@ -67,6 +67,11 @@
   mix-blend-mode: screen;
 }
 
+.sup-viewport-inner.is-cases::before,
+.sup-viewport-inner.is-cases::after {
+  opacity: 0;
+}
+
 .sup-canvas {
   position: absolute;
   top: 0;

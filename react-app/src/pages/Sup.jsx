@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { Application, Container } from 'pixi.js';
+import { Application, Container, Rectangle } from 'pixi.js';
 import Layout from '../components/Layout/Layout';
-import { IsometricScene } from '../game/IsometricScene';
-import { CasesScene } from '../game/CasesScene';
-import { CRTFilter } from '../game/CRTFilter';
-import { getAssetManager } from '../game/AssetManager';
+import { IsometricScene } from '../portfolio/IsometricScene';
+import { CasesScene } from '../portfolio/CasesScene';
+import { CRTFilter } from '../portfolio/CRTFilter';
+import { getAssetManager } from '../portfolio/AssetManager';
 import './Sup.css';
 
 export default function Sup() {
@@ -18,12 +18,21 @@ export default function Sup() {
   const sceneTypeRef = useRef('main');
   const crtFilterRef = useRef(null);
   const crtTickerRef = useRef(null);
+  const crtContainerRef = useRef(null);  // Контейнер для CRT фильтра
   const sceneRootRef = useRef(null);
   const resizeHandlerRef = useRef(null);
   const assetManagerRef = useRef(null);
   const [activeCaseIndex, setActiveCaseIndex] = useState(0);
   const [assetsLoaded, setAssetsLoaded] = useState(false);
-  const enableCrtShader = false;
+  const enableCrtShader = true;
+  const crtDefaults = {
+    curvature: 12.0,
+    scanlineIntensity: 0.15,
+    scanlineCount: 1200.0,
+    vignetteIntensity: 0.25,
+    brightness: 1.3,
+    chromaOffset: 0.8,
+  };
 
   const casesData = [
     { title: 'Case 01', text: 'First test tile: overview and context.' },
@@ -48,9 +57,12 @@ export default function Sup() {
 
       appRef.current = app;
 
+      crtContainerRef.current = new Container();
+      crtContainerRef.current.filterArea = new Rectangle(0, 0, app.screen.width, app.screen.height);
+      app.stage.addChild(crtContainerRef.current);
+
       sceneRootRef.current = new Container();
-      sceneRootRef.current.filterArea = app.screen;
-      app.stage.addChild(sceneRootRef.current);
+      crtContainerRef.current.addChild(sceneRootRef.current);
 
       // Инициализируем AssetManager и загружаем все ассеты
       const assetManager = getAssetManager();
@@ -71,16 +83,18 @@ export default function Sup() {
 
       if (enableCrtShader && !crtFilterRef.current) {
         const crtFilter = new CRTFilter({
-          curvature: 12.0,
-          scanlineIntensity: 0.15,
-          scanlineCount: 1200.0,
-          vignetteIntensity: 0.25,
-          brightness: 1.3,
-          chromaOffset: 0.8,
+          curvature: crtDefaults.curvature,
+          scanlineIntensity: crtDefaults.scanlineIntensity,
+          scanlineCount: crtDefaults.scanlineCount,
+          vignetteIntensity: crtDefaults.vignetteIntensity,
+          brightness: crtDefaults.brightness,
+          chromaOffset: crtDefaults.chromaOffset,
         });
         crtFilter.setResolution(app.screen.width, app.screen.height);
         crtFilterRef.current = crtFilter;
-        sceneRootRef.current.filters = [crtFilter];
+
+        // Применяем CRT к отдельному контейнеру, чтобы не конфликтовать с stage
+        crtContainerRef.current.filters = [crtFilter];
 
         crtTickerRef.current = () => {
           if (crtFilterRef.current) {
@@ -94,8 +108,9 @@ export default function Sup() {
         if (crtFilterRef.current) {
           crtFilterRef.current.setResolution(app.screen.width, app.screen.height);
         }
-        if (sceneRootRef.current) {
-          sceneRootRef.current.filterArea = app.screen;
+        // Обновляем filterArea при ресайзе
+        if (crtContainerRef.current) {
+          crtContainerRef.current.filterArea = new Rectangle(0, 0, app.screen.width, app.screen.height);
         }
       };
       app.renderer.on('resize', resizeHandlerRef.current);
@@ -120,15 +135,16 @@ export default function Sup() {
           resizeHandlerRef.current = null;
         }
         if (crtFilterRef.current) {
-          if (sceneRootRef.current) {
-            sceneRootRef.current.filters = [];
+          if (crtContainerRef.current) {
+            crtContainerRef.current.filters = [];
           }
           crtFilterRef.current.destroy();
           crtFilterRef.current = null;
         }
-        if (sceneRootRef.current) {
-          appRef.current.stage.removeChild(sceneRootRef.current);
-          sceneRootRef.current.destroy({ children: true });
+        if (crtContainerRef.current) {
+          appRef.current.stage.removeChild(crtContainerRef.current);
+          crtContainerRef.current.destroy({ children: true });
+          crtContainerRef.current = null;
           sceneRootRef.current = null;
         }
         appRef.current.destroy(true);
@@ -142,6 +158,12 @@ export default function Sup() {
     if (!appRef.current || !assetManagerRef.current) return;
 
     const assetManager = assetManagerRef.current;
+    const ensureCrt = () => {
+      if (!enableCrtShader) return;
+      if (crtContainerRef.current && crtFilterRef.current) {
+        crtContainerRef.current.filters = [crtFilterRef.current];
+      }
+    };
 
     if (activeSection === 'cases') {
       if (sceneTypeRef.current !== 'cases') {
@@ -160,7 +182,7 @@ export default function Sup() {
         // Создаём новую CasesScene с предзагруженными ассетами
         casesSceneRef.current = new CasesScene(
           appRef.current,
-          { tileCount: 5 },
+          { tileCount: 5, tileGap: 0, tileOverlap: 20, backgroundColor: 0x000000, debugMode: true },
           sceneRootRef.current,
           assetManager
         );
@@ -169,6 +191,7 @@ export default function Sup() {
         sceneTypeRef.current = 'cases';
         setAiStatus(null);
         setActiveCaseIndex(0);
+        ensureCrt();
       }
     } else {
       if (sceneTypeRef.current !== 'main') {
@@ -190,6 +213,7 @@ export default function Sup() {
         if (activeSection && mainSceneRef.current?.updateSection) {
           mainSceneRef.current.updateSection(activeSection);
         }
+        ensureCrt();
       } else if (mainSceneRef.current?.updateSection) {
         mainSceneRef.current.updateSection(activeSection);
       }
@@ -216,7 +240,7 @@ export default function Sup() {
       <div className="sup-game-container">
         {/* ВЕРХНЯЯ ЧАСТЬ - GAME VIEWPORT (16:9) */}
         <div className="sup-viewport">
-          <div className="sup-viewport-inner">
+          <div className={`sup-viewport-inner ${activeSection === 'cases' ? 'is-cases' : ''}`}>
             <canvas ref={canvasRef} className="sup-canvas"></canvas>
 
             {/* OVERLAY - AI STATUS */}
