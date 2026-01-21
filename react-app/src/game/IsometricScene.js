@@ -1,11 +1,12 @@
-import { Graphics, Container, Sprite, Assets, Text, Texture, Rectangle } from 'pixi.js';
+import { Graphics, Container, Sprite, Text } from 'pixi.js';
 import { AnimatedGIF } from '@pixi/gif';
 import { CharacterAI } from './CharacterAI';
-import { CRTFilter } from './CRTFilter';
 
 export class IsometricScene {
-  constructor(app) {
+  constructor(app, rootContainer = null, assetManager = null) {
     this.app = app;
+    this.rootContainer = rootContainer || this.app.stage;
+    this.assetManager = assetManager;
 
     // ═══════════════════════════════════════════════════════════════
     // СИСТЕМНЫЕ КОНТЕЙНЕРЫ
@@ -114,6 +115,8 @@ export class IsometricScene {
     this.activityBubble = null;
     this.activityAnimations = {};
     this.ufoTexture = null;
+    this.isPaused = false;
+    this.aiWasRunning = false;
     this.backgroundTiles = [];
     this.walls = [];
     this.occupiedTiles = new Map(); // Карта занятых клеток: "x,y" -> objectType
@@ -353,42 +356,39 @@ export class IsometricScene {
   }
 
   async loadAssets() {
+    if (!this.assetManager) {
+      console.error('IsometricScene: AssetManager not provided');
+      this.createFallbackSprites();
+      return false;
+    }
+
     try {
-      // Загружаем атлас травы (grass.png - 1536x1536, спрайты 512x512)
-      this.grassTiles = await this.loadGrassAtlas('/assets/grass.png');
+      // Получаем предзагруженные ассеты из AssetManager
+      this.grassTiles = this.assetManager.getGrassTiles();
+      this.buildingTiles = this.assetManager.getBuildingTiles();
+      this.treeTiles = this.assetManager.getTreeTiles();
+      this.rockTiles = this.assetManager.getRockTiles();
+      this.ufoTexture = this.assetManager.getUfoTexture();
+      this.activityAnimations = this.assetManager.getActivityAnimations();
 
-      // Загружаем атлас зданий (homes.png - 1024x1024, 4 изображения 512x512)
-      // [0,0] home, [1,0] projects, [0,1] cases, [1,1] cafe
-      this.buildingTiles = await this.loadBuildingsAtlas('/assets/homes.png');
+      // Создаём спрайты персонажа из предзагруженных текстур
+      const characterData = this.assetManager.getCharacterTextures();
+      this.characterSprites = {};
 
-      // Загружаем атлас деревьев (trees.png - 1536x1024, спрайты 512x512)
-      // Ряд 0: кусты, Ряд 1: деревья
-      this.treeTiles = await this.loadTreesAtlas('/assets/trees.png');
+      for (const [direction, data] of Object.entries(characterData)) {
+        const sprite = Sprite.from(data.texture);
+        if (data.mirror) {
+          sprite.scale.set(-this.spriteScale, this.spriteScale);
+        } else {
+          sprite.scale.set(this.spriteScale);
+        }
+        this.characterSprites[direction] = sprite;
+      }
 
-      // Загружаем атлас камней (rocks.png - 1024x1024, спрайты 512x512)
-      this.rockTiles = await this.loadRocksAtlas('/assets/rocks.png');
-
-      // Загружаем атлас персонажа (idle.png - 2560x512, 8 направлений)
-      this.characterSprites = await this.loadCharacterAtlas('/assets/idle.png');
-
-      // Загружаем GIF анимации активностей через Assets
-      // Assets.load() автоматически создаст AnimatedGIF объекты
-      this.activityAnimations = {
-        'sleep': await Assets.load('/assets/sleep.gif'),
-        'eat': await Assets.load('/assets/eat.gif'),
-        'work': await Assets.load('/assets/work.gif'),
-        'cases': await Assets.load('/assets/cases.gif')
-      };
-
-      // Загружаем UFO под персонажем
-      this.ufoTexture = await Assets.load('/assets/ufo.png');
-
-      console.log('GIF animations loaded:', this.activityAnimations);
-
+      console.log('IsometricScene: Assets loaded from AssetManager');
       return true;
     } catch (error) {
-      console.error('Failed to load assets:', error);
-      // Fallback: создаем простые графические спрайты
+      console.error('Failed to load assets from AssetManager:', error);
       this.createFallbackSprites();
       return false;
     }
@@ -1546,7 +1546,7 @@ export class IsometricScene {
     this.character = this.createCharacter();
     this.sortableContainer.addChild(this.character);
 
-    this.app.stage.addChild(this.container);
+    this.rootContainer.addChild(this.container);
 
     // Инициализируем камеру (центрируем на игроке)
     this.updateCamera();
@@ -1560,41 +1560,71 @@ export class IsometricScene {
       this.characterAI.start();
     }
 
-    // Инициализируем CRT фильтр
-    if (this.crtEnabled) {
-      this.crtFilter = new CRTFilter({
-        curvature: this.crtCurvature,
-        scanlineIntensity: this.crtScanlineIntensity,
-        scanlineCount: this.crtScanlineCount,
-        vignetteIntensity: this.crtVignette,
-        brightness: this.crtBrightness,
-        chromaOffset: this.crtChromaOffset,
-      });
-      this.crtFilter.setResolution(this.app.screen.width, this.app.screen.height);
-      this.app.stage.filters = [this.crtFilter];
+  }
 
-      // Обновляем время для анимации шейдера
-      this.crtTickerFn = () => {
-        this.crtFilter.time += 0.016; // ~60fps
-      };
-      this.app.ticker.add(this.crtTickerFn);
+  pause() {
+    if (this.isPaused) return;
+    this.isPaused = true;
+    this.container.visible = false;
+    if (this.container.parent) {
+      this.container.parent.removeChild(this.container);
     }
+
+    if (this.idleAnimationFn) {
+      this.app.ticker.remove(this.idleAnimationFn);
+    }
+    if (this.movementTickerFn) {
+      this.app.ticker.remove(this.movementTickerFn);
+    }
+
+    if (this.characterAI) {
+      this.aiWasRunning = !this.controllerMode;
+      this.characterAI.stop();
+    }
+
+    Object.values(this.activityAnimations || {}).forEach((anim) => {
+      if (anim?.stop) {
+        anim.stop();
+      }
+    });
+  }
+
+  resume() {
+    if (!this.isPaused) return;
+    this.isPaused = false;
+    if (this.rootContainer && !this.container.parent) {
+      this.rootContainer.addChild(this.container);
+    }
+    this.container.visible = true;
+
+    if (this.idleAnimationFn) {
+      this.app.ticker.add(this.idleAnimationFn);
+    }
+    if (this.movementTickerFn) {
+      this.app.ticker.add(this.movementTickerFn);
+    }
+
+    if (this.aiWasRunning && this.characterAI) {
+      this.characterAI.start();
+      this.aiWasRunning = false;
+    }
+
+    Object.values(this.activityAnimations || {}).forEach((anim) => {
+      if (anim?.play) {
+        anim.play();
+      }
+    });
   }
 
   destroy() {
-    // Останавливаем CRT фильтр
-    if (this.crtTickerFn) {
-      this.app.ticker.remove(this.crtTickerFn);
-    }
-    if (this.crtFilter) {
-      this.app.stage.filters = [];
-      this.crtFilter.destroy();
-      this.crtFilter = null;
-    }
-
-    // Останавливаем движение
+    // Останавливаем все тикеры
     if (this.movementTickerFn) {
       this.app.ticker.remove(this.movementTickerFn);
+      this.movementTickerFn = null;
+    }
+    if (this.idleAnimationFn) {
+      this.app.ticker.remove(this.idleAnimationFn);
+      this.idleAnimationFn = null;
     }
 
     // Останавливаем AI если он запущен
@@ -1603,32 +1633,57 @@ export class IsometricScene {
       this.characterAI = null;
     }
 
+    // Очищаем ссылки на анимации (сами анимации остаются в AssetManager)
+    this.activityAnimations = null;
+
+    // Очищаем ссылки на спрайты персонажа
+    this.characterSprites = {};
+    this.character = null;
+
     // Очищаем фоновые тайлы
     if (this.backgroundTiles) {
-      this.backgroundTiles.forEach(tile => tile.destroy());
       this.backgroundTiles = [];
     }
 
     // Очищаем стены
-    this.walls.forEach(wall => wall.destroy());
-    this.walls = [];
+    if (this.walls) {
+      this.walls = [];
+    }
 
     // Очищаем баббл
     if (this.activityBubble) {
-      this.activityBubble.destroy({ children: true });
+      this.activityBubble.destroy({ children: true, texture: false, baseTexture: false });
       this.activityBubble = null;
     }
 
-    if (this.idleAnimationFn) {
-      this.app.ticker.remove(this.idleAnimationFn);
+    // Очищаем карту занятых тайлов
+    if (this.occupiedTiles) {
+      this.occupiedTiles.clear();
     }
+
+    // Удаляем обработчики клавиатуры
     if (this.keyDownHandler) {
       window.removeEventListener('keydown', this.keyDownHandler);
+      this.keyDownHandler = null;
     }
     if (this.keyUpHandler) {
       window.removeEventListener('keyup', this.keyUpHandler);
+      this.keyUpHandler = null;
     }
-    this.container.destroy({ children: true });
+
+    // Очищаем ссылки на текстуры (сами текстуры остаются в AssetManager)
+    this.grassTiles = null;
+    this.buildingTiles = null;
+    this.treeTiles = null;
+    this.rockTiles = null;
+    this.ufoTexture = null;
+
+    // Удаляем контейнер из родителя и уничтожаем
+    if (this.container.parent) {
+      this.container.parent.removeChild(this.container);
+    }
+    // НЕ уничтожаем текстуры - они управляются AssetManager
+    this.container.destroy({ children: true, texture: false, baseTexture: false });
   }
 
   updateSection(section) {
