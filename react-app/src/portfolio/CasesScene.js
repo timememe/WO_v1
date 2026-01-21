@@ -1,4 +1,4 @@
-import { Container, Sprite, Graphics, TilingSprite } from 'pixi.js';
+import { Container, Sprite, Graphics, TilingSprite, Text } from 'pixi.js';
 
 export class CasesScene {
   constructor(app, options = {}, rootContainer = null, assetManager = null) {
@@ -18,12 +18,18 @@ export class CasesScene {
     this.backgroundColor = options.backgroundColor ?? 0x000000;
     this.debugMode = options.debugMode ?? false;
     this.floorTexture = null;
+    this.casesData = options.casesData ?? [];
+    this.contentBoxScale = 0.7;
+    this.dialogPadding = 20;
+    this.dialogHeight = 170;
 
     this.container = new Container();
     this.tilesContainer = new Container();
     this.background = new Graphics();
     this.container.addChild(this.background);
     this.container.addChild(this.tilesContainer);
+    this.dialogContainer = new Container();
+    this.container.addChild(this.dialogContainer);
     this.rootContainer.addChild(this.container);
 
     this.activeIndex = 0;
@@ -41,6 +47,7 @@ export class CasesScene {
     this.loadAssets();
     this.createBackground();
     this.createTiles();
+    this.createDialog();
     this.centerOnIndex(0, true);
     this.startCamera();
     this.bindResize();
@@ -151,6 +158,13 @@ export class CasesScene {
         tileGroup.addChild(tile);
       }
 
+      const contentContainer = new Container();
+      contentContainer.label = 'content';
+      contentContainer.x = 0;
+      contentContainer.y = 0;
+      tileGroup.addChild(contentContainer);
+      this.renderTileContent(i, contentContainer);
+
       if (this.debugMode) {
         const tileOutline = new Graphics();
         tileOutline.rect(-this.tileWidth / 2, -this.tileHeight / 2, this.tileWidth, this.tileHeight);
@@ -161,6 +175,209 @@ export class CasesScene {
       this.tilesContainer.addChild(tileGroup);
       this.tiles.push(tileGroup);
     }
+  }
+
+  createDialog() {
+    this.dialogContainer.removeChildren().forEach((child) => {
+      child.destroy({ children: true, texture: false, baseTexture: false });
+    });
+
+    const dialogWidth = Math.round(this.app.screen.width * 0.88);
+    const dialogHeight = this.dialogHeight;
+    const dialog = new Graphics();
+    dialog.roundRect(0, 0, dialogWidth, dialogHeight, 16);
+    dialog.fill({ color: 0x0b0f1d, alpha: 0.9 });
+    dialog.stroke({ width: 2, color: 0x1c2a4a, alpha: 0.9 });
+
+    const title = new Text({
+      text: '',
+      style: {
+        fill: 0xffffff,
+        fontSize: 22,
+        fontFamily: 'Sonic Genesis, monospace',
+      },
+    });
+    title.anchor.set(0, 0);
+    title.x = this.dialogPadding;
+    title.y = 18;
+
+    const body = new Text({
+      text: '',
+      style: {
+        fill: 0xc7d3f1,
+        fontSize: 16,
+        fontFamily: 'Sonic Genesis, monospace',
+        wordWrap: true,
+        wordWrapWidth: dialogWidth - this.dialogPadding * 2 - 80,
+        lineHeight: 20,
+      },
+    });
+    body.anchor.set(0, 0);
+    body.x = this.dialogPadding;
+    body.y = 54;
+
+    const leftArrow = new Graphics();
+    leftArrow.moveTo(0, 12);
+    leftArrow.lineTo(20, 0);
+    leftArrow.lineTo(20, 24);
+    leftArrow.closePath();
+    leftArrow.fill({ color: 0x4de3ff, alpha: 0.9 });
+    leftArrow.x = dialogWidth - 72;
+    leftArrow.y = dialogHeight - 44;
+    leftArrow.eventMode = 'static';
+    leftArrow.cursor = 'pointer';
+    leftArrow.on('pointertap', () => this.nextText(-1));
+
+    const rightArrow = new Graphics();
+    rightArrow.moveTo(20, 12);
+    rightArrow.lineTo(0, 0);
+    rightArrow.lineTo(0, 24);
+    rightArrow.closePath();
+    rightArrow.fill({ color: 0x4de3ff, alpha: 0.9 });
+    rightArrow.x = dialogWidth - 36;
+    rightArrow.y = dialogHeight - 44;
+    rightArrow.eventMode = 'static';
+    rightArrow.cursor = 'pointer';
+    rightArrow.on('pointertap', () => this.nextText(1));
+
+    const pageIndicator = new Text({
+      text: '',
+      style: {
+        fill: 0x9fb8ff,
+        fontSize: 14,
+        fontFamily: 'Sonic Genesis, monospace',
+      },
+    });
+    pageIndicator.anchor.set(0.5, 0);
+    pageIndicator.x = dialogWidth - 54;
+    pageIndicator.y = 18;
+
+    this.dialogContainer.addChild(dialog);
+    this.dialogContainer.addChild(title);
+    this.dialogContainer.addChild(body);
+    this.dialogContainer.addChild(leftArrow);
+    this.dialogContainer.addChild(rightArrow);
+    this.dialogContainer.addChild(pageIndicator);
+
+    this.dialogBox = dialog;
+    this.dialogTitle = title;
+    this.dialogBody = body;
+    this.dialogLeft = leftArrow;
+    this.dialogRight = rightArrow;
+    this.dialogPage = pageIndicator;
+
+    this.updateDialogForCase(this.activeIndex);
+  }
+
+  updateDialogForCase(index) {
+    const caseData = this.casesData?.[index];
+    if (!caseData) return;
+    const title = caseData.title || `CASE ${index + 1}`;
+    const blocks = caseData.textBlocks || [];
+    const active = caseData.activeTextIndex ?? 0;
+    const block = blocks[active] || '';
+
+    if (this.dialogTitle) this.dialogTitle.text = title;
+    if (this.dialogBody) this.dialogBody.text = block;
+    const showArrows = blocks.length > 1;
+    if (this.dialogLeft) this.dialogLeft.visible = showArrows;
+    if (this.dialogRight) this.dialogRight.visible = showArrows;
+    if (this.dialogPage) {
+      this.dialogPage.text = blocks.length > 0 ? `${active + 1}/${blocks.length}` : '';
+      this.dialogPage.visible = blocks.length > 1;
+    }
+  }
+
+  renderTileContent(index, container) {
+    container.removeChildren().forEach((child) => {
+      child.destroy({ children: true, texture: false, baseTexture: false });
+    });
+
+    const caseData = this.casesData[index];
+    if (!caseData || !caseData.contents || caseData.contents.length === 0) {
+      if (this.debugMode) {
+        const placeholder = new Graphics();
+        const box = this.getContentBox();
+        placeholder.rect(-box.width / 2, -box.height / 2, box.width, box.height);
+        placeholder.stroke({ width: 2, color: 0xffffff, alpha: 0.5 });
+        container.addChild(placeholder);
+
+        const label = new Text({
+          text: `CASE ${index + 1}`,
+          style: { fill: 0xffffff, fontSize: 18, fontFamily: 'monospace' },
+        });
+        label.anchor.set(0.5);
+        container.addChild(label);
+      }
+      return;
+    }
+
+    const activeIndex = caseData.activeIndex ?? 0;
+    const contentItem = caseData.contents[activeIndex];
+    if (!contentItem) {
+      return;
+    }
+
+    const contentNode = contentItem.createDisplayObject
+      ? contentItem.createDisplayObject()
+      : contentItem.displayObject;
+    if (!contentNode) {
+      return;
+    }
+    contentNode.anchor?.set?.(0.5, 0.5);
+    const box = this.getContentBox();
+    this.fitDisplayObject(contentNode, box.width, box.height);
+    contentNode.x = 0;
+    contentNode.y = 0;
+    container.addChild(contentNode);
+  }
+
+  getContentBox() {
+    return {
+      width: Math.round(this.tileWidth * this.contentBoxScale),
+      height: Math.round(this.tileHeight * this.contentBoxScale),
+    };
+  }
+
+  fitDisplayObject(node, maxW, maxH) {
+    const w = node.width || 1;
+    const h = node.height || 1;
+    const scale = Math.min(maxW / w, maxH / h);
+    node.scale?.set?.(scale);
+  }
+
+  setCasesData(casesData) {
+    this.casesData = casesData || [];
+    this.rebuildTiles();
+    this.updateDialogForCase(this.activeIndex);
+  }
+
+  setActiveContent(tileIndex, contentIndex) {
+    const caseData = this.casesData?.[tileIndex];
+    if (!caseData) return;
+    caseData.activeIndex = Math.max(0, Math.min(caseData.contents.length - 1, contentIndex));
+    const tileGroup = this.tiles?.[tileIndex];
+    const contentContainer = tileGroup?.children?.find((child) => child.label === 'content');
+    if (contentContainer) {
+      this.renderTileContent(tileIndex, contentContainer);
+    }
+  }
+
+  nextContent(tileIndex, direction = 1) {
+    const caseData = this.casesData?.[tileIndex];
+    if (!caseData || !caseData.contents || caseData.contents.length === 0) return;
+    const current = caseData.activeIndex ?? 0;
+    const next = (current + direction + caseData.contents.length) % caseData.contents.length;
+    this.setActiveContent(tileIndex, next);
+  }
+
+  nextText(direction = 1) {
+    const caseData = this.casesData?.[this.activeIndex];
+    if (!caseData || !caseData.textBlocks || caseData.textBlocks.length === 0) return;
+    const current = caseData.activeTextIndex ?? 0;
+    const next = (current + direction + caseData.textBlocks.length) % caseData.textBlocks.length;
+    caseData.activeTextIndex = next;
+    this.updateDialogForCase(this.activeIndex);
   }
 
   clearTiles() {
@@ -189,6 +406,10 @@ export class CasesScene {
       this.background.x = -this.container.x;
       this.background.y = -this.container.y;
     }
+    if (this.dialogContainer && this.dialogBox) {
+      this.dialogContainer.x = -this.container.x + (this.app.screen.width - this.dialogBox.width) / 2;
+      this.dialogContainer.y = -this.container.y + this.app.screen.height - this.dialogBox.height - 28;
+    }
   }
 
   centerOnIndex(index, immediate = false) {
@@ -204,10 +425,12 @@ export class CasesScene {
       this.container.x = targetX;
       this.container.y = this.cameraTargetY;
     }
+    this.updateDialogForCase(this.activeIndex);
   }
 
   setActiveTile(index) {
     this.centerOnIndex(index, false);
+    this.updateDialogForCase(index);
   }
 
   pause() {

@@ -31,6 +31,7 @@ const BUNDLE_CONFIG = {
     assets: [
       { alias: 'casesFrame', src: '/assets/cases_frame.jpg' },
       { alias: 'casesFloor', src: '/assets/cases_floor.jpg' },
+      { alias: 'casesPacman', src: '/assets/cases_screens/oreo_pacman2.gif' },
     ]
   }
 };
@@ -172,7 +173,10 @@ export class AssetManager {
   parseCasesBundle(raw) {
     return {
       casesFrame: raw.casesFrame,
-      casesFloor: raw.casesFloor
+      casesFloor: raw.casesFloor,
+      caseScreens: {
+        oreo_pacman2: raw.casesPacman,
+      },
     };
   }
 
@@ -381,6 +385,10 @@ export class AssetManager {
 
   getCasesFloorTexture() {
     return this.bundles.cases.data?.casesFloor || null;
+  }
+
+  getCaseScreenMedia(key) {
+    return this.bundles.cases.data?.caseScreens?.[key] || null;
   }
 
   // ═══════════════════════════════════════════════════════════════

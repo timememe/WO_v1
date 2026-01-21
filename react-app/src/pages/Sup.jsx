@@ -35,12 +35,37 @@ export default function Sup() {
   };
 
   const casesData = [
-    { title: 'Case 01', text: 'First test tile: overview and context.' },
-    { title: 'Case 02', text: 'Second tile: process and approach.' },
-    { title: 'Case 03', text: 'Third tile: outcome and impact.' },
-    { title: 'Case 04', text: 'Fourth tile: visuals and systems.' },
-    { title: 'Case 05', text: 'Fifth tile: notes and next steps.' },
+    {
+      title: 'OREO X PACMAN',
+      textBlocks: [
+        'Game contest for Oreo and Bandai Namco, where users could play Oreo version of Pacman and win prizes!',
+        'I have fully redevelop original Pacman game with Bandai Namco guidelines, so the Pacman spirit wouldnt dissapear.',
+        'Also i made offline version and directed final offline battle between blogers and finalists of contest',
+      ],
+    },
+    { title: 'Case 02', textBlocks: ['Second tile: process and approach.'] },
+    { title: 'Case 03', textBlocks: ['Third tile: outcome and impact.'] },
+    { title: 'Case 04', textBlocks: ['Fourth tile: visuals and systems.'] },
+    { title: 'Case 05', textBlocks: ['Fifth tile: notes and next steps.'] },
   ];
+
+  const buildCasesSceneData = (assetManager) => {
+    const pacmanGif = assetManager.getCaseScreenMedia?.('oreo_pacman2');
+    return casesData.map((caseItem, index) => ({
+      title: caseItem.title,
+      textBlocks: caseItem.textBlocks,
+      contents: index === 0
+        ? [
+            {
+              createDisplayObject: () => {
+                if (!pacmanGif) return null;
+                return pacmanGif.clone ? pacmanGif.clone() : pacmanGif;
+              },
+            },
+          ]
+        : [],
+    }));
+  };
 
   useEffect(() => {
     // Инициализация Pixi.js
@@ -182,7 +207,14 @@ export default function Sup() {
         // Создаём новую CasesScene с предзагруженными ассетами
         casesSceneRef.current = new CasesScene(
           appRef.current,
-          { tileCount: 5, tileGap: 0, tileOverlap: 20, backgroundColor: 0x000000, debugMode: true },
+          {
+            tileCount: 5,
+            tileGap: 0,
+            tileOverlap: 20,
+            backgroundColor: 0x000000,
+            debugMode: true,
+            casesData: buildCasesSceneData(assetManager),
+          },
           sceneRootRef.current,
           assetManager
         );
@@ -331,13 +363,7 @@ export default function Sup() {
         <div className="sup-control-panel">
           {activeSection === 'cases' ? (
             <div className="sup-cases-panel">
-              <div className="sup-cases-controls">
-                <button
-                  className="sup-cases-button is-back"
-                  onClick={() => setActiveSection(null)}
-                >
-                  Back to Scene
-                </button>
+              <div className="sup-cases-controls">                
                 <div className="sup-cases-nav">
                   <button
                     className="sup-cases-button"
@@ -360,12 +386,14 @@ export default function Sup() {
                     →
                   </button>
                 </div>
+                <button
+                  className="sup-cases-button is-back"
+                  onClick={() => setActiveSection(null)}
+                >
+                  Back to Scene
+                </button>
               </div>
 
-              <div className="sup-cases-info">
-                <h3>{casesData[activeCaseIndex]?.title}</h3>
-                <p>{casesData[activeCaseIndex]?.text}</p>
-              </div>
             </div>
           ) : (
             <div className="sup-menu">
