@@ -56,7 +56,7 @@ export class AssetManager {
    * Загрузка конкретного бандла
    * @param {string} bundleName - имя бандла ('main', 'cases', etc.)
    */
-  async loadBundle(bundleName) {
+  async loadBundle(bundleName, onAssetLoaded = null) {
     const config = BUNDLE_CONFIG[bundleName];
     if (!config) {
       console.error(`AssetManager: Unknown bundle "${bundleName}"`);
@@ -74,7 +74,16 @@ export class AssetManager {
     try {
       // Загружаем все ассеты бандла параллельно
       const loadPromises = config.assets.map(asset =>
-        Assets.load(asset.src).then(texture => ({ alias: asset.alias, texture }))
+        Assets.load(asset.src).then(texture => {
+          if (onAssetLoaded) {
+            onAssetLoaded({
+              bundle: bundleName,
+              alias: asset.alias,
+              src: asset.src,
+            });
+          }
+          return { alias: asset.alias, texture };
+        })
       );
 
       const results = await Promise.all(loadPromises);
@@ -102,9 +111,9 @@ export class AssetManager {
    * Загрузка нескольких бандлов
    * @param {string[]} bundleNames - массив имён бандлов
    */
-  async loadBundles(bundleNames) {
+  async loadBundles(bundleNames, onAssetLoaded = null) {
     const results = await Promise.all(
-      bundleNames.map(name => this.loadBundle(name))
+      bundleNames.map(name => this.loadBundle(name, onAssetLoaded))
     );
     return results.every(r => r === true);
   }
@@ -112,13 +121,36 @@ export class AssetManager {
   /**
    * Загрузка всех бандлов (для совместимости и начальной загрузки)
    */
-  async loadAll() {
+  async loadAll(onProgress = null) {
     if (this.allLoaded) return true;
 
     console.log('AssetManager: Loading all bundles...');
 
     const bundleNames = Object.keys(BUNDLE_CONFIG);
-    const success = await this.loadBundles(bundleNames);
+    const totalAssets = bundleNames.reduce(
+      (sum, name) => sum + (BUNDLE_CONFIG[name]?.assets?.length || 0),
+      0
+    );
+    let loadedAssets = 0;
+
+    if (onProgress) {
+      onProgress({ loaded: 0, total: totalAssets, bundle: null, alias: null, src: null });
+    }
+
+    const handleAssetLoaded = (info) => {
+      loadedAssets += 1;
+      if (onProgress) {
+        onProgress({
+          loaded: loadedAssets,
+          total: totalAssets,
+          bundle: info?.bundle || null,
+          alias: info?.alias || null,
+          src: info?.src || null,
+        });
+      }
+    };
+
+    const success = await this.loadBundles(bundleNames, handleAssetLoaded);
 
     if (success) {
       this.allLoaded = true;

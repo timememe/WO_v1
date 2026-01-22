@@ -423,18 +423,16 @@ export class IsometricScene {
   createBackgroundTiles() {
     this.backgroundTiles = [];
 
-    // Создаём тайлы вокруг активной области
+    // Создаём тайлы для всей области (активная + padding)
     const padding = this.backgroundPadding;
 
     for (let y = -padding; y < this.gridSize + padding; y++) {
       for (let x = -padding; x < this.gridSize + padding; x++) {
-        // Пропускаем активную область (она создаётся отдельно)
-        if (x >= 0 && x < this.gridSize && y >= 0 && y < this.gridSize) {
-          continue;
+        const isBackground = !(x >= 0 && x < this.gridSize && y >= 0 && y < this.gridSize);
+        const tile = this.createTile(x, y, isBackground);
+        if (isBackground) {
+          this.backgroundTiles.push(tile);
         }
-
-        const tile = this.createTile(x, y, true); // true = фоновый тайл (трава)
-        this.backgroundTiles.push(tile);
         this.container.addChild(tile);
       }
     }
@@ -1662,13 +1660,6 @@ export class IsometricScene {
     // this.createWalls();
 
     // Создаем изометрическую сетку из тайлов
-    for (let y = 0; y < this.gridSize; y++) {
-      for (let x = 0; x < this.gridSize; x++) {
-        const tile = this.createTile(x, y);
-        this.container.addChild(tile);
-      }
-    }
-
     // Добавляем контейнер для сортируемых объектов поверх тайлов
     this.container.addChild(this.sortableContainer);
 

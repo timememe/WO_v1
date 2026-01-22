@@ -24,6 +24,14 @@ export default function Sup() {
   const assetManagerRef = useRef(null);
   const [activeCaseIndex, setActiveCaseIndex] = useState(0);
   const [assetsLoaded, setAssetsLoaded] = useState(false);
+  const [loadProgress, setLoadProgress] = useState({
+    loaded: 0,
+    total: 0,
+    percent: 0,
+    eta: null,
+    label: '',
+  });
+  const loadStartRef = useRef(null);
   const enableCrtShader = true;
   const crtDefaults = {
     curvature: 12.0,
@@ -94,7 +102,29 @@ export default function Sup() {
       assetManagerRef.current = assetManager;
 
       try {
-        await assetManager.loadAll();
+        loadStartRef.current = performance.now();
+        await assetManager.loadAll((info) => {
+          if (!loadStartRef.current) {
+            loadStartRef.current = performance.now();
+          }
+          const now = performance.now();
+          const loaded = info?.loaded ?? 0;
+          const total = info?.total ?? 0;
+          const percent = total > 0 ? Math.round((loaded / total) * 100) : 0;
+          const elapsed = (now - loadStartRef.current) / 1000;
+          const avg = loaded > 0 ? elapsed / loaded : 0;
+          const eta = loaded > 0 && total > 0 ? Math.max(0, Math.ceil(avg * (total - loaded))) : null;
+          const rawLabel = info?.alias || (info?.src ? info.src.split('/').pop() : '');
+          const label = info?.bundle ? `${info.bundle} / ${rawLabel}` : rawLabel;
+
+          setLoadProgress({
+            loaded,
+            total,
+            percent,
+            eta,
+            label,
+          });
+        });
         setAssetsLoaded(true);
       } catch (error) {
         console.error('Failed to load assets:', error);
@@ -274,6 +304,28 @@ export default function Sup() {
         <div className="sup-viewport">
           <div className={`sup-viewport-inner ${activeSection === 'cases' ? 'is-cases' : ''}`}>
             <canvas ref={canvasRef} className="sup-canvas"></canvas>
+
+            {!assetsLoaded && (
+              <div className="sup-loader">
+                <div className="sup-loader-panel">
+                  <div className="sup-loader-title">Loading assets</div>
+                  <div className="sup-loader-bar">
+                    <span
+                      className="sup-loader-bar-fill"
+                      style={{ width: `${loadProgress.percent}%` }}
+                    ></span>
+                  </div>
+                  <div className="sup-loader-meta">
+                    <span>{loadProgress.loaded}/{loadProgress.total}</span>
+                    <span>{loadProgress.percent}%</span>
+                    <span>{loadProgress.eta !== null ? `~${loadProgress.eta}s` : '...'}</span>
+                  </div>
+                  {loadProgress.label && (
+                    <div className="sup-loader-current">{loadProgress.label}</div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* OVERLAY - AI STATUS */}
             {aiStatus && sceneTypeRef.current === 'main' && (
