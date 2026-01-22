@@ -18,11 +18,11 @@ export class IsometricScene {
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ СЕТКИ И ТАЙЛОВ ПОЛА
     // ═══════════════════════════════════════════════════════════════
-    this.gridSize = 10;                // Размер сетки (16x16 тайлов)
+    this.gridSize = 12;                // Размер сетки (16x16 тайлов)
     this.tileWidth = 128;              // Ширина изометрического тайла
     this.tileHeight = 64;              // Высота изометрического тайла
     this.grassTileScale = 0.27;        // Масштаб тайла травы (512 * 0.25 = 128)
-    this.backgroundPadding = 6;        // Тайлов травы вокруг активной области
+    this.backgroundPadding = 8;        // Тайлов травы вокруг активной области
 
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ СТЕН
@@ -36,7 +36,7 @@ export class IsometricScene {
     // ═══════════════════════════════════════════════════════════════
     this.buildingSize = 192;           // Размер текстуры здания (из атласа 512x512)
     this.buildingAnchorX = 0.5;        // Якорь X (0.5 = центр)
-    this.buildingAnchorY = 0.65;       // Якорь Y (0.85 = ближе к низу)
+    this.buildingAnchorY = 0.5;       // Якорь Y (0.85 = ближе к низу)
     this.buildingLocations = {
       home: { x: 6, y: 2, type: 'home', size: 2 },
       projects: { x: 2, y: 7, type: 'projects', size: 2 },
@@ -69,10 +69,10 @@ export class IsometricScene {
     this.shadowOffsetY = 20;            // Смещение тени относительно позиции
     this.ufoScale = 0.12;              // Масштаб UFO спрайта (512x512)
     this.ufoOffsetY = -10;               // Смещение UFO относительно тени
-    this.playerX = 5.0;                // Позиция X (float, свободное движение)
-    this.playerY = 5.0;                // Позиция Y (float, свободное движение)
+    this.playerX = 4.0;                // Позиция X (float, свободное движение)
+    this.playerY = 4.0;                // Позиция Y (float, свободное движение)
     this.playerSpeed = 0.04;           // Скорость свободного движения
-    this.playerCollisionRadius = 0.2;  // Радиус коллизии персонажа
+    this.playerCollisionRadius = 0.1;  // Радиус коллизии персонажа
 
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ КАМЕРЫ И УПРАВЛЕНИЯ
@@ -120,6 +120,7 @@ export class IsometricScene {
     this.backgroundTiles = [];
     this.walls = [];
     this.occupiedTiles = new Map(); // Карта занятых клеток: "x,y" -> objectType
+    this.pathDebugGraphics = null; // Графика для отображения пути AI
 
     this.init();
   }
@@ -467,7 +468,7 @@ export class IsometricScene {
   // Создание одного сегмента стены из атласа текстур
   createWallSegment(gridX, gridY, side, hasWindow = false) {
     const wallContainer = new Container();
-    const pos = this.isoToScreen(gridX, gridY);
+    const pos = this.getTileCenter(gridX, gridY);
 
     // Выбираем атлас в зависимости от наличия окна
     const wallAtlas = hasWindow ? this.interiorWallsWindow : this.interiorWalls;
@@ -517,18 +518,19 @@ export class IsometricScene {
     return wallContainer;
   }
 
-  // Конвертация изометрических координат в экранные
+  // Конвертация grid-координат в экранные (изометрическая проекция)
+  // ВАЖНО: координаты (x, y) - это точная позиция в grid-пространстве
+  // Для центра тайла (3, 5) передавайте (3.5, 5.5)
+  // Для верхней точки ромба тайла (3, 5) передавайте (3, 5)
   isoToScreen(x, y) {
     const screenX = (x - y) * (this.tileWidth / 2);
     const screenY = (x + y) * (this.tileHeight / 2);
+    return { x: screenX, y: screenY };
+  }
 
-    // Добавляем смещение, чтобы позиция указывала на ЦЕНТР тайла, а не на верх
-    const centerOffsetY = this.tileHeight / 2;
-
-    return {
-      x: screenX,
-      y: screenY + centerOffsetY
-    };
+  // Получить экранные координаты ЦЕНТРА тайла
+  getTileCenter(tileX, tileY) {
+    return this.isoToScreen(tileX + 0.5, tileY + 0.5);
   }
 
   // Создание изометрической плитки (спрайт из атласа)
@@ -604,8 +606,8 @@ export class IsometricScene {
       tileContainer.addChild(centerMarker);
     }
 
-    // Позиционируем тайл
-    const screenPos = this.isoToScreen(x, y);
+    // Позиционируем тайл в центре
+    const screenPos = this.getTileCenter(x, y);
     tileContainer.x = screenPos.x;
     tileContainer.y = screenPos.y;
 
@@ -690,6 +692,9 @@ export class IsometricScene {
 
       // Обновляем камеру каждый кадр для плавного следования
       this.updateCamera();
+
+      // Debug: отрисовка пути AI
+      this.drawPathDebug();
     };
     this.app.ticker.add(this.idleAnimationFn);
 
@@ -745,6 +750,78 @@ export class IsometricScene {
     if (!location) return null;
     const size = location.size || 1;
     return { x: location.x + size / 2, y: location.y + size / 2 };
+  }
+
+  // Получить координаты входного тайла для здания
+  // Входной тайл - это самый "левый" тайл в изометрии (минимальный screenX)
+  // Для здания с позицией (x, y) и размером size это тайл (x, y + size - 1)
+  getEntryTile(location) {
+    if (!location) return null;
+    const size = location.size || 1;
+    // Самый левый тайл: x остаётся, y максимальный
+    const entryTileX = location.x;
+    const entryTileY = location.y + size - 1;
+    // Возвращаем центр тайла
+    return {
+      x: entryTileX + 0.5,
+      y: entryTileY + 0.5,
+      tileX: entryTileX,
+      tileY: entryTileY
+    };
+  }
+
+  // Debug: отрисовка текущего пути AI
+  drawPathDebug() {
+    if (!this.debugMode || !this.characterAI) return;
+
+    // Создаём графику если ещё нет
+    if (!this.pathDebugGraphics) {
+      this.pathDebugGraphics = new Graphics();
+      this.pathDebugGraphics.zIndex = 9998; // Поверх всего кроме баббла
+      this.sortableContainer.addChild(this.pathDebugGraphics);
+    }
+
+    // Очищаем предыдущий путь
+    this.pathDebugGraphics.clear();
+
+    const path = this.characterAI.currentPath;
+    const currentIndex = this.characterAI.currentPathIndex;
+
+    if (!path || path.length === 0) return;
+
+    // Рисуем линию пути
+    // Waypoints хранятся как центры тайлов (3.5, 5.5) - передаём напрямую в isoToScreen
+    for (let i = currentIndex; i < path.length; i++) {
+      const point = path[i];
+      const screenPos = this.isoToScreen(point.x, point.y);
+
+      if (i === currentIndex) {
+        // Первая точка - начинаем от текущей позиции персонажа
+        const playerScreen = this.isoToScreen(this.playerX, this.playerY);
+        this.pathDebugGraphics.moveTo(playerScreen.x, playerScreen.y);
+        this.pathDebugGraphics.lineTo(screenPos.x, screenPos.y);
+      } else {
+        const prevPoint = path[i - 1];
+        const prevScreen = this.isoToScreen(prevPoint.x, prevPoint.y);
+        this.pathDebugGraphics.moveTo(prevScreen.x, prevScreen.y);
+        this.pathDebugGraphics.lineTo(screenPos.x, screenPos.y);
+      }
+    }
+    this.pathDebugGraphics.stroke({ width: 3, color: 0xff6600, alpha: 0.8 });
+
+    // Рисуем точки waypoints
+    for (let i = currentIndex; i < path.length; i++) {
+      const point = path[i];
+      const screenPos = this.isoToScreen(point.x, point.y);
+
+      // Цвет: оранжевый для промежуточных, зелёный для конечной
+      const isLast = i === path.length - 1;
+      const color = isLast ? 0x00ff00 : 0xff6600;
+
+      this.pathDebugGraphics.circle(screenPos.x, screenPos.y, isLast ? 8 : 5);
+      this.pathDebugGraphics.fill({ color, alpha: 1.0 });
+      this.pathDebugGraphics.stroke({ width: 2, color: 0x000000, alpha: 1.0 });
+    }
   }
 
   // Показать баббл с анимацией над локацией
@@ -846,6 +923,8 @@ export class IsometricScene {
     }
 
     // Позиционируем баббл по центру объекта или персонажа
+    // locationCenter уже содержит центр (x + size/2, y + size/2)
+    // playerX/playerY - точные координаты
     const anchor = locationCenter || { x: this.playerX, y: this.playerY };
     const screenPos = this.isoToScreen(anchor.x, anchor.y);
     const bubbleOffset = locationCenter ? 0 : this.bubbleOffsetY;
@@ -1251,7 +1330,12 @@ export class IsometricScene {
 
   // Регистрация занятой клетки объектом
   registerOccupiedTile(x, y, objectType) {
-    const key = `${Math.floor(x)},${Math.floor(y)}`;
+    const tileX = Math.floor(x);
+    const tileY = Math.floor(y);
+    if (tileX < 0 || tileX >= this.gridSize || tileY < 0 || tileY >= this.gridSize) {
+      return;
+    }
+    const key = `${tileX},${tileY}`;
     this.occupiedTiles.set(key, objectType);
   }
 
@@ -1410,6 +1494,7 @@ export class IsometricScene {
     }
 
     // Позиционируем весь контейнер в центр тайла (или пересечение 4 тайлов)
+    // centerX/centerY уже содержат +0.5 для центрирования
     const screenPos = this.isoToScreen(centerX, centerY);
     decorationContainer.x = screenPos.x;
     decorationContainer.y = screenPos.y;
@@ -1444,10 +1529,10 @@ export class IsometricScene {
       const hh = this.tileHeight / 2;
 
       // Центры крайних тайлов
-      const topTileCenter = this.isoToScreen(x, y);
-      const rightTileCenter = this.isoToScreen(x + tileSize - 1, y);
-      const bottomTileCenter = this.isoToScreen(x + tileSize - 1, y + tileSize - 1);
-      const leftTileCenter = this.isoToScreen(x, y + tileSize - 1);
+      const topTileCenter = this.getTileCenter(x, y);
+      const rightTileCenter = this.getTileCenter(x + tileSize - 1, y);
+      const bottomTileCenter = this.getTileCenter(x + tileSize - 1, y + tileSize - 1);
+      const leftTileCenter = this.getTileCenter(x, y + tileSize - 1);
 
       // Углы области (смещение от центра тайла к его углу)
       const topCorner = { x: topTileCenter.x, y: topTileCenter.y - hh };
@@ -1468,6 +1553,59 @@ export class IsometricScene {
       collisionBorder.fill({ color: 0x00ffff, alpha: 0.15 });
 
       decorationContainer.addChild(collisionBorder);
+
+      // Визуализация входного тайла (entry tile) для зданий
+      // Самый "левый" тайл в изометрии - это (x, y + tileSize - 1)
+      // потому что screenX = (gridX - gridY) * (tileWidth / 2), минимум при max gridY
+      if (config && config.type === 'building' && tileSize >= 2) {
+        const entryTileX = x;
+        const entryTileY = y + tileSize - 1;
+        const entryTileCenter = this.getTileCenter(entryTileX, entryTileY);
+
+        // Рисуем входной тайл (жёлтый ромб с пунктирной обводкой)
+        const entryTileViz = new Graphics();
+
+        // Координаты углов тайла относительно позиции объекта
+        const etTop = { x: entryTileCenter.x - objPos.x, y: entryTileCenter.y - objPos.y - hh };
+        const etRight = { x: entryTileCenter.x - objPos.x + hw, y: entryTileCenter.y - objPos.y };
+        const etBottom = { x: entryTileCenter.x - objPos.x, y: entryTileCenter.y - objPos.y + hh };
+        const etLeft = { x: entryTileCenter.x - objPos.x - hw, y: entryTileCenter.y - objPos.y };
+
+        // Заливка входного тайла
+        entryTileViz.moveTo(etTop.x, etTop.y);
+        entryTileViz.lineTo(etRight.x, etRight.y);
+        entryTileViz.lineTo(etBottom.x, etBottom.y);
+        entryTileViz.lineTo(etLeft.x, etLeft.y);
+        entryTileViz.lineTo(etTop.x, etTop.y);
+        entryTileViz.fill({ color: 0xffff00, alpha: 0.4 });
+        entryTileViz.stroke({ width: 3, color: 0xffff00, alpha: 1.0 });
+
+        // Маркер центра входного тайла
+        const entryMarker = new Graphics();
+        entryMarker.circle(entryTileCenter.x - objPos.x, entryTileCenter.y - objPos.y, 8);
+        entryMarker.fill({ color: 0xffff00, alpha: 1.0 });
+        entryMarker.stroke({ width: 2, color: 0x000000, alpha: 1.0 });
+
+        // Текст "ENTRY" над тайлом
+        const entryText = new Text({
+          text: 'ENTRY',
+          style: {
+            fontFamily: 'Arial',
+            fontSize: 16,
+            fontWeight: 'bold',
+            fill: 0xffff00,
+            stroke: { color: 0x000000, width: 3 },
+            align: 'center',
+          }
+        });
+        entryText.anchor.set(0.5);
+        entryText.x = entryTileCenter.x - objPos.x;
+        entryText.y = entryTileCenter.y - objPos.y - 20;
+
+        decorationContainer.addChild(entryTileViz);
+        decorationContainer.addChild(entryMarker);
+        decorationContainer.addChild(entryText);
+      }
     }
 
     return decorationContainer;
@@ -1659,6 +1797,12 @@ export class IsometricScene {
     // Очищаем карту занятых тайлов
     if (this.occupiedTiles) {
       this.occupiedTiles.clear();
+    }
+
+    // Очищаем debug графику пути
+    if (this.pathDebugGraphics) {
+      this.pathDebugGraphics.destroy();
+      this.pathDebugGraphics = null;
     }
 
     // Удаляем обработчики клавиатуры

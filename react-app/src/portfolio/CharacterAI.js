@@ -33,6 +33,13 @@ export class CharacterAI {
     this.targetX = null;
     this.targetY = null;
 
+    // Путь (массив waypoints) и текущий индекс
+    this.currentPath = [];
+    this.currentPathIndex = 0;
+
+    // Entry tile текущей цели (разрешён для входа)
+    this.entryTile = null;
+
     // Позиция где произошла коллизия (для спавна после действия)
     this.collisionPosition = null;
 
@@ -122,24 +129,50 @@ export class CharacterAI {
     }
   }
 
-  // Движение к целевой позиции
+  // Движение к целевой позиции (по waypoints)
   moveTowardsTarget() {
     const playerX = this.scene.playerX;
     const playerY = this.scene.playerY;
     const speed = this.scene.playerSpeed;
 
-    // Вычисляем направление к цели
-    let dx = this.targetX - playerX;
-    let dy = this.targetY - playerY;
+    // Проверяем, есть ли путь
+    if (this.currentPath.length === 0 || this.currentPathIndex >= this.currentPath.length) {
+      this.currentState = 'idle';
+      return;
+    }
+
+    // Текущая точка пути
+    const waypoint = this.currentPath[this.currentPathIndex];
+
+    // Вычисляем направление к текущей точке пути
+    let dx = waypoint.x - playerX;
+    let dy = waypoint.y - playerY;
 
     // Нормализуем по экранной длине (как в контроллере игрока)
     const screenDX = (dx - dy) * (this.scene.tileWidth / 2);
     const screenDY = (dx + dy) * (this.scene.tileHeight / 2);
     const screenLen = Math.sqrt(screenDX * screenDX + screenDY * screenDY);
 
-    if (screenLen < 1) {
-      // Достигли цели (но не объекта) - выбираем новую
-      this.currentState = 'idle';
+    // Проверяем, достигли ли текущей точки пути
+    if (screenLen < 5) {
+      this.currentPathIndex++;
+
+      // Проверяем, достигли ли конца пути
+      if (this.currentPathIndex >= this.currentPath.length) {
+        // Путь завершён, проверяем коллизию с entry tile
+        if (this.currentGoal && this.checkCollisionWithEntryTile(playerX, playerY)) {
+          this.collisionPosition = { x: playerX, y: playerY };
+          this.startAction();
+          return;
+        }
+        // Иначе просто становимся idle
+        this.currentState = 'idle';
+        return;
+      }
+
+      // Обновляем цель на следующую точку пути
+      this.targetX = this.currentPath[this.currentPathIndex].x;
+      this.targetY = this.currentPath[this.currentPathIndex].y;
       return;
     }
 
@@ -157,17 +190,36 @@ export class CharacterAI {
     let newX = playerX + dx * speed;
     let newY = playerY + dy * speed;
 
-    // Проверяем коллизии
-    const collision = this.scene.checkCollision(newX, newY);
+    // Проверяем коллизию ТОЛЬКО с entry tile - только он триггерит действие
+    if (this.currentGoal && this.checkCollisionWithEntryTile(newX, newY)) {
+      // Коллизия с entry tile - начинаем действие
+      this.collisionPosition = { x: playerX, y: playerY };
+      this.startAction();
+      return;
+    }
 
-    // Если есть коллизия - проверяем, не с целевым ли объектом
-    if (collision.x || collision.y) {
-      if (this.currentGoal && this.checkCollisionWithGoalAt(newX, newY)) {
-        // Коллизия с целевым объектом - начинаем действие
-        this.collisionPosition = { x: playerX, y: playerY };
-        this.startAction();
-        return;
-      }
+    // Для всех остальных объектов - обычная проверка коллизий
+    // Но исключаем entry tile из проверки
+    const collision = this.checkCollisionExcludingEntry(newX, newY);
+
+    // Debug: логируем если застряли
+    if (collision.x && collision.y) {
+      const currentTileX = Math.floor(playerX);
+      const currentTileY = Math.floor(playerY);
+      console.log(`STUCK at tile (${currentTileX}, ${currentTileY}), pos (${playerX.toFixed(2)}, ${playerY.toFixed(2)})`);
+      console.log(`  Target: (${this.targetX?.toFixed(2)}, ${this.targetY?.toFixed(2)})`);
+      console.log(`  Entry tile: (${this.entryTile?.tileX}, ${this.entryTile?.tileY})`);
+      console.log(`  Path index: ${this.currentPathIndex}/${this.currentPath.length}`);
+
+      // Проверяем какие тайлы блокируют
+      const radius = this.scene.playerCollisionRadius;
+      const nearbyTiles = this.scene.getTilesInRadius(newX, newY, radius);
+      nearbyTiles.forEach(tile => {
+        if (this.scene.isTileOccupied(tile.x, tile.y)) {
+          const isEntry = this.entryTile && tile.x === this.entryTile.tileX && tile.y === this.entryTile.tileY;
+          console.log(`  Blocking tile: (${tile.x}, ${tile.y}) - ${isEntry ? 'ENTRY (should be allowed!)' : this.scene.getObjectAtTile(tile.x, tile.y)}`);
+        }
+      });
     }
 
     // Применяем движение с учётом коллизий
@@ -182,27 +234,65 @@ export class CharacterAI {
     this.scene.updateCharacterPosition();
   }
 
-  // Проверка коллизии с целевым объектом в указанной позиции
-  checkCollisionWithGoalAt(checkX, checkY) {
-    if (!this.currentGoal) return false;
-
+  // Проверка коллизий, исключая entry tile текущей цели
+  checkCollisionExcludingEntry(newX, newY) {
     const radius = this.scene.playerCollisionRadius;
-    const objX = this.currentGoal.x;
-    const objY = this.currentGoal.y;
-    const size = this.currentGoal.size || 1;
+    const result = { x: false, y: false };
 
-    // Проверяем коллизию с каждым тайлом объекта
-    for (let dx = 0; dx < size; dx++) {
-      for (let dy = 0; dy < size; dy++) {
-        const tileX = objX + dx;
-        const tileY = objY + dy;
+    // Проверка границ поля
+    if (newX - radius < 0 || newX + radius >= this.scene.gridSize) {
+      result.x = true;
+    }
+    if (newY - radius < 0 || newY + radius >= this.scene.gridSize) {
+      result.y = true;
+    }
 
-        if (this.scene.checkCircleTileCollision(checkX, checkY, radius, tileX, tileY)) {
-          return true;
+    // Проверка по X
+    const tilesX = this.scene.getTilesInRadius(newX, this.scene.playerY, radius);
+    for (const tile of tilesX) {
+      // Пропускаем entry tile
+      if (this.entryTile && tile.x === this.entryTile.tileX && tile.y === this.entryTile.tileY) {
+        continue;
+      }
+      if (this.scene.isTileOccupied(tile.x, tile.y)) {
+        if (this.scene.checkCircleTileCollision(newX, this.scene.playerY, radius, tile.x, tile.y)) {
+          result.x = true;
+          break;
         }
       }
     }
-    return false;
+
+    // Проверка по Y
+    const tilesY = this.scene.getTilesInRadius(this.scene.playerX, newY, radius);
+    for (const tile of tilesY) {
+      // Пропускаем entry tile
+      if (this.entryTile && tile.x === this.entryTile.tileX && tile.y === this.entryTile.tileY) {
+        continue;
+      }
+      if (this.scene.isTileOccupied(tile.x, tile.y)) {
+        if (this.scene.checkCircleTileCollision(this.scene.playerX, newY, radius, tile.x, tile.y)) {
+          result.y = true;
+          break;
+        }
+      }
+    }
+
+    return result;
+  }
+
+  // Проверка коллизии с ENTRY TILE целевого объекта
+  // Только entry tile триггерит начало действия, остальные тайлы - обычная коллизия
+  checkCollisionWithEntryTile(checkX, checkY) {
+    if (!this.entryTile) return false;
+
+    const radius = this.scene.playerCollisionRadius;
+    return this.scene.checkCircleTileCollision(
+      checkX,
+      checkY,
+      radius,
+      this.entryTile.tileX,
+      this.entryTile.tileY
+    );
   }
 
   // Решение о следующем действии
@@ -263,12 +353,45 @@ export class CharacterAI {
     // Устанавливаем цель
     this.currentGoal = targetLocation;
     this.currentActivity = activity;
-    this.currentState = 'walking';
 
-    // Целевая позиция - центр объекта
-    const size = targetLocation.size || 1;
-    this.targetX = targetLocation.x + size / 2;
-    this.targetY = targetLocation.y + size / 2;
+    // Получаем entry tile (самый левый тайл в изометрии)
+    this.entryTile = this.scene.getEntryTile(targetLocation);
+
+    let targetX, targetY;
+    if (this.entryTile) {
+      targetX = this.entryTile.x;
+      targetY = this.entryTile.y;
+    } else {
+      // Fallback на центр объекта
+      const size = targetLocation.size || 1;
+      targetX = targetLocation.x + size / 2;
+      targetY = targetLocation.y + size / 2;
+    }
+
+    // Строим путь с помощью A*
+    // Entry tile разрешён для прохода (цель пути)
+    this.currentPath = this.findPath(
+      this.scene.playerX,
+      this.scene.playerY,
+      targetX,
+      targetY,
+      this.entryTile
+    );
+    this.currentPathIndex = 0;
+
+    if (this.currentPath.length > 0) {
+      // Устанавливаем первую точку пути как текущую цель
+      this.targetX = this.currentPath[0].x;
+      this.targetY = this.currentPath[0].y;
+      this.currentState = 'walking';
+    } else {
+      // Путь не найден - остаёмся idle
+      console.warn('No path found to', targetLocation.type);
+      this.currentState = 'idle';
+      this.currentGoal = null;
+      this.entryTile = null;
+      return;
+    }
 
     // Находим длительность активности из расписания
     const scheduleItem = this.schedule.find(item => item.activity === activity);
@@ -317,6 +440,9 @@ export class CharacterAI {
     this.currentActivity = null;
     this.targetX = null;
     this.targetY = null;
+    this.currentPath = [];
+    this.currentPathIndex = 0;
+    this.entryTile = null;
     this.actionTimer = 0;
     this.collisionPosition = null;
   }
@@ -407,6 +533,183 @@ export class CharacterAI {
     }
 
     return false;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // A* PATHFINDING
+  // ═══════════════════════════════════════════════════════════════
+
+  // Проверка, проходим ли тайл для pathfinding
+  // entryTile - координаты входного тайла, который разрешён для прохода
+  // Учитываем буферную зону - тайлы рядом со зданиями тоже блокируются
+  isTileWalkable(tileX, tileY, entryTile = null) {
+    // Проверяем границы
+    if (tileX < 0 || tileX >= this.scene.gridSize) return false;
+    if (tileY < 0 || tileY >= this.scene.gridSize) return false;
+
+    // Если это entry tile - разрешаем проход
+    if (entryTile && tileX === entryTile.tileX && tileY === entryTile.tileY) {
+      return true;
+    }
+
+    // Проверяем, занят ли сам тайл
+    if (this.scene.isTileOccupied(tileX, tileY)) {
+      return false;
+    }
+
+    // Проверяем соседние тайлы (буферная зона)
+    // Если рядом есть здание - тайл непроходим (кроме пути к entry tile)
+    const neighbors = [
+      { dx: 1, dy: 0 }, { dx: -1, dy: 0 },
+      { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
+    ];
+
+    for (const n of neighbors) {
+      const nx = tileX + n.dx;
+      const ny = tileY + n.dy;
+
+      // Если сосед - entry tile, не блокируем текущий тайл
+      if (entryTile && nx === entryTile.tileX && ny === entryTile.tileY) {
+        continue;
+      }
+
+      // Если сосед занят зданием - текущий тайл в буферной зоне
+      if (this.scene.isTileOccupied(nx, ny)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  // Эвристика для A* (Manhattan distance)
+  heuristic(x1, y1, x2, y2) {
+    return Math.abs(x1 - x2) + Math.abs(y1 - y2);
+  }
+
+  // A* pathfinding алгоритм
+  // Возвращает массив точек [{x, y}, ...] от start до end (центры тайлов)
+  findPath(startX, startY, endX, endY, entryTile = null) {
+    // Округляем стартовую позицию до ближайшего тайла
+    const startTileX = Math.floor(startX);
+    const startTileY = Math.floor(startY);
+    const endTileX = Math.floor(endX);
+    const endTileY = Math.floor(endY);
+
+    // Если старт = конец, возвращаем пустой путь
+    if (startTileX === endTileX && startTileY === endTileY) {
+      return [{ x: endX, y: endY }];
+    }
+
+    // Open и closed списки
+    const openSet = [];
+    const closedSet = new Set();
+    const cameFrom = new Map();
+    const gScore = new Map();
+    const fScore = new Map();
+
+    const startKey = `${startTileX},${startTileY}`;
+    const endKey = `${endTileX},${endTileY}`;
+
+    gScore.set(startKey, 0);
+    fScore.set(startKey, this.heuristic(startTileX, startTileY, endTileX, endTileY));
+    openSet.push({ x: startTileX, y: startTileY, f: fScore.get(startKey) });
+
+    // Соседи (8 направлений)
+    const neighbors = [
+      { dx: 0, dy: -1 },  // up
+      { dx: 1, dy: 0 },   // right
+      { dx: 0, dy: 1 },   // down
+      { dx: -1, dy: 0 },  // left
+      { dx: 1, dy: -1 },  // up-right
+      { dx: 1, dy: 1 },   // down-right
+      { dx: -1, dy: 1 },  // down-left
+      { dx: -1, dy: -1 }, // up-left
+    ];
+
+    while (openSet.length > 0) {
+      // Находим узел с минимальным fScore
+      openSet.sort((a, b) => a.f - b.f);
+      const current = openSet.shift();
+      const currentKey = `${current.x},${current.y}`;
+
+      // Достигли цели
+      if (current.x === endTileX && current.y === endTileY) {
+        return this.reconstructPath(cameFrom, current, startX, startY, endX, endY);
+      }
+
+      closedSet.add(currentKey);
+
+      // Проверяем соседей
+      for (const neighbor of neighbors) {
+        const nx = current.x + neighbor.dx;
+        const ny = current.y + neighbor.dy;
+        const neighborKey = `${nx},${ny}`;
+
+        // Пропускаем если уже обработан
+        if (closedSet.has(neighborKey)) continue;
+
+        // Пропускаем если непроходим
+        if (!this.isTileWalkable(nx, ny, entryTile)) continue;
+
+        // Для диагонального движения проверяем, что оба смежных тайла проходимы
+        if (neighbor.dx !== 0 && neighbor.dy !== 0) {
+          const adj1Walkable = this.isTileWalkable(current.x + neighbor.dx, current.y, entryTile);
+          const adj2Walkable = this.isTileWalkable(current.x, current.y + neighbor.dy, entryTile);
+          if (!adj1Walkable || !adj2Walkable) continue;
+        }
+
+        // Стоимость перехода (1 для прямого, 1.41 для диагонали)
+        const moveCost = (neighbor.dx !== 0 && neighbor.dy !== 0) ? 1.414 : 1;
+        const tentativeG = gScore.get(currentKey) + moveCost;
+
+        if (!gScore.has(neighborKey) || tentativeG < gScore.get(neighborKey)) {
+          cameFrom.set(neighborKey, current);
+          gScore.set(neighborKey, tentativeG);
+          const f = tentativeG + this.heuristic(nx, ny, endTileX, endTileY);
+          fScore.set(neighborKey, f);
+
+          // Добавляем в openSet если ещё нет
+          if (!openSet.find(n => n.x === nx && n.y === ny)) {
+            openSet.push({ x: nx, y: ny, f });
+          }
+        }
+      }
+    }
+
+    // Путь не найден
+    console.warn('Path not found from', startTileX, startTileY, 'to', endTileX, endTileY);
+    return [];
+  }
+
+  // Восстановление пути из cameFrom
+  reconstructPath(cameFrom, current, startX, startY, endX, endY) {
+    const path = [];
+    let node = current;
+
+    // Собираем путь от конца к началу
+    // Все waypoints строго в центрах тайлов (координата + 0.5)
+    while (node) {
+      const key = `${node.x},${node.y}`;
+      // Добавляем центр тайла (tileX + 0.5, tileY + 0.5)
+      path.unshift({ x: node.x + 0.5, y: node.y + 0.5 });
+      node = cameFrom.get(key);
+    }
+
+    // Убираем первую точку если мы уже близко к ней (в пределах того же тайла)
+    if (path.length > 1) {
+      const firstTile = path[0];
+      const distToFirst = Math.abs(startX - firstTile.x) + Math.abs(startY - firstTile.y);
+      if (distToFirst < 0.3) {
+        path.shift();
+      }
+    }
+
+    // Debug: выводим путь в консоль
+    console.log('Path waypoints (all should be tile centers, ending in .5):');
+    path.forEach((p, i) => console.log(`  [${i}] (${p.x.toFixed(1)}, ${p.y.toFixed(1)})`));
+
+    return path;
   }
 
   // Получить текущий статус AI (для отображения в UI)
