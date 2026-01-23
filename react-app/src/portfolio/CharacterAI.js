@@ -705,10 +705,6 @@ export class CharacterAI {
       }
     }
 
-    // Debug: выводим путь в консоль
-    console.log('Path waypoints (all should be tile centers, ending in .5):');
-    path.forEach((p, i) => console.log(`  [${i}] (${p.x.toFixed(1)}, ${p.y.toFixed(1)})`));
-
     return path;
   }
 

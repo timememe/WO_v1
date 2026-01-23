@@ -33,6 +33,13 @@ const BUNDLE_CONFIG = {
       { alias: 'casesFloor', src: '/assets/cases_floor.jpg' },
       { alias: 'casesPacman', src: '/assets/cases_screens/oreo_pacman2.gif' },
     ]
+  },
+  // Сцена "Обо мне"
+  about: {
+    name: 'about',
+    assets: [
+      { alias: 'aboutPhoto', src: '/assets/about_assets/me.png' },
+    ]
   }
 };
 
@@ -45,7 +52,8 @@ export class AssetManager {
     // Состояние бандлов
     this.bundles = {
       main: { loaded: false, data: {} },
-      cases: { loaded: false, data: {} }
+      cases: { loaded: false, data: {} },
+      about: { loaded: false, data: {} }
     };
 
     // Флаг полной загрузки (все бандлы)
@@ -169,6 +177,8 @@ export class AssetManager {
         return this.parseMainBundle(rawTextures);
       case 'cases':
         return this.parseCasesBundle(rawTextures);
+      case 'about':
+        return this.parseAboutBundle(rawTextures);
       default:
         return rawTextures;
     }
@@ -209,6 +219,15 @@ export class AssetManager {
       caseScreens: {
         oreo_pacman2: raw.casesPacman,
       },
+    };
+  }
+
+  /**
+   * Парсинг бандла сцены "Обо мне"
+   */
+  parseAboutBundle(raw) {
+    return {
+      photo: raw.aboutPhoto,
     };
   }
 
@@ -421,6 +440,14 @@ export class AssetManager {
 
   getCaseScreenMedia(key) {
     return this.bundles.cases.data?.caseScreens?.[key] || null;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ГЕТТЕРЫ ДЛЯ СЦЕНЫ "ОБО МНЕ" (about bundle)
+  // ═══════════════════════════════════════════════════════════════
+
+  getAboutPhoto() {
+    return this.bundles.about.data?.photo || null;
   }
 
   // ═══════════════════════════════════════════════════════════════

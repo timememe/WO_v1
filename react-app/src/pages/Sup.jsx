@@ -3,6 +3,7 @@ import { Application, Container, Rectangle } from 'pixi.js';
 import Layout from '../components/Layout/Layout';
 import { IsometricScene } from '../portfolio/IsometricScene';
 import { CasesScene } from '../portfolio/CasesScene';
+import { AboutScene } from '../portfolio/AboutScene';
 import { CRTFilter } from '../portfolio/CRTFilter';
 import { getAssetManager } from '../portfolio/AssetManager';
 import './Sup.css';
@@ -15,6 +16,7 @@ export default function Sup() {
   const sceneRef = useRef(null);
   const mainSceneRef = useRef(null);
   const casesSceneRef = useRef(null);
+  const aboutSceneRef = useRef(null);
   const sceneTypeRef = useRef('main');
   const crtFilterRef = useRef(null);
   const crtTickerRef = useRef(null);
@@ -180,6 +182,9 @@ export default function Sup() {
       if (casesSceneRef.current) {
         casesSceneRef.current.destroy();
       }
+      if (aboutSceneRef.current) {
+        aboutSceneRef.current.destroy();
+      }
       if (appRef.current) {
         if (crtTickerRef.current) {
           appRef.current.ticker.remove(crtTickerRef.current);
@@ -220,19 +225,25 @@ export default function Sup() {
       }
     };
 
+    // Функция для очистки всех сцен кроме указанной
+    const cleanupScenes = (keepScene) => {
+      if (keepScene !== 'main' && mainSceneRef.current) {
+        mainSceneRef.current.destroy();
+        mainSceneRef.current = null;
+      }
+      if (keepScene !== 'cases' && casesSceneRef.current) {
+        casesSceneRef.current.destroy();
+        casesSceneRef.current = null;
+      }
+      if (keepScene !== 'about' && aboutSceneRef.current) {
+        aboutSceneRef.current.destroy();
+        aboutSceneRef.current = null;
+      }
+    };
+
     if (activeSection === 'cases') {
       if (sceneTypeRef.current !== 'cases') {
-        // Полностью уничтожаем главную сцену
-        if (mainSceneRef.current) {
-          mainSceneRef.current.destroy();
-          mainSceneRef.current = null;
-        }
-
-        // Уничтожаем старую CasesScene если есть
-        if (casesSceneRef.current) {
-          casesSceneRef.current.destroy();
-          casesSceneRef.current = null;
-        }
+        cleanupScenes('cases');
 
         // Создаём новую CasesScene с предзагруженными ассетами
         casesSceneRef.current = new CasesScene(
@@ -255,13 +266,26 @@ export default function Sup() {
         setActiveCaseIndex(0);
         ensureCrt();
       }
+    } else if (activeSection === 'about') {
+      if (sceneTypeRef.current !== 'about') {
+        cleanupScenes('about');
+
+        // Создаём новую AboutScene
+        aboutSceneRef.current = new AboutScene(
+          appRef.current,
+          { backgroundColor: 0x000000 },
+          sceneRootRef.current,
+          assetManager
+        );
+
+        sceneRef.current = aboutSceneRef.current;
+        sceneTypeRef.current = 'about';
+        setAiStatus(null);
+        ensureCrt();
+      }
     } else {
       if (sceneTypeRef.current !== 'main') {
-        // Полностью уничтожаем CasesScene
-        if (casesSceneRef.current) {
-          casesSceneRef.current.destroy();
-          casesSceneRef.current = null;
-        }
+        cleanupScenes('main');
 
         // Создаём новую IsometricScene с предзагруженными ассетами
         mainSceneRef.current = new IsometricScene(
@@ -415,7 +439,7 @@ export default function Sup() {
         <div className="sup-control-panel">
           {activeSection === 'cases' ? (
             <div className="sup-cases-panel">
-              <div className="sup-cases-controls">                
+              <div className="sup-cases-controls">
                 <div className="sup-cases-nav">
                   <button
                     className="sup-cases-button"
@@ -447,8 +471,30 @@ export default function Sup() {
               </div>
 
             </div>
+          ) : activeSection === 'about' ? (
+            <div className="sup-about-panel">
+              <div className="sup-about-controls">
+                <button
+                  className="sup-cases-button is-back"
+                  onClick={() => setActiveSection(null)}
+                >
+                  Back to Scene
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="sup-menu">
+              <button
+                className={`sup-menu-item ${activeSection === 'about' ? 'active' : ''}`}
+                onClick={() => setActiveSection('about')}
+              >
+                <div className="sup-menu-content">
+                  <h3>ABOUT</h3>
+                  <p>Who am I & what I do</p>
+                </div>
+                <span className="sup-menu-arrow">→</span>
+              </button>
+
               <button
                 className={`sup-menu-item ${activeSection === 'cases' ? 'active' : ''}`}
                 onClick={() => setActiveSection('cases')}
