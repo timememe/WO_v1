@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { Application, Container, Rectangle } from 'pixi.js';
-import Layout from '../components/Layout/Layout';
 import { IsometricScene } from '../portfolio/IsometricScene';
 import { CasesScene } from '../portfolio/CasesScene';
 import { AboutScene } from '../portfolio/AboutScene';
@@ -322,8 +321,7 @@ export default function Sup() {
   }, []);
 
   return (
-    <Layout showHeader={false}>
-      <div className="sup-game-container">
+    <div className="sup-game-container">
         {/* ВЕРХНЯЯ ЧАСТЬ - GAME VIEWPORT (16:9) */}
         <div className="sup-viewport">
           <div className={`sup-viewport-inner ${activeSection === 'cases' ? 'is-cases' : ''}`}>
@@ -354,35 +352,6 @@ export default function Sup() {
             {/* OVERLAY - AI STATUS */}
             {aiStatus && sceneTypeRef.current === 'main' && (
               <>
-                <div className="sup-status-bar">
-                  <div className="sup-status-bar-item">
-                    <span className="sup-status-bar-label">State:</span>
-                    <span className="sup-status-bar-value">{aiStatus.state}</span>
-                  </div>
-                  <div className="sup-status-bar-divider">|</div>
-                  <div className="sup-status-bar-item">
-                    <span className="sup-status-bar-label">Activity:</span>
-                    <span className="sup-status-bar-value">{aiStatus.activity}</span>
-                  </div>
-                  {aiStatus.goal && (
-                    <>
-                      <div className="sup-status-bar-divider">|</div>
-                      <div className="sup-status-bar-item">
-                        <span className="sup-status-bar-label">Goal:</span>
-                        <span className="sup-status-bar-value">{aiStatus.goal}</span>
-                      </div>
-                    </>
-                  )}
-                  {aiStatus.actionTimer > 0 && (
-                    <>
-                      <div className="sup-status-bar-divider">|</div>
-                      <div className="sup-status-bar-item">
-                        <span className="sup-status-bar-value">{aiStatus.actionTimer}s</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-
                 <div className="sup-genesis-hud">
                   <div className="sup-genesis-hud-grid">
                     <div className="sup-hud-tile sup-hud-need is-energy">
@@ -531,6 +500,5 @@ export default function Sup() {
           )}
         </div>
       </div>
-    </Layout>
   );
 }

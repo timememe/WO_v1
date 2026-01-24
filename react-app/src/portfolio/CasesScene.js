@@ -22,6 +22,7 @@ export class CasesScene {
     this.contentBoxScale = 0.7;
     this.dialogPadding = 20;
     this.dialogHeight = 170;
+    this.bottomPadding = 160; // Отступ для внешнего меню навигации
 
     this.container = new Container();
     this.tilesContainer = new Container();
@@ -408,7 +409,8 @@ export class CasesScene {
     }
     if (this.dialogContainer && this.dialogBox) {
       this.dialogContainer.x = -this.container.x + (this.app.screen.width - this.dialogBox.width) / 2;
-      this.dialogContainer.y = -this.container.y + this.app.screen.height - this.dialogBox.height - 28;
+      // Позиционируем диалог над внешним меню навигации
+      this.dialogContainer.y = -this.container.y + this.app.screen.height - this.bottomPadding - this.dialogBox.height - 20;
     }
   }
 

@@ -16,7 +16,8 @@
       "Bash(npm run dev)",
       "Bash(npm install)",
       "Bash(ls:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(npx eslint:*)"
     ],
     "deny": [],
     "ask": []

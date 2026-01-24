@@ -28,6 +28,16 @@ const SKILLS = [
   'Game Dev',
 ];
 
+// Секретные флайты (6 кнопок)
+const SECRET_FLIGHTS = [
+  { id: 'story1', label: 'ORIGINS', icon: '◆' },
+  { id: 'story2', label: 'JOURNEY', icon: '◇' },
+  { id: 'story3', label: 'BATTLES', icon: '◈' },
+  { id: 'story4', label: 'ALLIES', icon: '◉' },
+  { id: 'story5', label: 'SECRETS', icon: '◎' },
+  { id: 'story6', label: 'FUTURE', icon: '●' },
+];
+
 // ═══════════════════════════════════════════════════════════════
 
 export class AboutScene {
@@ -39,14 +49,28 @@ export class AboutScene {
 
     this.backgroundColor = options.backgroundColor ?? 0x000000;
 
+    // Параметры системы флайтов (адаптивные)
+    this.flightGap = options.flightGap ?? 60;
+    this.flightCount = 8; // 1-profile, 2-skills, 3-8 secret stories
+    this.navHeight = 60; // Высота навигационной панели
+    this.bottomPadding = 160; // Отступ для внешнего меню навигации
+
     this.container = new Container();
     this.background = new Graphics();
-    this.contentContainer = new Container();
+    this.flightsContainer = new Container();
+    this.navContainer = new Container();
 
     this.container.addChild(this.background);
-    this.container.addChild(this.contentContainer);
+    this.container.addChild(this.flightsContainer);
+    this.container.addChild(this.navContainer);
     this.rootContainer.addChild(this.container);
 
+    this.flights = [];
+    this.activeIndex = 0;
+    this.cameraTargetX = 0;
+    this.cameraTargetY = 0;
+    this.cameraSmoothing = 0.08;
+    this.cameraTickerFn = null;
     this.isPaused = false;
     this.resizeHandler = null;
 
@@ -66,15 +90,56 @@ export class AboutScene {
       barBorder: 0x1b2744,
       tagBg: 0x182140,
       tagBorder: 0x243150,
+      buttonBg: 0x1a2845,
+      buttonBorder: 0x2d4a7a,
+      buttonHover: 0x2a3f65,
     };
 
     this.init();
   }
 
   async init() {
+    this.calculateFlightSize();
     this.createBackground();
-    this.createCharacterCard();
+    this.createFlights();
+    this.createNavigation();
+    this.centerOnIndex(0, true);
+    this.startCamera();
     this.bindResize();
+  }
+
+  calculateFlightSize() {
+    const screenW = this.app.screen.width;
+    const screenH = this.app.screen.height;
+
+    // Флайт должен помещаться с отступами (включая внешнее меню)
+    const maxWidth = screenW - 40;
+    const maxHeight = screenH - this.navHeight - this.bottomPadding - 20;
+
+    // Базовые размеры
+    const baseWidth = 520;
+    const baseHeight = 680;
+    const aspectRatio = baseWidth / baseHeight;
+
+    // Вычисляем размер, который влезет в экран
+    let width = Math.min(baseWidth, maxWidth);
+    let height = width / aspectRatio;
+
+    if (height > maxHeight) {
+      height = maxHeight;
+      width = height * aspectRatio;
+    }
+
+    this.flightWidth = Math.round(width);
+    this.flightHeight = Math.round(height);
+
+    // Масштаб для адаптации шрифтов и элементов
+    this.scaleFactor = this.flightWidth / baseWidth;
+  }
+
+  // Адаптивный размер шрифта
+  fontSize(base) {
+    return Math.round(base * this.scaleFactor);
   }
 
   createBackground() {
@@ -87,32 +152,85 @@ export class AboutScene {
 
   bindResize() {
     this.resizeHandler = () => {
+      this.calculateFlightSize();
       this.createBackground();
-      this.layoutContent();
+      this.rebuildFlights();
+      this.createNavigation();
     };
     this.app.renderer.on('resize', this.resizeHandler);
   }
 
-  createCharacterCard() {
-    this.contentContainer.removeChildren().forEach((child) => {
+  // ═══════════════════════════════════════════════════════════════
+  // СИСТЕМА ФЛАЙТОВ
+  // ═══════════════════════════════════════════════════════════════
+
+  createFlights() {
+    this.flights = [];
+    const step = this.flightWidth + this.flightGap;
+    const totalWidth = this.flightCount * this.flightWidth + (this.flightCount - 1) * this.flightGap;
+    const startX = -totalWidth / 2 + this.flightWidth / 2;
+
+    for (let i = 0; i < this.flightCount; i++) {
+      const flightContainer = new Container();
+      flightContainer.x = startX + i * step;
+      flightContainer.y = 0;
+
+      // Отрисовка содержимого флайта
+      this.renderFlightContent(i, flightContainer);
+
+      this.flightsContainer.addChild(flightContainer);
+      this.flights.push(flightContainer);
+    }
+  }
+
+  renderFlightContent(index, container) {
+    container.removeChildren().forEach((child) => {
       child.destroy({ children: true, texture: false, baseTexture: false });
     });
 
-    const width = this.app.screen.width;
-    const height = this.app.screen.height;
+    switch (index) {
+      case 0:
+        this.renderProfileFlight(container);
+        break;
+      case 1:
+        this.renderSkillsFlight(container);
+        break;
+      default:
+        this.renderSecretFlight(container, index - 2);
+        break;
+    }
+  }
 
-    // Размеры карточки
-    const cardWidth = Math.min(520, width - 40);
-    const cardHeight = Math.min(680, height - 40);
-    const cardX = (width - cardWidth) / 2;
-    const cardY = (height - cardHeight) / 2;
+  clearFlights() {
+    this.flightsContainer.removeChildren().forEach((child) => {
+      child.destroy({ children: true, texture: false, baseTexture: false });
+    });
+    this.flights = [];
+  }
+
+  rebuildFlights() {
+    this.clearFlights();
+    this.createFlights();
+    this.centerOnIndex(this.activeIndex, true);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // FLIGHT 1: ПРОФИЛЬ + 6 КНОПОК
+  // ═══════════════════════════════════════════════════════════════
+
+  renderProfileFlight(container) {
+    const cardWidth = this.flightWidth;
+    const cardHeight = this.flightHeight;
+    const cardX = -cardWidth / 2;
+    const cardY = -cardHeight / 2;
+    const s = this.scaleFactor;
 
     // Основная панель карточки
     const cardPanel = this.createPanel(cardX, cardY, cardWidth, cardHeight);
-    this.contentContainer.addChild(cardPanel);
+    container.addChild(cardPanel);
 
     // Внутренний отступ
-    const padding = 20;
+    const padding = Math.round(20 * s);
     const innerX = cardX + padding;
     const innerY = cardY + padding;
     const innerWidth = cardWidth - padding * 2;
@@ -120,143 +238,590 @@ export class AboutScene {
     let currentY = innerY;
 
     // === HEADER: Фото + Имя ===
-    const photoSize = Math.min(150, innerWidth * 0.35);
-    const headerHeight = photoSize + 10;
+    const photoSize = Math.round(Math.min(150 * s, innerWidth * 0.35));
+    const headerHeight = photoSize + Math.round(10 * s);
 
-    // Рамка для фото (квадратная, пиксельная)
+    // Рамка для фото
     const photoFrame = this.createPhotoFrame(innerX, currentY, photoSize);
-    this.contentContainer.addChild(photoFrame);
+    container.addChild(photoFrame);
 
     // Имя и титул справа от фото
-    const nameX = innerX + photoSize + 16;
-    const nameWidth = innerWidth - photoSize - 16;
+    const nameX = innerX + photoSize + Math.round(16 * s);
 
     const nameText = new Text({
       text: PROFILE.name,
       style: {
         fill: this.colors.textPrimary,
-        fontSize: 48,
+        fontSize: this.fontSize(48),
         fontFamily: 'Sonic Genesis, monospace',
         fontWeight: 'bold',
         letterSpacing: 2,
       },
     });
     nameText.x = nameX;
-    nameText.y = currentY + 8;
-    this.contentContainer.addChild(nameText);
+    nameText.y = currentY + Math.round(8 * s);
+    container.addChild(nameText);
 
     const titleText = new Text({
       text: PROFILE.title,
       style: {
         fill: this.colors.accent,
-        fontSize: 17,
+        fontSize: this.fontSize(17),
         fontFamily: 'Sonic Genesis, monospace',
         letterSpacing: 1,
       },
     });
     titleText.x = nameX;
-    titleText.y = currentY + 58;
-    this.contentContainer.addChild(titleText);
+    titleText.y = currentY + Math.round(58 * s);
+    container.addChild(titleText);
 
-    // Уровень / класс
     const levelText = new Text({
       text: PROFILE.level,
       style: {
         fill: this.colors.accentAlt,
-        fontSize: 21,
+        fontSize: this.fontSize(21),
         fontFamily: 'Sonic Genesis, monospace',
         fontWeight: 'bold',
       },
     });
     levelText.x = nameX;
-    levelText.y = currentY + 85;
-    this.contentContainer.addChild(levelText);
+    levelText.y = currentY + Math.round(85 * s);
+    container.addChild(levelText);
 
-    // Локация
     const locationText = new Text({
       text: PROFILE.location,
       style: {
         fill: this.colors.textSecondary,
-        fontSize: 15,
+        fontSize: this.fontSize(15),
         fontFamily: 'Sonic Genesis, monospace',
       },
     });
     locationText.x = nameX;
-    locationText.y = currentY + 115;
-    this.contentContainer.addChild(locationText);
+    locationText.y = currentY + Math.round(115 * s);
+    container.addChild(locationText);
 
-    currentY += headerHeight + 20;
+    currentY += headerHeight + Math.round(20 * s);
 
     // === DIVIDER ===
     const divider = new Graphics();
     divider.moveTo(innerX, currentY);
     divider.lineTo(innerX + innerWidth, currentY);
     divider.stroke({ width: 2, color: this.colors.panelBorder, alpha: 0.8 });
-    this.contentContainer.addChild(divider);
+    container.addChild(divider);
 
-    currentY += 16;
+    currentY += Math.round(16 * s);
 
     // === STATS SECTION ===
     const statsTitle = new Text({
       text: 'STATS',
       style: {
         fill: this.colors.textSecondary,
-        fontSize: 15,
+        fontSize: this.fontSize(15),
         fontFamily: 'Sonic Genesis, monospace',
         letterSpacing: 3,
       },
     });
     statsTitle.x = innerX;
     statsTitle.y = currentY;
-    this.contentContainer.addChild(statsTitle);
+    container.addChild(statsTitle);
 
-    currentY += 28;
+    currentY += Math.round(28 * s);
 
-    // Характеристики
-    const stats = STATS;
+    const statHeight = Math.round(42 * s);
+    const statGap = Math.round(12 * s);
 
-    const statHeight = 42;
-    const statGap = 12;
-
-    stats.forEach((stat, index) => {
+    STATS.forEach((stat, index) => {
       const statY = currentY + index * (statHeight + statGap);
       const statBar = this.createStatBar(innerX, statY, innerWidth, statHeight, stat);
-      this.contentContainer.addChild(statBar);
+      container.addChild(statBar);
     });
 
-    currentY += stats.length * (statHeight + statGap) + 16;
+    currentY += STATS.length * (statHeight + statGap) + Math.round(16 * s);
 
     // === DIVIDER 2 ===
     const divider2 = new Graphics();
     divider2.moveTo(innerX, currentY);
     divider2.lineTo(innerX + innerWidth, currentY);
     divider2.stroke({ width: 2, color: this.colors.panelBorder, alpha: 0.8 });
-    this.contentContainer.addChild(divider2);
+    container.addChild(divider2);
 
-    currentY += 16;
+    currentY += Math.round(16 * s);
 
-    // === SKILLS / TAGS ===
-    const skillsTitle = new Text({
-      text: 'SKILLS',
+    // === SECRET STORIES BUTTONS (вместо скиллов) ===
+    const storiesTitle = new Text({
+      text: 'MY STORY',
       style: {
         fill: this.colors.textSecondary,
-        fontSize: 15,
+        fontSize: this.fontSize(15),
         fontFamily: 'Sonic Genesis, monospace',
         letterSpacing: 3,
       },
     });
-    skillsTitle.x = innerX;
-    skillsTitle.y = currentY;
-    this.contentContainer.addChild(skillsTitle);
+    storiesTitle.x = innerX;
+    storiesTitle.y = currentY;
+    container.addChild(storiesTitle);
 
-    currentY += 28;
+    currentY += Math.round(28 * s);
 
-    const tagsContainer = this.createSkillTags(innerX, currentY, innerWidth, SKILLS);
-    this.contentContainer.addChild(tagsContainer);
+    // Горизонтальный грид из 6 кнопок (3x2)
+    const buttonsGrid = this.createStoryButtons(innerX, currentY, innerWidth);
+    container.addChild(buttonsGrid);
 
-    // === SCANLINES OVERLAY (для ретро-эффекта) ===
+    // === SCANLINES OVERLAY ===
     const scanlines = this.createScanlines(cardX, cardY, cardWidth, cardHeight);
-    this.contentContainer.addChild(scanlines);
+    container.addChild(scanlines);
+  }
+
+  createStoryButtons(x, y, maxWidth) {
+    const container = new Container();
+    const s = this.scaleFactor;
+
+    const gapX = Math.round(10 * s);
+    const gapY = Math.round(10 * s);
+    const buttonWidth = (maxWidth - gapX * 2) / 3;
+    const buttonHeight = Math.round(48 * s);
+
+    SECRET_FLIGHTS.forEach((story, index) => {
+      const col = index % 3;
+      const row = Math.floor(index / 3);
+      const btnX = x + col * (buttonWidth + gapX);
+      const btnY = y + row * (buttonHeight + gapY);
+
+      const button = this.createStoryButton(btnX, btnY, buttonWidth, buttonHeight, story, index);
+      container.addChild(button);
+    });
+
+    return container;
+  }
+
+  createStoryButton(x, y, width, height, story, index) {
+    const container = new Container();
+    const s = this.scaleFactor;
+
+    // Фон кнопки
+    const bg = new Graphics();
+    bg.roundRect(x, y, width, height, 4);
+    bg.fill({ color: this.colors.buttonBg, alpha: 0.9 });
+    bg.stroke({ width: 2, color: this.colors.buttonBorder, alpha: 1 });
+    container.addChild(bg);
+
+    // Левый акцент
+    const accent = new Graphics();
+    accent.rect(x + 2, y + Math.round(6 * s), 3, height - Math.round(12 * s));
+    accent.fill({ color: this.colors.accent, alpha: 0.7 });
+    container.addChild(accent);
+
+    // Иконка
+    const iconText = new Text({
+      text: story.icon,
+      style: {
+        fill: this.colors.accent,
+        fontSize: this.fontSize(16),
+        fontFamily: 'Sonic Genesis, monospace',
+      },
+    });
+    iconText.x = x + Math.round(12 * s);
+    iconText.y = y + (height - iconText.height) / 2;
+    container.addChild(iconText);
+
+    // Текст кнопки
+    const labelText = new Text({
+      text: story.label,
+      style: {
+        fill: this.colors.textPrimary,
+        fontSize: this.fontSize(11),
+        fontFamily: 'Sonic Genesis, monospace',
+        letterSpacing: 1,
+      },
+    });
+    labelText.x = x + Math.round(28 * s);
+    labelText.y = y + (height - labelText.height) / 2;
+    container.addChild(labelText);
+
+    // Интерактивность
+    container.eventMode = 'static';
+    container.cursor = 'pointer';
+
+    container.on('pointerover', () => {
+      bg.clear();
+      bg.roundRect(x, y, width, height, 4);
+      bg.fill({ color: this.colors.buttonHover, alpha: 0.95 });
+      bg.stroke({ width: 2, color: this.colors.accent, alpha: 1 });
+    });
+
+    container.on('pointerout', () => {
+      bg.clear();
+      bg.roundRect(x, y, width, height, 4);
+      bg.fill({ color: this.colors.buttonBg, alpha: 0.9 });
+      bg.stroke({ width: 2, color: this.colors.buttonBorder, alpha: 1 });
+    });
+
+    container.on('pointertap', () => {
+      // Переход к секретному флайту (index + 2, т.к. 0=profile, 1=skills)
+      this.setActiveFlight(index + 2);
+    });
+
+    return container;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // FLIGHT 2: SKILLS
+  // ═══════════════════════════════════════════════════════════════
+
+  renderSkillsFlight(container) {
+    const cardWidth = this.flightWidth;
+    const cardHeight = this.flightHeight;
+    const cardX = -cardWidth / 2;
+    const cardY = -cardHeight / 2;
+    const s = this.scaleFactor;
+
+    // Основная панель
+    const cardPanel = this.createPanel(cardX, cardY, cardWidth, cardHeight);
+    container.addChild(cardPanel);
+
+    const padding = Math.round(20 * s);
+    const innerX = cardX + padding;
+    const innerY = cardY + padding;
+    const innerWidth = cardWidth - padding * 2;
+
+    let currentY = innerY;
+
+    // === TITLE ===
+    const title = new Text({
+      text: 'SKILLS & TECH',
+      style: {
+        fill: this.colors.textPrimary,
+        fontSize: this.fontSize(32),
+        fontFamily: 'Sonic Genesis, monospace',
+        fontWeight: 'bold',
+        letterSpacing: 2,
+      },
+    });
+    title.x = innerX;
+    title.y = currentY;
+    container.addChild(title);
+
+    currentY += Math.round(50 * s);
+
+    // === DIVIDER ===
+    const divider = new Graphics();
+    divider.moveTo(innerX, currentY);
+    divider.lineTo(innerX + innerWidth, currentY);
+    divider.stroke({ width: 2, color: this.colors.panelBorder, alpha: 0.8 });
+    container.addChild(divider);
+
+    currentY += Math.round(20 * s);
+
+    // === SUBTITLE ===
+    const subtitle = new Text({
+      text: 'Technologies I work with',
+      style: {
+        fill: this.colors.textSecondary,
+        fontSize: this.fontSize(14),
+        fontFamily: 'Sonic Genesis, monospace',
+        letterSpacing: 1,
+      },
+    });
+    subtitle.x = innerX;
+    subtitle.y = currentY;
+    container.addChild(subtitle);
+
+    currentY += Math.round(40 * s);
+
+    // === SKILL TAGS ===
+    const tagsContainer = this.createSkillTags(innerX, currentY, innerWidth, SKILLS);
+    container.addChild(tagsContainer);
+
+    // === SCANLINES OVERLAY ===
+    const scanlines = this.createScanlines(cardX, cardY, cardWidth, cardHeight);
+    container.addChild(scanlines);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // FLIGHTS 3-8: SECRET STORIES (PLACEHOLDERS)
+  // ═══════════════════════════════════════════════════════════════
+
+  renderSecretFlight(container, storyIndex) {
+    const cardWidth = this.flightWidth;
+    const cardHeight = this.flightHeight;
+    const cardX = -cardWidth / 2;
+    const cardY = -cardHeight / 2;
+    const s = this.scaleFactor;
+
+    const story = SECRET_FLIGHTS[storyIndex] || { label: 'UNKNOWN', icon: '?' };
+
+    // Основная панель
+    const cardPanel = this.createPanel(cardX, cardY, cardWidth, cardHeight);
+    container.addChild(cardPanel);
+
+    const padding = Math.round(20 * s);
+    const innerX = cardX + padding;
+    const innerWidth = cardWidth - padding * 2;
+
+    // Центрированный контент
+    const centerY = cardY + cardHeight / 2;
+
+    // Большая иконка
+    const iconText = new Text({
+      text: story.icon,
+      style: {
+        fill: this.colors.accent,
+        fontSize: this.fontSize(72),
+        fontFamily: 'Sonic Genesis, monospace',
+      },
+    });
+    iconText.anchor.set(0.5);
+    iconText.x = 0;
+    iconText.y = centerY - Math.round(60 * s);
+    container.addChild(iconText);
+
+    // Название
+    const titleText = new Text({
+      text: story.label,
+      style: {
+        fill: this.colors.textPrimary,
+        fontSize: this.fontSize(36),
+        fontFamily: 'Sonic Genesis, monospace',
+        fontWeight: 'bold',
+        letterSpacing: 3,
+      },
+    });
+    titleText.anchor.set(0.5);
+    titleText.x = 0;
+    titleText.y = centerY + Math.round(20 * s);
+    container.addChild(titleText);
+
+    // Placeholder текст
+    const placeholderText = new Text({
+      text: 'STORY COMING SOON...',
+      style: {
+        fill: this.colors.textSecondary,
+        fontSize: this.fontSize(14),
+        fontFamily: 'Sonic Genesis, monospace',
+        letterSpacing: 2,
+      },
+    });
+    placeholderText.anchor.set(0.5);
+    placeholderText.x = 0;
+    placeholderText.y = centerY + Math.round(70 * s);
+    container.addChild(placeholderText);
+
+    // Кнопка назад
+    const backButton = this.createBackButton(innerX, cardY + cardHeight - padding - Math.round(40 * s), innerWidth);
+    container.addChild(backButton);
+
+    // === SCANLINES OVERLAY ===
+    const scanlines = this.createScanlines(cardX, cardY, cardWidth, cardHeight);
+    container.addChild(scanlines);
+  }
+
+  createBackButton(x, y, maxWidth) {
+    const container = new Container();
+    const s = this.scaleFactor;
+
+    const buttonWidth = Math.round(140 * s);
+    const buttonHeight = Math.round(36 * s);
+    const btnX = x + (maxWidth - buttonWidth) / 2;
+
+    // Фон кнопки
+    const bg = new Graphics();
+    bg.roundRect(btnX, y, buttonWidth, buttonHeight, 4);
+    bg.fill({ color: this.colors.buttonBg, alpha: 0.9 });
+    bg.stroke({ width: 2, color: this.colors.buttonBorder, alpha: 1 });
+    container.addChild(bg);
+
+    // Текст
+    const labelText = new Text({
+      text: '← BACK',
+      style: {
+        fill: this.colors.textPrimary,
+        fontSize: this.fontSize(14),
+        fontFamily: 'Sonic Genesis, monospace',
+        letterSpacing: 1,
+      },
+    });
+    labelText.anchor.set(0.5);
+    labelText.x = btnX + buttonWidth / 2;
+    labelText.y = y + buttonHeight / 2;
+    container.addChild(labelText);
+
+    // Интерактивность
+    container.eventMode = 'static';
+    container.cursor = 'pointer';
+
+    container.on('pointerover', () => {
+      bg.clear();
+      bg.roundRect(btnX, y, buttonWidth, buttonHeight, 4);
+      bg.fill({ color: this.colors.buttonHover, alpha: 0.95 });
+      bg.stroke({ width: 2, color: this.colors.accent, alpha: 1 });
+    });
+
+    container.on('pointerout', () => {
+      bg.clear();
+      bg.roundRect(btnX, y, buttonWidth, buttonHeight, 4);
+      bg.fill({ color: this.colors.buttonBg, alpha: 0.9 });
+      bg.stroke({ width: 2, color: this.colors.buttonBorder, alpha: 1 });
+    });
+
+    container.on('pointertap', () => {
+      this.setActiveFlight(0); // Назад к профилю
+    });
+
+    return container;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // CAMERA & NAVIGATION
+  // ═══════════════════════════════════════════════════════════════
+
+  startCamera() {
+    this.cameraTickerFn = () => this.updateCamera();
+    this.app.ticker.add(this.cameraTickerFn);
+  }
+
+  updateCamera() {
+    const targetX = this.cameraTargetX;
+    this.container.x += (targetX - this.container.x) * this.cameraSmoothing;
+    this.container.y += (this.cameraTargetY - this.container.y) * 0.08;
+    if (this.background) {
+      this.background.x = -this.container.x;
+      this.background.y = -this.container.y;
+    }
+    // Навигация фиксирована относительно экрана
+    if (this.navContainer) {
+      this.navContainer.x = -this.container.x;
+      this.navContainer.y = -this.container.y;
+    }
+  }
+
+  centerOnIndex(index, immediate = false) {
+    const clamped = Math.max(0, Math.min(this.flightCount - 1, index));
+    this.activeIndex = clamped;
+    const targetFlight = this.flights?.[clamped];
+    if (!targetFlight) return;
+
+    const targetX = this.app.screen.width / 2 - targetFlight.x;
+    this.cameraTargetX = targetX;
+    // Центрируем с учетом отступа для внешнего меню
+    this.cameraTargetY = (this.app.screen.height - this.bottomPadding) / 2;
+    if (immediate) {
+      this.container.x = targetX;
+      this.container.y = this.cameraTargetY;
+    }
+  }
+
+  setActiveFlight(index) {
+    this.centerOnIndex(index, false);
+    this.updateNavigation();
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // NAVIGATION
+  // ═══════════════════════════════════════════════════════════════
+
+  createNavigation() {
+    this.navContainer.removeChildren().forEach((child) => {
+      child.destroy({ children: true, texture: false, baseTexture: false });
+    });
+
+    const screenW = this.app.screen.width;
+    const screenH = this.app.screen.height;
+
+    // Навигационная панель над внешним меню
+    const navWidth = Math.min(300, screenW - 40);
+    const navHeight = 48;
+    const navX = (screenW - navWidth) / 2;
+    const navY = screenH - this.bottomPadding - navHeight - 16;
+
+    // Фон панели
+    const navBg = new Graphics();
+    navBg.roundRect(0, 0, navWidth, navHeight, 8);
+    navBg.fill({ color: this.colors.panelBg, alpha: 0.95 });
+    navBg.stroke({ width: 2, color: this.colors.panelBorder, alpha: 1 });
+    navBg.x = navX;
+    navBg.y = navY;
+    this.navContainer.addChild(navBg);
+
+    // Левая стрелка
+    const leftArrow = new Graphics();
+    leftArrow.moveTo(0, 12);
+    leftArrow.lineTo(16, 0);
+    leftArrow.lineTo(16, 24);
+    leftArrow.closePath();
+    leftArrow.fill({ color: this.colors.accent, alpha: 0.9 });
+    leftArrow.x = navX + 20;
+    leftArrow.y = navY + (navHeight - 24) / 2;
+    leftArrow.eventMode = 'static';
+    leftArrow.cursor = 'pointer';
+    leftArrow.on('pointertap', () => this.prevFlight());
+    leftArrow.on('pointerover', () => { leftArrow.alpha = 0.7; });
+    leftArrow.on('pointerout', () => { leftArrow.alpha = 1; });
+    this.navContainer.addChild(leftArrow);
+    this.navLeftArrow = leftArrow;
+
+    // Правая стрелка
+    const rightArrow = new Graphics();
+    rightArrow.moveTo(16, 12);
+    rightArrow.lineTo(0, 0);
+    rightArrow.lineTo(0, 24);
+    rightArrow.closePath();
+    rightArrow.fill({ color: this.colors.accent, alpha: 0.9 });
+    rightArrow.x = navX + navWidth - 36;
+    rightArrow.y = navY + (navHeight - 24) / 2;
+    rightArrow.eventMode = 'static';
+    rightArrow.cursor = 'pointer';
+    rightArrow.on('pointertap', () => this.nextFlight());
+    rightArrow.on('pointerover', () => { rightArrow.alpha = 0.7; });
+    rightArrow.on('pointerout', () => { rightArrow.alpha = 1; });
+    this.navContainer.addChild(rightArrow);
+    this.navRightArrow = rightArrow;
+
+    // Индикатор страницы
+    const pageText = new Text({
+      text: `${this.activeIndex + 1} / ${this.flightCount}`,
+      style: {
+        fill: this.colors.textPrimary,
+        fontSize: 16,
+        fontFamily: 'Sonic Genesis, monospace',
+        letterSpacing: 2,
+      },
+    });
+    pageText.anchor.set(0.5);
+    pageText.x = navX + navWidth / 2;
+    pageText.y = navY + navHeight / 2;
+    this.navContainer.addChild(pageText);
+    this.navPageText = pageText;
+
+    // Навигация фиксирована относительно экрана
+    this.navContainer.x = -this.container.x;
+    this.navContainer.y = -this.container.y;
+
+    this.updateNavigation();
+  }
+
+  updateNavigation() {
+    if (this.navPageText) {
+      this.navPageText.text = `${this.activeIndex + 1} / ${this.flightCount}`;
+    }
+    // Скрыть стрелки на краях
+    if (this.navLeftArrow) {
+      this.navLeftArrow.visible = this.activeIndex > 0;
+    }
+    if (this.navRightArrow) {
+      this.navRightArrow.visible = this.activeIndex < this.flightCount - 1;
+    }
+  }
+
+  prevFlight() {
+    if (this.activeIndex > 0) {
+      this.setActiveFlight(this.activeIndex - 1);
+    }
+  }
+
+  nextFlight() {
+    if (this.activeIndex < this.flightCount - 1) {
+      this.setActiveFlight(this.activeIndex + 1);
+    }
   }
 
   createPanel(x, y, width, height) {
@@ -400,13 +965,14 @@ export class AboutScene {
 
   createStatBar(x, y, width, height, stat) {
     const container = new Container();
+    const s = this.scaleFactor;
 
     // Название стата
     const nameText = new Text({
       text: stat.name,
       style: {
         fill: this.colors.textPrimary,
-        fontSize: 15,
+        fontSize: this.fontSize(15),
         fontFamily: 'Sonic Genesis, monospace',
         letterSpacing: 1,
       },
@@ -420,19 +986,19 @@ export class AboutScene {
       text: `${stat.value}`,
       style: {
         fill: stat.color,
-        fontSize: 18,
+        fontSize: this.fontSize(18),
         fontFamily: 'Sonic Genesis, monospace',
         fontWeight: 'bold',
       },
     });
     valueText.anchor.set(1, 0);
     valueText.x = x + width;
-    valueText.y = y - 2;
+    valueText.y = y - Math.round(2 * s);
     container.addChild(valueText);
 
     // Полоса прогресса
-    const barY = y + 20;
-    const barHeight = height - 20;
+    const barY = y + Math.round(20 * s);
+    const barHeight = height - Math.round(20 * s);
     const barWidth = width;
 
     // Фон полосы
@@ -473,12 +1039,12 @@ export class AboutScene {
 
   createSkillTags(x, y, maxWidth, skills) {
     const container = new Container();
+    const s = this.scaleFactor;
 
-    const tagPaddingX = 14;
-    const tagPaddingY = 8;
-    const tagGap = 10;
-    const tagHeight = 32;
-    const fontSize = 14;
+    const tagPaddingX = Math.round(14 * s);
+    const tagGap = Math.round(10 * s);
+    const tagHeight = Math.round(32 * s);
+    const fSize = this.fontSize(14);
 
     let currentX = x;
     let currentY = y;
@@ -487,7 +1053,7 @@ export class AboutScene {
       // Измеряем ширину текста
       const tempText = new Text({
         text: skill.toUpperCase(),
-        style: { fontSize, fontFamily: 'Sonic Genesis, monospace' },
+        style: { fontSize: fSize, fontFamily: 'Sonic Genesis, monospace' },
       });
       const tagWidth = tempText.width + tagPaddingX * 2;
 
@@ -506,7 +1072,7 @@ export class AboutScene {
 
       // Левый акцент
       const accent = new Graphics();
-      accent.rect(currentX, currentY + 4, 2, tagHeight - 8);
+      accent.rect(currentX, currentY + Math.round(4 * s), 2, tagHeight - Math.round(8 * s));
       accent.fill({ color: this.colors.accent, alpha: 0.8 });
       container.addChild(accent);
 
@@ -515,7 +1081,7 @@ export class AboutScene {
         text: skill.toUpperCase(),
         style: {
           fill: this.colors.textPrimary,
-          fontSize,
+          fontSize: fSize,
           fontFamily: 'Sonic Genesis, monospace',
           letterSpacing: 1,
         },
@@ -542,9 +1108,9 @@ export class AboutScene {
     return scanlines;
   }
 
-  layoutContent() {
-    this.createCharacterCard();
-  }
+  // ═══════════════════════════════════════════════════════════════
+  // LIFECYCLE METHODS
+  // ═══════════════════════════════════════════════════════════════
 
   pause() {
     if (this.isPaused) return;
@@ -552,6 +1118,9 @@ export class AboutScene {
     this.container.visible = false;
     if (this.container.parent) {
       this.container.parent.removeChild(this.container);
+    }
+    if (this.cameraTickerFn) {
+      this.app.ticker.remove(this.cameraTickerFn);
     }
   }
 
@@ -562,13 +1131,22 @@ export class AboutScene {
       this.rootContainer.addChild(this.container);
     }
     this.container.visible = true;
+    if (this.cameraTickerFn) {
+      this.app.ticker.add(this.cameraTickerFn);
+    }
   }
 
   destroy() {
+    if (this.cameraTickerFn) {
+      this.app.ticker.remove(this.cameraTickerFn);
+      this.cameraTickerFn = null;
+    }
     if (this.resizeHandler) {
       this.app.renderer.off('resize', this.resizeHandler);
       this.resizeHandler = null;
     }
+
+    this.flights = [];
 
     if (this.container.parent) {
       this.container.parent.removeChild(this.container);
