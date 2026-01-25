@@ -13,7 +13,7 @@ const PROFILE = {
 
 const STATS = [
   { name: 'CODING', value: 85, color: 0x4de3ff },
-  { name: 'COPYWRITING', value: 90, color: 0x6dff9d },
+  { name: 'COPYWRITING / SMM', value: 90, color: 0x6dff9d },
   { name: 'DESIGN', value: 75, color: 0xff86b2 },
 ];
 

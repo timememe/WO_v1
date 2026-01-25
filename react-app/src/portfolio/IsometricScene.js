@@ -1,6 +1,7 @@
 import { Graphics, Container, Sprite, Text } from 'pixi.js';
 import { AnimatedGIF } from '@pixi/gif';
 import { CharacterAI } from './CharacterAI';
+import { LakeGenerator, GroundPatchGenerator } from './ProceduralGenerator';
 
 export class IsometricScene {
   constructor(app, rootContainer = null, assetManager = null) {
@@ -12,8 +13,10 @@ export class IsometricScene {
     // СИСТЕМНЫЕ КОНТЕЙНЕРЫ
     // ═══════════════════════════════════════════════════════════════
     this.container = new Container();
+    this.container.sortableChildren = true; // Для правильного z-order озёр
     this.sortableContainer = new Container();
     this.sortableContainer.sortableChildren = true;
+    this.sortableContainer.zIndex = 100; // Объекты всегда над озёрами
 
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ СЕТКИ И ТАЙЛОВ ПОЛА
@@ -22,7 +25,7 @@ export class IsometricScene {
     this.tileWidth = 128;              // Ширина изометрического тайла
     this.tileHeight = 64;              // Высота изометрического тайла
     this.grassTileScale = 0.27;        // Масштаб тайла травы (512 * 0.25 = 128)
-    this.backgroundPadding = 8;        // Тайлов травы вокруг активной области
+    this.backgroundPadding = 10;        // Тайлов травы вокруг активной области
 
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ СТЕН
@@ -50,16 +53,28 @@ export class IsometricScene {
     this.treeSizeMin = 96;             // Минимальный размер дерева
     this.treeSizeMax = 160;            // Максимальный размер дерева
     this.treeAnchorX = 0.5;            // Якорь X дерева
-    this.treeAnchorY = 0.85;           // Якорь Y дерева
+    this.treeAnchorY = 0.5;           // Якорь Y дерева
     this.bushSizeMin = 32;             // Минимальный размер куста
     this.bushSizeMax = 64;             // Максимальный размер куста
     this.bushAnchorX = 0.5;            // Якорь X куста
-    this.bushAnchorY = 0.75;           // Якорь Y куста
+    this.bushAnchorY = 0.5;           // Якорь Y куста
     this.rockSizeMin = 64;             // Минимальный размер камня
     this.rockSizeMax = 128;             // Максимальный размер камня
     this.rockAnchorX = 0.5;            // Якорь X камня
-    this.rockAnchorY = 0.7;            // Якорь Y камня
-    this.vegetationCount = 250;        // Количество деревьев, кустов и камней
+    this.rockAnchorY = 0.5;            // Якорь Y камня
+    this.vegetationCount = 400;        // Количество деревьев, кустов и камней
+
+    // ═══════════════════════════════════════════════════════════════
+    // НАСТРОЙКИ ОЗЁР (ПРОЦЕДУРНАЯ ГЕНЕРАЦИЯ)
+    // ═══════════════════════════════════════════════════════════════
+    this.lakesEnabled = true;           // Включить озёра
+    this.lakeLocations = [              // Позиции озёр (grid координаты)
+      { x: -3, y: -3, radius: 2.5, seed: 12345 },
+      { x: 8, y: -5, radius: 2, seed: 54321 },
+      { x: -4, y: 6, radius: 3, seed: 98765 },
+    ];
+    this.lakePixelSize = 2;             // Размер "пикселя" для ретро-эффекта
+    this.lakes = [];                    // Массив созданных озёр
 
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ ПЕРСОНАЖА
@@ -78,7 +93,7 @@ export class IsometricScene {
     // НАСТРОЙКИ КАМЕРЫ И УПРАВЛЕНИЯ
     // ═══════════════════════════════════════════════════════════════
     this.cameraSmoothing = 0.05;        // Плавность следования камеры (0-1)
-    this.controllerMode = false;        // true = ручное управление, false = AI
+    this.controllerMode = true;        // true = ручное управление, false = AI
     this.debugMode = false;            // Показывать debug графику
 
     // ═══════════════════════════════════════════════════════════════
@@ -609,6 +624,9 @@ export class IsometricScene {
     tileContainer.x = screenPos.x;
     tileContainer.y = screenPos.y;
 
+    // Тайлы травы всегда под озёрами
+    tileContainer.zIndex = -10;
+
     return tileContainer;
   }
 
@@ -674,7 +692,7 @@ export class IsometricScene {
     // Вертикальная анимация при движении
     let bounceTime = 0;
     let bounceOffset = 0;
-    this.idleAnimationFn = () => {
+    this.idleAnimationFn = (delta) => {
       // Вертикальная анимация только при движении
       if (this.isMoving) {
         bounceTime += 0.4; // Скорость анимации
@@ -690,6 +708,8 @@ export class IsometricScene {
 
       // Обновляем камеру каждый кадр для плавного следования
       this.updateCamera();
+
+      this.updateLakes(delta?.deltaTime ?? delta?.deltaMS ?? delta ?? 1);
 
       // Debug: отрисовка пути AI
       this.drawPathDebug();
@@ -734,6 +754,18 @@ export class IsometricScene {
     // Плавная интерполяция камеры
     this.container.x += (targetX - this.container.x) * this.cameraSmoothing;
     this.container.y += (targetY - this.container.y) * this.cameraSmoothing;
+  }
+
+  updateLakes(deltaTime = 1) {
+    const dt = Number(deltaTime);
+    const safeDelta = Number.isFinite(dt) ? dt : 1;
+    if (!this.lakes || this.lakes.length === 0) return;
+
+    for (const lake of this.lakes) {
+      if (lake?.lakeGenerator?.update) {
+        lake.lakeGenerator.update(safeDelta);
+      }
+    }
   }
 
   setCameraTarget(target) {
@@ -1635,18 +1667,106 @@ export class IsometricScene {
     }
 
     // Размещаем растительность
-    for (let i = 0; i < Math.min(count, availablePositions.length); i++) {
+    let placedCount = 0;
+    for (let i = 0; i < availablePositions.length && placedCount < count; i++) {
       const pos = availablePositions[i];
+
+      // Пропускаем позиции внутри озёр
+      if (this.isPositionInLake(pos.x, pos.y)) {
+        continue;
+      }
+
       // 40% деревья, 40% кусты, 20% камни
       const rand = Math.random();
       const type = rand < 0.4 ? 'tree' : (rand < 0.8 ? 'bush' : 'rock');
       const decoration = this.createDecoration(pos.x, pos.y, type);
       this.sortableContainer.addChild(decoration);
       placed.push(decoration);
+      placedCount++;
     }
 
     console.log(`Placed ${placed.length} vegetation items (trees and bushes)`);
     return placed;
+  }
+
+  // Проверка, находится ли позиция внутри озера
+  isPositionInLake(gridX, gridY) {
+    if (!this.lakesEnabled || !this.lakeLocations) return false;
+
+    for (const lakeDef of this.lakeLocations) {
+      const dx = gridX - lakeDef.x;
+      const dy = gridY - lakeDef.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      // Добавляем небольшой запас к радиусу для надёжности
+      if (distance < lakeDef.radius + 0.5) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Создание процедурных озёр в стиле Sega Genesis
+  createLakes() {
+    if (!this.lakesEnabled) return;
+
+    this.lakes = [];
+
+    for (const lakeDef of this.lakeLocations) {
+      // Создаём генератор с уникальным seed для каждого озера
+      const generator = new LakeGenerator({
+        tileWidth: this.tileWidth,
+        tileHeight: this.tileHeight,
+        pixelSize: this.lakePixelSize,
+        seed: lakeDef.seed,
+      });
+
+      // Генерируем озеро
+      const lake = generator.createLakeAtGrid(lakeDef.x, lakeDef.y, lakeDef.radius, this.debugMode);
+
+      // Сохраняем генератор для анимации воды
+      lake.lakeGenerator = generator;
+      lake.lakeDef = lakeDef;
+
+      // Добавляем в контейнер (озёра над травой, но под объектами)
+      // zIndex положительный но меньше sortableContainer (100)
+      lake.zIndex = 50;
+
+      this.container.addChild(lake);
+      this.lakes.push(lake);
+
+      console.log(`Lake created at grid(${lakeDef.x}, ${lakeDef.y}), screen(${lake.x}, ${lake.y}), zIndex=${lake.zIndex}, visible=${lake.visible}, children=${lake.children.length}`);
+    }
+
+    console.log(`Created ${this.lakes.length} procedural lakes, container.sortableChildren=${this.container.sortableChildren}`);
+  }
+
+  // Создание натоптанной земли у входов в здания
+  createGroundPatches() {
+    this.groundPatches = [];
+
+    const generator = new GroundPatchGenerator({
+      tileWidth: this.tileWidth,
+      tileHeight: this.tileHeight,
+      seed: 42, // Фиксированный seed для консистентности
+    });
+
+    // Создаём пятно земли только у входа (Entry tile) каждого здания
+    for (const [name, location] of Object.entries(this.buildingLocations)) {
+      const entryTile = this.getEntryTile(location);
+      if (!entryTile) continue;
+
+      const patch = generator.createGroundPatchAtGrid(
+        entryTile.tileX,
+        entryTile.tileY,
+        1, // Размер 1 тайл для входа
+        this.debugMode
+      );
+
+      this.container.addChild(patch);
+      this.groundPatches.push(patch);
+    }
+
+    console.log(`Created ${this.groundPatches.length} ground patches at building entries`);
   }
 
   async init() {
@@ -1655,6 +1775,12 @@ export class IsometricScene {
 
     // Добавляем фоновые тайлы (трава вокруг)
     this.createBackgroundTiles();
+
+    // Добавляем процедурные озёра (поверх травы, под объектами)
+    this.createLakes();
+
+    // Добавляем натоптанную землю под зданиями
+    this.createGroundPatches();
 
     // Добавляем стены на границах (временно отключено)
     // this.createWalls();
@@ -1794,6 +1920,26 @@ export class IsometricScene {
     if (this.pathDebugGraphics) {
       this.pathDebugGraphics.destroy();
       this.pathDebugGraphics = null;
+    }
+
+    // Очищаем озёра
+    if (this.lakes) {
+      this.lakes.forEach(lake => {
+        if (lake && lake.destroy) {
+          lake.destroy({ children: true });
+        }
+      });
+      this.lakes = [];
+    }
+
+    // Очищаем пятна земли под зданиями
+    if (this.groundPatches) {
+      this.groundPatches.forEach(patch => {
+        if (patch && patch.destroy) {
+          patch.destroy({ children: true });
+        }
+      });
+      this.groundPatches = [];
     }
 
     // Удаляем обработчики клавиатуры
