@@ -1988,8 +1988,9 @@ export class IsometricScene {
 
     if (mode) {
       // Переключаемся на ручное управление
-      // Останавливаем AI
+      // Если персонаж выполняет действие - выводим его из состояния
       if (this.characterAI) {
+        this.characterAI.forceExitAction();
         this.characterAI.stop();
       }
       // Настраиваем WASD управление

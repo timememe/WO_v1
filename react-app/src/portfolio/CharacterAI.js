@@ -514,6 +514,29 @@ export class CharacterAI {
     this.scene.updateCharacterPosition();
   }
 
+  // Принудительный выход из текущего действия (для переключения режима)
+  forceExitAction() {
+    if (this.currentState !== 'performing_action') return;
+
+    // Скрываем баббл
+    this.scene.hideActivityBubble();
+
+    // Спавним персонажа в безопасной позиции
+    this.spawnAtSafePosition();
+
+    // Сбрасываем состояние
+    this.currentState = 'idle';
+    this.currentGoal = null;
+    this.currentActivity = null;
+    this.targetX = null;
+    this.targetY = null;
+    this.currentPath = [];
+    this.currentPathIndex = 0;
+    this.entryTile = null;
+    this.actionTimer = 0;
+    this.collisionPosition = null;
+  }
+
   // Проверка, заблокирована ли позиция
   isPositionBlocked(x, y) {
     const radius = this.scene.playerCollisionRadius;
