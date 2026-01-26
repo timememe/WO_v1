@@ -691,7 +691,7 @@
 
   .sup-control-panel {
     padding: 1rem;
-    padding-bottom: calc(1rem + 2vh + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(1rem + 5vh + env(safe-area-inset-bottom, 0px));
   }
 
   .sup-menu {
@@ -779,7 +779,7 @@
 @media (max-width: 480px) {
   .sup-control-panel {
     padding: 0.75rem;
-    padding-bottom: calc(0.75rem + 2vh + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(0.75rem + 5vh + env(safe-area-inset-bottom, 0px));
   }
 
   .sup-menu {
