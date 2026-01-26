@@ -10,6 +10,11 @@ import './Sup.css';
 export default function Sup() {
   const [activeSection, setActiveSection] = useState(null);
   const [aiStatus, setAiStatus] = useState(null);
+  const [controllerMode, setControllerMode] = useState(true); // true = manual, false = AI
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [joystickActive, setJoystickActive] = useState(false);
+  const [joystickPos, setJoystickPos] = useState({ x: 0, y: 0 });
+  const joystickThumbRef = useRef(null);
   const canvasRef = useRef(null);
   const appRef = useRef(null);
   const sceneRef = useRef(null);
@@ -293,6 +298,11 @@ export default function Sup() {
           assetManager
         );
 
+        // Синхронизируем режим управления с React state
+        if (mainSceneRef.current.getControllerMode() !== controllerMode) {
+          mainSceneRef.current.setControllerMode(controllerMode);
+        }
+
         sceneRef.current = mainSceneRef.current;
         sceneTypeRef.current = 'main';
         if (activeSection && mainSceneRef.current?.updateSection) {
@@ -319,6 +329,96 @@ export default function Sup() {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Определение touch устройства
+  useEffect(() => {
+    const checkTouch = () => {
+      setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    };
+    checkTouch();
+    window.addEventListener('resize', checkTouch);
+    return () => window.removeEventListener('resize', checkTouch);
+  }, []);
+
+  // Переключение режима управления
+  const handleControllerModeToggle = () => {
+    const newMode = !controllerMode;
+    setControllerMode(newMode);
+    if (mainSceneRef.current?.setControllerMode) {
+      mainSceneRef.current.setControllerMode(newMode);
+    }
+  };
+
+  // Обработчики виртуального джойстика (floating - появляется в месте касания)
+  const joystickSize = 120;
+  const joystickCenterRef = useRef({ x: 0, y: 0 });
+
+  const handleTouchStart = (e) => {
+    if (!controllerMode || sceneTypeRef.current !== 'main') return;
+
+    const touch = e.touches[0];
+    const x = touch.clientX;
+    const y = touch.clientY;
+
+    // Сохраняем центр джойстика
+    joystickCenterRef.current = { x, y };
+
+    // Позиционируем джойстик в месте касания
+    setJoystickPos({ x: x - joystickSize / 2, y: y - joystickSize / 2 });
+    setJoystickActive(true);
+  };
+
+  const handleTouchMove = (e) => {
+    if (!joystickActive || !mainSceneRef.current) return;
+
+    const touch = e.touches[0];
+    const centerX = joystickCenterRef.current.x;
+    const centerY = joystickCenterRef.current.y;
+    const maxRadius = joystickSize / 2 - 20;
+
+    let dx = touch.clientX - centerX;
+    let dy = touch.clientY - centerY;
+
+    // Ограничиваем радиус
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance > maxRadius) {
+      dx = (dx / distance) * maxRadius;
+      dy = (dy / distance) * maxRadius;
+    }
+
+    // Обновляем визуальное положение thumb
+    if (joystickThumbRef.current) {
+      joystickThumbRef.current.style.transform = `translate(${dx}px, ${dy}px)`;
+    }
+
+    // Определяем направления (с deadzone) - 8 направлений
+    const deadzone = 0.25;
+    const normalizedX = dx / maxRadius;
+    const normalizedY = dy / maxRadius;
+
+    // Независимая проверка каждой оси для поддержки диагоналей
+    const keys = {
+      up: normalizedY < -deadzone,
+      down: normalizedY > deadzone,
+      left: normalizedX < -deadzone,
+      right: normalizedX > deadzone,
+    };
+
+    mainSceneRef.current.setKeysPressed?.(keys);
+  };
+
+  const handleTouchEnd = () => {
+    setJoystickActive(false);
+    if (joystickThumbRef.current) {
+      joystickThumbRef.current.style.transform = 'translate(0, 0)';
+    }
+    mainSceneRef.current?.setKeysPressed?.({
+      up: false,
+      down: false,
+      left: false,
+      right: false,
+    });
+  };
 
   return (
     <div className="sup-game-container">
@@ -401,6 +501,29 @@ export default function Sup() {
                 </div>
               </>
             )}
+
+            {/* Touch area for floating joystick */}
+            {isTouchDevice && controllerMode && sceneTypeRef.current === 'main' && (
+              <div
+                className="sup-touch-area"
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleTouchEnd}
+              />
+            )}
+
+            {/* Floating Virtual Joystick - appears at touch position */}
+            {joystickActive && (
+              <div
+                className="sup-joystick is-active"
+                style={{ left: joystickPos.x, top: joystickPos.y }}
+              >
+                <div className="sup-joystick-base">
+                  <div ref={joystickThumbRef} className="sup-joystick-thumb"></div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -452,7 +575,20 @@ export default function Sup() {
               </div>
             </div>
           ) : (
-            <div className="sup-menu">
+            <>
+              {/* Mode Toggle */}
+              <div className="sup-mode-toggle">
+                <span className={`sup-mode-label ${!controllerMode ? 'active' : ''}`}>AI</span>
+                <button
+                  className={`sup-toggle-switch ${controllerMode ? 'is-manual' : ''}`}
+                  onClick={handleControllerModeToggle}
+                  aria-label="Toggle control mode"
+                >
+                  <span className="sup-toggle-thumb"></span>
+                </button>
+                <span className={`sup-mode-label ${controllerMode ? 'active' : ''}`}>Manual</span>
+              </div>
+              <div className="sup-menu">
               <button
                 className={`sup-menu-item ${activeSection === 'about' ? 'active' : ''}`}
                 onClick={() => setActiveSection('about')}
@@ -496,7 +632,8 @@ export default function Sup() {
                 </div>
                 <span className="sup-menu-arrow">→</span>
               </button>
-            </div>
+              </div>
+            </>
           )}
         </div>
       </div>

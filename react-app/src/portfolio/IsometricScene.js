@@ -1978,4 +1978,61 @@ export class IsometricScene {
     }
     return null;
   }
+
+  // Переключение режима управления в реальном времени
+  // mode: true = ручное управление (WASD), false = AI
+  setControllerMode(mode) {
+    if (this.controllerMode === mode) return;
+
+    this.controllerMode = mode;
+
+    if (mode) {
+      // Переключаемся на ручное управление
+      // Останавливаем AI
+      if (this.characterAI) {
+        this.characterAI.stop();
+      }
+      // Настраиваем WASD управление
+      this.setupControls();
+    } else {
+      // Переключаемся на AI режим
+      // Удаляем обработчики клавиатуры
+      if (this.keyDownHandler) {
+        window.removeEventListener('keydown', this.keyDownHandler);
+        this.keyDownHandler = null;
+      }
+      if (this.keyUpHandler) {
+        window.removeEventListener('keyup', this.keyUpHandler);
+        this.keyUpHandler = null;
+      }
+      // Останавливаем тикер движения
+      if (this.movementTickerFn) {
+        this.app.ticker.remove(this.movementTickerFn);
+        this.movementTickerFn = null;
+      }
+      // Сбрасываем нажатые клавиши
+      this.keysPressed = { up: false, down: false, left: false, right: false };
+      this.isMoving = false;
+
+      // Запускаем AI
+      if (!this.characterAI) {
+        this.characterAI = new CharacterAI(this);
+      }
+      this.characterAI.start();
+    }
+  }
+
+  // Получить текущий режим управления
+  getControllerMode() {
+    return this.controllerMode;
+  }
+
+  // Установить состояние нажатых клавиш извне (для тач-управления)
+  setKeysPressed(keys) {
+    if (!this.controllerMode || !this.keysPressed) return;
+    this.keysPressed.up = keys.up || false;
+    this.keysPressed.down = keys.down || false;
+    this.keysPressed.left = keys.left || false;
+    this.keysPressed.right = keys.right || false;
+  }
 }

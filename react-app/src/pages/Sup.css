@@ -539,6 +539,123 @@
   gap: 1rem;
 }
 
+/* MODE TOGGLE */
+.sup-mode-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  font-family: "Sonic Genesis", "Cascadia Mono", "Fira Code", "Consolas", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.sup-mode-label {
+  font-size: 0.75rem;
+  color: #5a6a8a;
+  transition: color 0.3s ease;
+}
+
+.sup-mode-label.active {
+  color: #4de3ff;
+  text-shadow: 0 0 10px rgba(77, 227, 255, 0.4);
+}
+
+.sup-toggle-switch {
+  position: relative;
+  width: 56px;
+  height: 28px;
+  background: linear-gradient(180deg, #0b1126 0%, #182140 100%);
+  border: 2px solid #243150;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4), 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+.sup-toggle-switch:hover {
+  border-color: #4de3ff;
+}
+
+.sup-toggle-switch::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(77, 227, 255, 0.1) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+.sup-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  background: linear-gradient(180deg, #4de3ff 0%, #2a9fd6 100%);
+  border-radius: 50%;
+  transition: transform 0.3s ease, background 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), 0 0 8px rgba(77, 227, 255, 0.3);
+}
+
+.sup-toggle-switch.is-manual .sup-toggle-thumb {
+  transform: translateX(28px);
+  background: linear-gradient(180deg, #6dff9d 0%, #3dc46a 100%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), 0 0 8px rgba(109, 255, 157, 0.3);
+}
+
+/* TOUCH AREA - invisible layer for capturing touch events */
+.sup-touch-area {
+  position: absolute;
+  inset: 0;
+  z-index: 90;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* FLOATING VIRTUAL JOYSTICK */
+.sup-joystick {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  z-index: 100;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease-out;
+}
+
+.sup-joystick.is-active {
+  opacity: 1;
+}
+
+.sup-joystick-base {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(11, 17, 38, 0.5) 0%, rgba(24, 33, 64, 0.5) 100%);
+  border: 2px solid rgba(36, 49, 80, 0.6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3), 0 4px 8px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(4px);
+}
+
+.sup-joystick-thumb {
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(180deg, rgba(77, 227, 255, 0.7) 0%, rgba(42, 159, 214, 0.7) 100%);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  transition: transform 0.05s ease-out;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), 0 0 12px rgba(77, 227, 255, 0.3);
+}
+
 @media (max-width: 768px) {
   .sup-status-bar {
     padding: 0.5rem 1rem;
@@ -574,6 +691,7 @@
 
   .sup-control-panel {
     padding: 1rem;
+    padding-bottom: calc(1rem + 2vh + env(safe-area-inset-bottom, 0px));
   }
 
   .sup-menu {
@@ -619,9 +737,51 @@
   .sup-about-controls {
     justify-content: center;
   }
+
+  /* Mode toggle mobile */
+  .sup-mode-toggle {
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .sup-mode-label {
+    font-size: 0.65rem;
+  }
+
+  .sup-toggle-switch {
+    width: 48px;
+    height: 24px;
+  }
+
+  .sup-toggle-thumb {
+    width: 16px;
+    height: 16px;
+    top: 2px;
+    left: 2px;
+  }
+
+  .sup-toggle-switch.is-manual .sup-toggle-thumb {
+    transform: translateX(24px);
+  }
+
+  /* Joystick mobile */
+  .sup-joystick {
+    width: 100px;
+    height: 100px;
+  }
+
+  .sup-joystick-thumb {
+    width: 36px;
+    height: 36px;
+  }
 }
 
 @media (max-width: 480px) {
+  .sup-control-panel {
+    padding: 0.75rem;
+    padding-bottom: calc(0.75rem + 2vh + env(safe-area-inset-bottom, 0px));
+  }
+
   .sup-menu {
     grid-template-columns: repeat(2, 1fr);
     gap: 0.5rem;
@@ -644,5 +804,35 @@
     font-size: 0.8rem;
     right: 0.5rem;
     bottom: 0.5rem;
+  }
+
+  /* Joystick for small screens */
+  .sup-joystick {
+    width: 90px;
+    height: 90px;
+  }
+
+  .sup-joystick-thumb {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Mode toggle for small screens */
+  .sup-mode-toggle {
+    margin-bottom: 0.5rem;
+  }
+
+  .sup-toggle-switch {
+    width: 44px;
+    height: 22px;
+  }
+
+  .sup-toggle-thumb {
+    width: 14px;
+    height: 14px;
+  }
+
+  .sup-toggle-switch.is-manual .sup-toggle-thumb {
+    transform: translateX(22px);
   }
 }
