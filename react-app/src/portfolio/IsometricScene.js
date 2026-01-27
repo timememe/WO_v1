@@ -91,7 +91,16 @@ export class IsometricScene {
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ КАМЕРЫ И УПРАВЛЕНИЯ
     // ═══════════════════════════════════════════════════════════════
-    this.cameraSmoothing = 0.05;        // Плавность следования камеры (0-1)
+    this.cameraSmoothing = 0.08;        // Базовая плавность следования камеры
+    this.cameraDeadZone = 100;           // "Мёртвая зона" в пикселях - камера не двигается
+    this.cameraMaxSpeed = 12;           // Максимальная скорость камеры
+    this.cameraAcceleration = 0.15;     // Ускорение камеры при догоне
+    this.cameraLookAhead = 30;          // "Look ahead" - камера смотрит вперёд по направлению движения
+    this.cameraLookAheadSmoothing = 0.05; // Плавность look ahead
+    this.cameraVelocityX = 0;           // Текущая скорость камеры X
+    this.cameraVelocityY = 0;           // Текущая скорость камеры Y
+    this.cameraLookX = 0;               // Текущий look ahead offset X
+    this.cameraLookY = 0;               // Текущий look ahead offset Y
     this.controllerMode = true;        // true = ручное управление, false = AI
     this.debugMode = false;            // Показывать debug графику
 
@@ -471,24 +480,9 @@ export class IsometricScene {
     // Позиционируем персонажа в начальной позиции
     this.updateCharacterPosition();
 
-    // Вертикальная анимация при движении
-    let bounceTime = 0;
-    let bounceOffset = 0;
+    // Главный игровой цикл (камера, озёра, debug)
     this.idleAnimationFn = (delta) => {
-      // Вертикальная анимация только при движении
-      if (this.isMoving) {
-        bounceTime += 0.4; // Скорость анимации
-        bounceOffset = Math.sin(bounceTime) * 8; // Амплитуда прыжка
-      } else {
-        bounceTime = 0;
-        bounceOffset = 0;
-      }
-
-      // Применяем bounce offset к персонажу
-      const basePos = this.isoToScreen(this.playerX, this.playerY);
-      character.y = basePos.y - bounceOffset; // Минус, чтобы прыгал вверх
-
-      // Обновляем камеру каждый кадр для плавного следования
+      // Обновляем камеру каждый кадр (Sega-style с dead zone и look ahead)
       this.updateCamera();
 
       this.updateLakes(delta?.deltaTime ?? delta?.deltaMS ?? delta ?? 1);
@@ -513,7 +507,7 @@ export class IsometricScene {
     this.character.zIndex = this.playerX + this.playerY;
   }
 
-  // Обновление позиции камеры (плавное следование за игроком)
+  // Обновление позиции камеры (Sega-style: dead zone + look ahead + плавный догон)
   updateCamera() {
     if (!this.character && !this.cameraTarget) return;
 
@@ -521,21 +515,102 @@ export class IsometricScene {
     let focusY = 0;
 
     if (this.cameraTarget) {
+      // При явной цели камеры - простое следование
       const screenPos = this.isoToScreen(this.cameraTarget.x, this.cameraTarget.y);
       focusX = screenPos.x;
       focusY = screenPos.y;
-    } else if (this.character) {
-      focusX = this.character.x;
-      focusY = this.character.y;
+
+      const targetX = this.app.screen.width / 2 - focusX;
+      const targetY = this.app.screen.height / 2 - focusY;
+
+      this.container.x += (targetX - this.container.x) * this.cameraSmoothing;
+      this.container.y += (targetY - this.container.y) * this.cameraSmoothing;
+      return;
     }
 
-    // Целевая позиция контейнера - фокус в центре экрана
-    const targetX = this.app.screen.width / 2 - focusX;
-    const targetY = this.app.screen.height / 2 - focusY;
+    if (!this.character) return;
 
-    // Плавная интерполяция камеры
-    this.container.x += (targetX - this.container.x) * this.cameraSmoothing;
-    this.container.y += (targetY - this.container.y) * this.cameraSmoothing;
+    // Позиция персонажа на экране
+    focusX = this.character.x;
+    focusY = this.character.y;
+
+    // === LOOK AHEAD ===
+    // Камера смотрит вперёд в направлении движения
+    let targetLookX = 0;
+    let targetLookY = 0;
+
+    if (this.isMoving && this.keysPressed) {
+      // Вычисляем направление движения для look ahead
+      let dx = 0, dy = 0;
+      if (this.keysPressed.up) { dx -= 1; dy -= 1; }
+      if (this.keysPressed.down) { dx += 1; dy += 1; }
+      if (this.keysPressed.left) { dx -= 1; dy += 1; }
+      if (this.keysPressed.right) { dx += 1; dy -= 1; }
+
+      if (dx !== 0 || dy !== 0) {
+        // Конвертируем grid-направление в screen-направление
+        const screenDX = (dx - dy) * (this.tileWidth / 2);
+        const screenDY = (dx + dy) * (this.tileHeight / 2);
+        const len = Math.sqrt(screenDX * screenDX + screenDY * screenDY);
+
+        if (len > 0) {
+          targetLookX = (screenDX / len) * this.cameraLookAhead;
+          targetLookY = (screenDY / len) * this.cameraLookAhead;
+        }
+      }
+    }
+
+    // Плавная интерполяция look ahead
+    this.cameraLookX += (targetLookX - this.cameraLookX) * this.cameraLookAheadSmoothing;
+    this.cameraLookY += (targetLookY - this.cameraLookY) * this.cameraLookAheadSmoothing;
+
+    // === DEAD ZONE + ДОГОН ===
+    // Целевая позиция камеры (с учётом look ahead)
+    const idealCameraX = this.app.screen.width / 2 - focusX - this.cameraLookX;
+    const idealCameraY = this.app.screen.height / 2 - focusY - this.cameraLookY;
+
+    // Разница между текущей и идеальной позицией
+    const diffX = idealCameraX - this.container.x;
+    const diffY = idealCameraY - this.container.y;
+    const distance = Math.sqrt(diffX * diffX + diffY * diffY);
+
+    // Если персонаж в dead zone - камера почти не двигается
+    if (distance < this.cameraDeadZone) {
+      // Очень медленное центрирование внутри dead zone
+      this.cameraVelocityX *= 0.9;
+      this.cameraVelocityY *= 0.9;
+      this.container.x += diffX * 0.01;
+      this.container.y += diffY * 0.01;
+    } else {
+      // Персонаж вышел за dead zone - камера догоняет с ускорением
+      const overshoot = distance - this.cameraDeadZone;
+      const urgency = Math.min(overshoot / 100, 1); // 0-1, насколько срочно догонять
+
+      // Направление к цели
+      const dirX = diffX / distance;
+      const dirY = diffY / distance;
+
+      // Ускоряем камеру
+      const accel = this.cameraAcceleration * (1 + urgency * 2);
+      this.cameraVelocityX += dirX * accel;
+      this.cameraVelocityY += dirY * accel;
+
+      // Ограничиваем максимальную скорость
+      const speed = Math.sqrt(this.cameraVelocityX * this.cameraVelocityX + this.cameraVelocityY * this.cameraVelocityY);
+      const maxSpeed = this.cameraMaxSpeed * (1 + urgency);
+      if (speed > maxSpeed) {
+        this.cameraVelocityX = (this.cameraVelocityX / speed) * maxSpeed;
+        this.cameraVelocityY = (this.cameraVelocityY / speed) * maxSpeed;
+      }
+
+      // Применяем скорость
+      this.container.x += this.cameraVelocityX;
+      this.container.y += this.cameraVelocityY;
+
+      // Затухание скорости
+      this.cameraVelocityX *= 0.92;
+      this.cameraVelocityY *= 0.92;
+    }
   }
 
   updateLakes(deltaTime = 1) {
