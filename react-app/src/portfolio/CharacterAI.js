@@ -60,7 +60,7 @@ export class CharacterAI {
       "А вот это мысль!",
       "Нужно больше кофе",
       "Время летит незаметно",
-      "Я запер сам себя в бесконечном лупе.",
+      "Я запер сам себя в бесконечном цикле.",
       "Есть ли клетка внутри клетки?",
     ];
 
@@ -102,6 +102,20 @@ export class CharacterAI {
 
   // Запуск AI
   start() {
+    // Сначала останавливаем предыдущие таймеры (защита от дублирования)
+    this.stop();
+
+    // Сбрасываем состояние для чистого старта
+    this.currentState = 'idle';
+    this.currentGoal = null;
+    this.currentActivity = null;
+    this.targetX = null;
+    this.targetY = null;
+    this.currentPath = [];
+    this.currentPathIndex = 0;
+    this.entryTile = null;
+    this.lastSpeakCheck = Date.now(); // Даём время до первой проверки речи
+
     // Обновляем потребности каждую секунду
     this.updateInterval = setInterval(() => {
       this.updateNeeds();
@@ -147,6 +161,11 @@ export class CharacterAI {
 
   // Главный цикл движения (вызывается каждый кадр)
   updateMovement() {
+    // Защита от вызова на уничтоженной сцене
+    if (!this.scene || this.scene.isDestroyed) {
+      return;
+    }
+
     // Если выполняется действие - не двигаемся
     if (this.currentState === 'performing_action') {
       return;
@@ -461,6 +480,9 @@ export class CharacterAI {
 
   // Начать действие (когда произошла коллизия с объектом)
   startAction() {
+    // Защита от вызова на уничтоженной сцене
+    if (!this.scene || this.scene.isDestroyed) return;
+
     this.actionTimer = this.actionDuration;
     this.currentState = 'performing_action';
     this.scene.isMoving = false;
@@ -514,6 +536,9 @@ export class CharacterAI {
 
   // Начать говорить (случайная фраза)
   startSpeaking(phrase = null) {
+    // Защита от вызова на уничтоженной сцене
+    if (!this.scene || this.scene.isDestroyed) return;
+
     // Выбираем случайную фразу если не передана конкретная
     this.currentPhrase = phrase || this.phrases[Math.floor(Math.random() * this.phrases.length)];
     this.displayedText = '';
@@ -551,9 +576,19 @@ export class CharacterAI {
     // Скрываем баббл
     this.scene.hideSpeechBubble();
 
-    // Возвращаемся к предыдущему состоянию
-    this.currentState = this.previousState || 'idle';
+    // Всегда переходим в idle для пересчёта пути
+    // (предыдущий путь мог устареть пока говорили)
+    this.currentState = 'idle';
     this.previousState = null;
+
+    // Сбрасываем текущую цель и путь для пересчёта
+    this.currentGoal = null;
+    this.currentActivity = null;
+    this.targetX = null;
+    this.targetY = null;
+    this.currentPath = [];
+    this.currentPathIndex = 0;
+    this.entryTile = null;
 
     // Сбрасываем параметры речи
     this.currentPhrase = '';

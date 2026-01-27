@@ -143,6 +143,7 @@ export class IsometricScene {
     this.isSpeechWaiting = false;
     this.speechWaitTimer = null;
     this.isPaused = false;
+    this.isDestroyed = false;
     this.aiWasRunning = false;
     this.backgroundTiles = [];
     this.walls = [];
@@ -637,6 +638,9 @@ export class IsometricScene {
 
   // Показать баббл с анимацией над локацией
   showActivityBubble(locationType, location) {
+    // Защита от вызова на уничтоженной сцене
+    if (this.isDestroyed || !this.activityAnimations) return;
+
     // Скрываем персонажа полностью
     if (this.character) {
       this.character.visible = false;
@@ -782,6 +786,9 @@ export class IsometricScene {
 
   // Показать баббл с речью и анимацией печати
   showSpeechBubble(text, typingSpeed = 50) {
+    // Защита от вызова на уничтоженной сцене
+    if (this.isDestroyed) return;
+
     this.speechFullText = text;
     this.speechDisplayedText = '';
     this.speechTypingIndex = 0;
@@ -1187,7 +1194,17 @@ export class IsometricScene {
       this.updateCharacterPosition();
     };
 
+    // Удаляем старый тикер перед добавлением нового (защита от дублирования)
+    this.app.ticker.remove(this.movementTickerFn);
     this.app.ticker.add(this.movementTickerFn);
+
+    // Удаляем старые обработчики перед добавлением новых
+    if (this.keyDownHandler) {
+      window.removeEventListener('keydown', this.keyDownHandler);
+    }
+    if (this.keyUpHandler) {
+      window.removeEventListener('keyup', this.keyUpHandler);
+    }
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
@@ -1423,13 +1440,17 @@ export class IsometricScene {
     }
     this.container.visible = true;
 
+    // Сначала удаляем тикеры (защита от дублирования), потом добавляем
     if (this.idleAnimationFn) {
+      this.app.ticker.remove(this.idleAnimationFn);
       this.app.ticker.add(this.idleAnimationFn);
     }
     if (this.movementTickerFn) {
+      this.app.ticker.remove(this.movementTickerFn);
       this.app.ticker.add(this.movementTickerFn);
     }
 
+    // CharacterAI.start() уже содержит защиту от дублирования
     if (this.aiWasRunning && this.characterAI) {
       this.characterAI.start();
       this.aiWasRunning = false;
@@ -1443,6 +1464,9 @@ export class IsometricScene {
   }
 
   destroy() {
+    // Помечаем сцену как уничтоженную (защита от race conditions)
+    this.isDestroyed = true;
+
     // Останавливаем все тикеры
     if (this.movementTickerFn) {
       this.app.ticker.remove(this.movementTickerFn);

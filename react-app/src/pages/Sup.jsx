@@ -229,40 +229,42 @@ export default function Sup() {
       }
     };
 
-    // Функция для очистки всех сцен кроме указанной
-    const cleanupScenes = (keepScene) => {
+    // Функция для паузы всех сцен кроме указанной (Hide/Show паттерн)
+    const pauseOtherScenes = (keepScene) => {
       if (keepScene !== 'main' && mainSceneRef.current) {
-        mainSceneRef.current.destroy();
-        mainSceneRef.current = null;
+        mainSceneRef.current.pause();
       }
       if (keepScene !== 'cases' && casesSceneRef.current) {
-        casesSceneRef.current.destroy();
-        casesSceneRef.current = null;
+        casesSceneRef.current.pause();
       }
       if (keepScene !== 'about' && aboutSceneRef.current) {
-        aboutSceneRef.current.destroy();
-        aboutSceneRef.current = null;
+        aboutSceneRef.current.pause();
       }
     };
 
     if (activeSection === 'cases') {
       if (sceneTypeRef.current !== 'cases') {
-        cleanupScenes('cases');
+        pauseOtherScenes('cases');
 
-        // Создаём новую CasesScene с предзагруженными ассетами
-        casesSceneRef.current = new CasesScene(
-          appRef.current,
-          {
-            tileCount: 5,
-            tileGap: 0,
-            tileOverlap: 20,
-            backgroundColor: 0x000000,
-            debugMode: true,
-            casesData: buildCasesSceneData(assetManager),
-          },
-          sceneRootRef.current,
-          assetManager
-        );
+        // Создаём CasesScene только если ещё не существует
+        if (!casesSceneRef.current) {
+          casesSceneRef.current = new CasesScene(
+            appRef.current,
+            {
+              tileCount: 5,
+              tileGap: 0,
+              tileOverlap: 20,
+              backgroundColor: 0x000000,
+              debugMode: true,
+              casesData: buildCasesSceneData(assetManager),
+            },
+            sceneRootRef.current,
+            assetManager
+          );
+        } else {
+          // Сцена уже есть - просто возобновляем
+          casesSceneRef.current.resume();
+        }
 
         sceneRef.current = casesSceneRef.current;
         sceneTypeRef.current = 'cases';
@@ -272,15 +274,20 @@ export default function Sup() {
       }
     } else if (activeSection === 'about') {
       if (sceneTypeRef.current !== 'about') {
-        cleanupScenes('about');
+        pauseOtherScenes('about');
 
-        // Создаём новую AboutScene
-        aboutSceneRef.current = new AboutScene(
-          appRef.current,
-          { backgroundColor: 0x000000 },
-          sceneRootRef.current,
-          assetManager
-        );
+        // Создаём AboutScene только если ещё не существует
+        if (!aboutSceneRef.current) {
+          aboutSceneRef.current = new AboutScene(
+            appRef.current,
+            { backgroundColor: 0x000000 },
+            sceneRootRef.current,
+            assetManager
+          );
+        } else {
+          // Сцена уже есть - просто возобновляем
+          aboutSceneRef.current.resume();
+        }
 
         sceneRef.current = aboutSceneRef.current;
         sceneTypeRef.current = 'about';
@@ -289,18 +296,23 @@ export default function Sup() {
       }
     } else {
       if (sceneTypeRef.current !== 'main') {
-        cleanupScenes('main');
+        pauseOtherScenes('main');
 
-        // Создаём новую IsometricScene с предзагруженными ассетами
-        mainSceneRef.current = new IsometricScene(
-          appRef.current,
-          sceneRootRef.current,
-          assetManager
-        );
+        // Создаём IsometricScene только если ещё не существует
+        if (!mainSceneRef.current) {
+          mainSceneRef.current = new IsometricScene(
+            appRef.current,
+            sceneRootRef.current,
+            assetManager
+          );
 
-        // Синхронизируем режим управления с React state
-        if (mainSceneRef.current.getControllerMode() !== controllerMode) {
-          mainSceneRef.current.setControllerMode(controllerMode);
+          // Синхронизируем режим управления с React state (только при создании)
+          if (mainSceneRef.current.getControllerMode() !== controllerMode) {
+            mainSceneRef.current.setControllerMode(controllerMode);
+          }
+        } else {
+          // Сцена уже есть - просто возобновляем
+          mainSceneRef.current.resume();
         }
 
         sceneRef.current = mainSceneRef.current;
