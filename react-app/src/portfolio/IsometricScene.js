@@ -1420,6 +1420,16 @@ export class IsometricScene {
       this.app.ticker.remove(this.movementTickerFn);
     }
 
+    // Скрываем speech bubble и очищаем таймеры
+    this.hideSpeechBubble();
+
+    // Если AI был в режиме speaking - сбрасываем состояние
+    if (this.characterAI && this.characterAI.currentState === 'speaking') {
+      this.characterAI.currentState = 'idle';
+      this.characterAI.previousState = null;
+      this.characterAI.currentPhrase = '';
+    }
+
     if (this.characterAI) {
       this.aiWasRunning = !this.controllerMode;
       this.characterAI.stop();
