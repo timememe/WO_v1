@@ -98,7 +98,8 @@ export class IsometricScene {
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ UI (БАББЛ АКТИВНОСТИ)
     // ═══════════════════════════════════════════════════════════════
-    this.bubbleOffsetY = -40;          // Вертикальное смещение баббла
+    this.bubbleOffsetY = -40;          // Вертикальное смещение баббла активности
+    this.speechBubbleOffsetY = -80;    // Вертикальное смещение баббла речи
     this.bubbleGifScale = 0.5;         // Масштаб GIF анимации
     this.bubbleFramePadding = 8;       // Отступ рамки от GIF
     this.bubbleFrameColor = 0x000000;  // Цвет рамки
@@ -130,6 +131,17 @@ export class IsometricScene {
     this.activityBubble = null;
     this.activityAnimations = {};
     this.ufoTexture = null;
+
+    // Speech bubble (система диалогов)
+    this.speechBubble = null;
+    this.speechText = null;
+    this.speechFullText = '';
+    this.speechDisplayedText = '';
+    this.speechTypingIndex = 0;
+    this.speechTypingTimer = null;
+    this.isSpeechTyping = false;
+    this.isSpeechWaiting = false;
+    this.speechWaitTimer = null;
     this.isPaused = false;
     this.aiWasRunning = false;
     this.backgroundTiles = [];
@@ -764,6 +776,184 @@ export class IsometricScene {
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // SPEECH BUBBLE (СИСТЕМА ДИАЛОГОВ)
+  // ═══════════════════════════════════════════════════════════════
+
+  // Показать баббл с речью и анимацией печати
+  showSpeechBubble(text, typingSpeed = 50) {
+    this.speechFullText = text;
+    this.speechDisplayedText = '';
+    this.speechTypingIndex = 0;
+    this.isSpeechTyping = true;
+    this.isSpeechWaiting = false;
+
+    // Устанавливаем первый кадр анимации (стоит на месте)
+    this.setCharacterIdleFrame();
+
+    // Создаём контейнер для speech bubble
+    if (!this.speechBubble) {
+      this.speechBubble = new Container();
+      this.sortableContainer.addChild(this.speechBubble);
+    }
+
+    // Очищаем предыдущее содержимое
+    this.speechBubble.removeChildren().forEach(child => {
+      if (child && child.destroy) {
+        child.destroy({ children: true, texture: false, baseTexture: false });
+      }
+    });
+
+    // Настройки баббла
+    const padding = 12;
+    const maxWidth = 200;
+    const fontSize = 14;
+    const lineHeight = fontSize * 1.3;
+    const tailHeight = 10;
+
+    // Создаём текст с переносом строк
+    const textStyle = {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: fontSize,
+      fill: 0x333333,
+      wordWrap: true,
+      wordWrapWidth: maxWidth - padding * 2,
+      align: 'left',
+      lineHeight: lineHeight,
+    };
+
+    this.speechText = new Text({ text: '', style: textStyle });
+    this.speechText.anchor.set(0, 0);
+
+    // Вычисляем размеры для полного текста (для фона)
+    const tempText = new Text({ text: text, style: textStyle });
+    const textWidth = Math.min(tempText.width, maxWidth - padding * 2);
+    const textHeight = tempText.height;
+    tempText.destroy();
+
+    const bubbleWidth = textWidth + padding * 2;
+    const bubbleHeight = textHeight + padding * 2;
+
+    // Создаём фон баббла (белый с чёрной обводкой)
+    const background = new Graphics();
+
+    // Основной прямоугольник с закруглением
+    background.roundRect(
+      -bubbleWidth / 2,
+      -bubbleHeight - tailHeight,
+      bubbleWidth,
+      bubbleHeight,
+      8
+    );
+    background.fill({ color: 0xFFFFFF, alpha: 0.95 });
+    background.stroke({ width: 3, color: 0x333333 });
+
+    // Хвостик баббла (треугольник вниз)
+    background.moveTo(-8, -tailHeight);
+    background.lineTo(0, 0);
+    background.lineTo(8, -tailHeight);
+    background.fill({ color: 0xFFFFFF, alpha: 0.95 });
+    background.stroke({ width: 2, color: 0x333333 });
+
+    // Закрашиваем линию между хвостиком и бабблом
+    background.moveTo(-7, -tailHeight - 1);
+    background.lineTo(7, -tailHeight - 1);
+    background.stroke({ width: 3, color: 0xFFFFFF });
+
+    // Позиционируем текст
+    this.speechText.x = -bubbleWidth / 2 + padding;
+    this.speechText.y = -bubbleHeight - tailHeight + padding;
+
+    // Добавляем элементы
+    this.speechBubble.addChild(background);
+    this.speechBubble.addChild(this.speechText);
+
+    // Позиционируем баббл над персонажем
+    const screenPos = this.isoToScreen(this.playerX, this.playerY);
+    this.speechBubble.x = screenPos.x;
+    this.speechBubble.y = screenPos.y + this.speechBubbleOffsetY;
+    this.speechBubble.zIndex = 9999;
+    this.speechBubble.visible = true;
+
+    // Запускаем анимацию печати
+    this.startTypingAnimation(typingSpeed);
+  }
+
+  // Анимация печати текста
+  startTypingAnimation(typingSpeed) {
+    // Очищаем предыдущий таймер
+    if (this.speechTypingTimer) {
+      clearInterval(this.speechTypingTimer);
+    }
+
+    this.speechTypingTimer = setInterval(() => {
+      if (this.speechTypingIndex < this.speechFullText.length) {
+        this.speechTypingIndex++;
+        this.speechDisplayedText = this.speechFullText.substring(0, this.speechTypingIndex);
+
+        if (this.speechText) {
+          this.speechText.text = this.speechDisplayedText;
+        }
+      } else {
+        // Печать завершена
+        clearInterval(this.speechTypingTimer);
+        this.speechTypingTimer = null;
+        this.isSpeechTyping = false;
+        this.isSpeechWaiting = true;
+
+        // Ждём перед закрытием
+        this.speechWaitTimer = setTimeout(() => {
+          this.isSpeechWaiting = false;
+        }, 2000);
+      }
+    }, typingSpeed);
+  }
+
+  // Установить персонажа в первый кадр (стоит)
+  setCharacterIdleFrame() {
+    if (!this.characterSprites) return;
+
+    // Останавливаем анимацию и ставим первый кадр
+    for (const direction in this.characterSprites) {
+      const sprite = this.characterSprites[direction];
+      if (sprite && sprite.stop) {
+        sprite.stop();
+        sprite.currentFrame = 0;
+      }
+    }
+  }
+
+  // Скрыть баббл с речью
+  hideSpeechBubble() {
+    // Очищаем таймеры
+    if (this.speechTypingTimer) {
+      clearInterval(this.speechTypingTimer);
+      this.speechTypingTimer = null;
+    }
+    if (this.speechWaitTimer) {
+      clearTimeout(this.speechWaitTimer);
+      this.speechWaitTimer = null;
+    }
+
+    // Скрываем и очищаем баббл
+    if (this.speechBubble) {
+      this.speechBubble.visible = false;
+      this.speechBubble.removeChildren().forEach(child => {
+        if (child && child.destroy) {
+          child.destroy({ children: true, texture: false, baseTexture: false });
+        }
+      });
+    }
+
+    // Сбрасываем состояние
+    this.speechFullText = '';
+    this.speechDisplayedText = '';
+    this.speechTypingIndex = 0;
+    this.isSpeechTyping = false;
+    this.isSpeechWaiting = false;
+    this.speechText = null;
+  }
+
   // Движение персонажа в указанном направлении
   movePlayer(dx, dy) {
     if (this.isMoving) return; // Уже двигается
@@ -1290,6 +1480,20 @@ export class IsometricScene {
     if (this.activityBubble) {
       this.activityBubble.destroy({ children: true, texture: false, baseTexture: false });
       this.activityBubble = null;
+    }
+
+    // Очищаем speech bubble
+    if (this.speechTypingTimer) {
+      clearInterval(this.speechTypingTimer);
+      this.speechTypingTimer = null;
+    }
+    if (this.speechWaitTimer) {
+      clearTimeout(this.speechWaitTimer);
+      this.speechWaitTimer = null;
+    }
+    if (this.speechBubble) {
+      this.speechBubble.destroy({ children: true, texture: false, baseTexture: false });
+      this.speechBubble = null;
     }
 
     // Очищаем карту занятых тайлов

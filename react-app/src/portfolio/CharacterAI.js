@@ -24,10 +24,45 @@ export class CharacterAI {
     };
 
     // Текущее состояние персонажа
-    this.currentState = 'idle'; // idle, walking, performing_action
+    this.currentState = 'idle'; // idle, walking, performing_action, speaking
 
     // Текущая цель (локация)
     this.currentGoal = null;
+
+    // ═══════════════════════════════════════════════════════════════
+    // СИСТЕМА ДИАЛОГОВ (МОНОЛОГОВ)
+    // ═══════════════════════════════════════════════════════════════
+    this.speakingTimer = 0;           // Таймер для завершения речи
+    this.speakingDuration = 0;        // Длительность показа текста после печати
+    this.lastSpeakCheck = 0;          // Время последней проверки на речь
+    this.speakCheckInterval = 3000;   // Интервал проверки (мс)
+    this.speakChance = 0.3;          // Шанс начать говорить (15%)
+    this.typingSpeed = 50;            // Скорость печати (мс на символ)
+    this.currentPhrase = '';          // Текущая фраза
+    this.displayedText = '';          // Отображаемый текст (для анимации)
+    this.typingIndex = 0;             // Индекс текущего символа
+    this.isTyping = false;            // Флаг: идёт ли анимация печати
+    this.pauseAfterTyping = 2000;     // Пауза после завершения печати (мс)
+
+    // Фразы для случайных высказываний
+    this.phrases = [
+      "Что бы такого сделать?",
+      "Кажется, пора отдохнуть",
+      "Сегодня отличный день!",
+      "Надо бы перекусить...",
+      "О чём я думал?",
+      "Работа не волк... работа это ворк",
+      "Может, прогуляться?",
+      "Эх, жизнь прекрасна!",
+      "Интересно, что там нового?",
+      "Пора бы заняться делом",
+      "Я пиксельный человек в пиксельном мире",
+      "А вот это мысль!",
+      "Нужно больше кофе",
+      "Время летит незаметно",
+      "Я запер сам себя в бесконечном лупе.",
+      "Есть ли клетка внутри клетки?",
+    ];
 
     // Целевая позиция для движения (float координаты)
     this.targetX = null;
@@ -117,6 +152,15 @@ export class CharacterAI {
       return;
     }
 
+    // Если говорим - обновляем анимацию печати
+    if (this.currentState === 'speaking') {
+      this.updateSpeaking();
+      return;
+    }
+
+    // Проверка на случайную речь (только когда idle или walking)
+    this.checkForRandomSpeech();
+
     // Если нет цели - выбираем новую
     if (this.currentState === 'idle') {
       this.decideNextAction();
@@ -126,6 +170,23 @@ export class CharacterAI {
     // Если есть цель - двигаемся к ней
     if (this.currentState === 'walking' && this.targetX !== null && this.targetY !== null) {
       this.moveTowardsTarget();
+    }
+  }
+
+  // Проверка на случайную речь
+  checkForRandomSpeech() {
+    const now = Date.now();
+
+    // Проверяем не чаще чем раз в speakCheckInterval
+    if (now - this.lastSpeakCheck < this.speakCheckInterval) {
+      return;
+    }
+
+    this.lastSpeakCheck = now;
+
+    // Случайная проверка
+    if (Math.random() < this.speakChance) {
+      this.startSpeaking();
     }
   }
 
@@ -447,6 +508,63 @@ export class CharacterAI {
     this.collisionPosition = null;
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // СИСТЕМА ДИАЛОГОВ
+  // ═══════════════════════════════════════════════════════════════
+
+  // Начать говорить (случайная фраза)
+  startSpeaking(phrase = null) {
+    // Выбираем случайную фразу если не передана конкретная
+    this.currentPhrase = phrase || this.phrases[Math.floor(Math.random() * this.phrases.length)];
+    this.displayedText = '';
+    this.typingIndex = 0;
+    this.isTyping = true;
+    this.speakingTimer = 0;
+    this.speakingDuration = this.pauseAfterTyping;
+
+    // Сохраняем предыдущее состояние для возврата
+    this.previousState = this.currentState;
+    this.currentState = 'speaking';
+
+    // Останавливаем движение
+    this.scene.isMoving = false;
+
+    // Показываем баббл с речью
+    this.scene.showSpeechBubble(this.currentPhrase, this.typingSpeed);
+
+    console.log(`Character starts speaking: "${this.currentPhrase}"`);
+  }
+
+  // Обновление анимации печати
+  updateSpeaking() {
+    // Обновление анимации происходит в IsometricScene через таймер
+    // Здесь проверяем завершение
+
+    // Проверяем, завершилась ли печать
+    if (!this.scene.isSpeechTyping && !this.scene.isSpeechWaiting) {
+      this.completeSpeaking();
+    }
+  }
+
+  // Завершить речь
+  completeSpeaking() {
+    // Скрываем баббл
+    this.scene.hideSpeechBubble();
+
+    // Возвращаемся к предыдущему состоянию
+    this.currentState = this.previousState || 'idle';
+    this.previousState = null;
+
+    // Сбрасываем параметры речи
+    this.currentPhrase = '';
+    this.displayedText = '';
+    this.typingIndex = 0;
+    this.isTyping = false;
+    this.speakingTimer = 0;
+
+    console.log('Character finished speaking');
+  }
+
   // Найти и установить безопасную позицию для спавна после действия
   spawnAtSafePosition() {
     if (!this.currentGoal) return;
@@ -516,6 +634,18 @@ export class CharacterAI {
 
   // Принудительный выход из текущего действия (для переключения режима)
   forceExitAction() {
+    // Обрабатываем выход из speaking состояния
+    if (this.currentState === 'speaking') {
+      this.scene.hideSpeechBubble();
+      this.currentState = 'idle';
+      this.currentPhrase = '';
+      this.displayedText = '';
+      this.typingIndex = 0;
+      this.isTyping = false;
+      this.previousState = null;
+      return;
+    }
+
     if (this.currentState !== 'performing_action') return;
 
     // Скрываем баббл
