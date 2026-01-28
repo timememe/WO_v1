@@ -102,7 +102,7 @@ export class IsometricScene {
     this.cameraLookX = 0;               // Текущий look ahead offset X
     this.cameraLookY = 0;               // Текущий look ahead offset Y
     this.controllerMode = true;        // true = ручное управление, false = AI
-    this.debugMode = false;            // Показывать debug графику
+    this.debugMode = true;            // Показывать debug графику
 
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ UI (БАББЛ АКТИВНОСТИ)
@@ -657,8 +657,48 @@ export class IsometricScene {
     };
   }
 
+  // Debug: отрисовка границы активной области
+  drawBoundsDebug() {
+    if (!this.debugMode) return;
+
+    // Создаём графику если ещё нет
+    if (!this.boundsDebugGraphics) {
+      this.boundsDebugGraphics = new Graphics();
+      this.boundsDebugGraphics.zIndex = 9997;
+      this.sortableContainer.addChild(this.boundsDebugGraphics);
+    }
+
+    this.boundsDebugGraphics.clear();
+
+    // Рисуем границу активной области (изометрический ромб)
+    // Углы: (0,0), (gridSize,0), (gridSize,gridSize), (0,gridSize)
+    const corners = [
+      this.isoToScreen(0, 0),
+      this.isoToScreen(this.gridSize, 0),
+      this.isoToScreen(this.gridSize, this.gridSize),
+      this.isoToScreen(0, this.gridSize),
+    ];
+
+    this.boundsDebugGraphics.moveTo(corners[0].x, corners[0].y);
+    this.boundsDebugGraphics.lineTo(corners[1].x, corners[1].y);
+    this.boundsDebugGraphics.lineTo(corners[2].x, corners[2].y);
+    this.boundsDebugGraphics.lineTo(corners[3].x, corners[3].y);
+    this.boundsDebugGraphics.lineTo(corners[0].x, corners[0].y);
+    this.boundsDebugGraphics.stroke({ width: 4, color: 0xff0000, alpha: 0.8 });
+
+    // Показываем текущую позицию игрока
+    if (this.character) {
+      const playerScreen = this.isoToScreen(this.playerX, this.playerY);
+      this.boundsDebugGraphics.circle(playerScreen.x, playerScreen.y, 8);
+      this.boundsDebugGraphics.fill({ color: 0x00ff00, alpha: 1 });
+    }
+  }
+
   // Debug: отрисовка текущего пути AI
   drawPathDebug() {
+    // Всегда рисуем границы в debug mode
+    this.drawBoundsDebug();
+
     if (!this.debugMode || !this.characterAI) return;
 
     // Создаём графику если ещё нет
@@ -1314,10 +1354,11 @@ export class IsometricScene {
     const result = { x: false, y: false };
 
     // Проверка границ поля
-    if (newX - radius < 0 || newX + radius >= this.gridSize) {
+    // Персонаж может ходить по всей площади активных тайлов [0, gridSize]
+    if (newX - radius < 0 || newX + radius > this.gridSize) {
       result.x = true;
     }
-    if (newY - radius < 0 || newY + radius >= this.gridSize) {
+    if (newY - radius < 0 || newY + radius > this.gridSize) {
       result.y = true;
     }
 
@@ -1614,6 +1655,12 @@ export class IsometricScene {
     if (this.pathDebugGraphics) {
       this.pathDebugGraphics.destroy();
       this.pathDebugGraphics = null;
+    }
+
+    // Очищаем debug графику границ
+    if (this.boundsDebugGraphics) {
+      this.boundsDebugGraphics.destroy();
+      this.boundsDebugGraphics = null;
     }
 
     // Очищаем озёра
