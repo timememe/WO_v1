@@ -132,9 +132,15 @@ export class ObjectFactory {
     decorationContainer.gridX = centerX;
     decorationContainer.gridY = centerY;
 
-    const bottomX = x + tileSize - 1;
-    const bottomY = y + tileSize - 1;
-    decorationContainer.zIndex = bottomX + bottomY;
+    // zIndex: формула для правильной сортировки в изометрии
+    // Основной ключ: (x+y) - глубина на экране (screenY пропорционален x+y)
+    // Вторичный ключ: Max(x,y) - для тайлов на одной глубине
+    // Для объектов размером > 1 используем "передний" угол (самый близкий к камере)
+    const frontX = x + tileSize - 1;
+    const frontY = y + tileSize - 1;
+    decorationContainer.zIndex = (frontX + frontY) * 100 + Math.max(frontX, frontY);
+    decorationContainer.baseZIndex = decorationContainer.zIndex;
+    decorationContainer.objectType = config?.type || type;
 
     // Регистрируем занятые клетки
     for (let dx = 0; dx < tileSize; dx++) {

@@ -20,7 +20,7 @@ export class IsometricScene {
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ СЕТКИ И ТАЙЛОВ ПОЛА
     // ═══════════════════════════════════════════════════════════════
-    this.gridSize = 12;                // Размер сетки (16x16 тайлов)
+    this.gridSize = 12;                // Размер сетки (12x12 тайлов)
     this.tileWidth = 128;              // Ширина изометрического тайла
     this.tileHeight = 64;              // Высота изометрического тайла
     this.grassTileScale = 0.27;        // Масштаб тайла травы (512 * 0.25 = 128)
@@ -504,10 +504,44 @@ export class IsometricScene {
     this.character.y = screenPos.y;
 
     // Обновляем zIndex для правильной сортировки по глубине
-    this.character.zIndex = this.playerX + this.playerY;
+    // Формула: (x+y)*100 + max(x,y) - глубина как основной ключ
+    this.character.zIndex = (this.playerX + this.playerY) * 100 + Math.max(this.playerX, this.playerY);
+
+    this.updateNeighborOcclusion();
   }
 
   // Обновление позиции камеры (Sega-style: dead zone + look ahead + плавный догон)
+  updateNeighborOcclusion() {
+    if (!this.sortableContainer || !this.character) return;
+
+    const playerTileX = Math.floor(this.playerX);
+    const playerTileY = Math.floor(this.playerY);
+    const playerZ = this.character.zIndex ?? 0;
+
+    for (const child of this.sortableContainer.children) {
+      if (child === this.character) continue;
+      if (child.objectType === 'building') continue;
+      if (child.gridX === undefined || child.gridY === undefined) continue;
+
+      const objTileX = Math.floor(child.gridX);
+      const objTileY = Math.floor(child.gridY);
+      const dx = objTileX - playerTileX;
+      const dy = objTileY - playerTileY;
+
+      const isNeighbor = Math.abs(dx) <= 1 && Math.abs(dy) <= 1 && !(dx === 0 && dy === 0);
+      if (child.baseZIndex === undefined) {
+        child.baseZIndex = child.zIndex ?? 0;
+      }
+
+      if (isNeighbor) {
+        const isBehind = dx <= 0 && dy <= 0 && (dx + dy) < 0; // (-1,0), (0,-1), (-1,-1)
+        child.zIndex = isBehind ? playerZ - 1 : playerZ + 1;
+      } else {
+        child.zIndex = child.baseZIndex;
+      }
+    }
+  }
+
   updateCamera() {
     if (!this.character && !this.cameraTarget) return;
 
@@ -1157,7 +1191,8 @@ export class IsometricScene {
         this.character.y = endPos.y;
 
         // Обновляем zIndex для правильной сортировки по глубине
-        this.character.zIndex = this.playerX + this.playerY;
+        // Формула: (x+y)*100 + max(x,y) - глубина как основной ключ
+        this.character.zIndex = (this.playerX + this.playerY) * 100 + Math.max(this.playerX, this.playerY);
 
         this.isMoving = false;
         this.app.ticker.remove(animateTicker);
@@ -1330,12 +1365,12 @@ export class IsometricScene {
 
   // Проверка пересечения круга персонажа с границами тайла (AABB)
   checkCircleTileCollision(cx, cy, radius, tileX, tileY) {
-    // Тайл (tileX, tileY) визуально центрирован на координатах (tileX, tileY)
-    // Его границы в grid-координатах: [tileX-0.5, tileX+0.5] x [tileY-0.5, tileY+0.5]
-    const minX = tileX - 0.5;
-    const maxX = tileX + 0.5;
-    const minY = tileY - 0.5;
-    const maxY = tileY + 0.5;
+    // Тайл (tileX, tileY) занимает область [tileX, tileX+1] x [tileY, tileY+1]
+    // Например тайл (5, 5) занимает от (5,5) до (6,6)
+    const minX = tileX;
+    const maxX = tileX + 1;
+    const minY = tileY;
+    const maxY = tileY + 1;
 
     // Находим ближайшую точку на границе тайла к центру круга
     const closestX = Math.max(minX, Math.min(cx, maxX));
@@ -1349,9 +1384,14 @@ export class IsometricScene {
   }
 
   // Проверка коллизий с объектами и границами
-  checkCollision(newX, newY) {
+  // options.excludeTile - тайл который нужно исключить из проверки {tileX, tileY}
+  // options.currentX, options.currentY - текущая позиция (по умолчанию this.playerX/Y)
+  checkCollision(newX, newY, options = {}) {
     const radius = this.playerCollisionRadius;
     const result = { x: false, y: false };
+    const currentX = options.currentX ?? this.playerX;
+    const currentY = options.currentY ?? this.playerY;
+    const excludeTile = options.excludeTile;
 
     // Проверка границ поля
     // Персонаж может ходить по всей площади активных тайлов [0, gridSize]
@@ -1366,11 +1406,15 @@ export class IsometricScene {
     // Проверяем пересечение круга персонажа с границами занятых тайлов
 
     // Проверка по X (новая позиция X, текущая Y)
-    const tilesX = this.getTilesInRadius(newX, this.playerY, radius);
+    const tilesX = this.getTilesInRadius(newX, currentY, radius);
     for (const tile of tilesX) {
+      // Пропускаем исключённый тайл (например entry tile для AI)
+      if (excludeTile && tile.x === excludeTile.tileX && tile.y === excludeTile.tileY) {
+        continue;
+      }
       if (this.isTileOccupied(tile.x, tile.y)) {
         // Проверяем реальное пересечение круга с границами тайла
-        if (this.checkCircleTileCollision(newX, this.playerY, radius, tile.x, tile.y)) {
+        if (this.checkCircleTileCollision(newX, currentY, radius, tile.x, tile.y)) {
           result.x = true;
           break;
         }
@@ -1378,11 +1422,15 @@ export class IsometricScene {
     }
 
     // Проверка по Y (текущая X, новая позиция Y)
-    const tilesY = this.getTilesInRadius(this.playerX, newY, radius);
+    const tilesY = this.getTilesInRadius(currentX, newY, radius);
     for (const tile of tilesY) {
+      // Пропускаем исключённый тайл
+      if (excludeTile && tile.x === excludeTile.tileX && tile.y === excludeTile.tileY) {
+        continue;
+      }
       if (this.isTileOccupied(tile.x, tile.y)) {
         // Проверяем реальное пересечение круга с границами тайла
-        if (this.checkCircleTileCollision(this.playerX, newY, radius, tile.x, tile.y)) {
+        if (this.checkCircleTileCollision(currentX, newY, radius, tile.x, tile.y)) {
           result.y = true;
           break;
         }
@@ -1392,15 +1440,21 @@ export class IsometricScene {
     return result;
   }
 
+  // Проверка коллизии с конкретным тайлом
+  checkCollisionWithTile(x, y, tileX, tileY) {
+    const radius = this.playerCollisionRadius;
+    return this.checkCircleTileCollision(x, y, radius, tileX, tileY);
+  }
+
   // Получить тайлы в радиусе от позиции
   getTilesInRadius(x, y, radius) {
     const tiles = [];
-    // Тайлы центрированы: тайл (tx, ty) имеет границы [tx-0.5, tx+0.5] x [ty-0.5, ty+0.5]
-    // Нужно найти все тайлы, чьи границы могут пересекаться с кругом персонажа
-    const minX = Math.ceil(x - radius - 0.5);
-    const maxX = Math.floor(x + radius + 0.5);
-    const minY = Math.ceil(y - radius - 0.5);
-    const maxY = Math.floor(y + radius + 0.5);
+    // Тайл (tx, ty) занимает область [tx, tx+1] x [ty, ty+1]
+    // Находим все тайлы, чьи границы могут пересекаться с кругом [x-radius, x+radius]
+    const minX = Math.floor(x - radius);
+    const maxX = Math.floor(x + radius);
+    const minY = Math.floor(y - radius);
+    const maxY = Math.floor(y + radius);
 
     for (let tx = minX; tx <= maxX; tx++) {
       for (let ty = minY; ty <= maxY; ty++) {

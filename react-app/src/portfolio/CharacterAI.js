@@ -240,7 +240,8 @@ export class CharacterAI {
       // Проверяем, достигли ли конца пути
       if (this.currentPathIndex >= this.currentPath.length) {
         // Путь завершён, проверяем коллизию с entry tile
-        if (this.currentGoal && this.checkCollisionWithEntryTile(playerX, playerY)) {
+        if (this.currentGoal && this.entryTile &&
+            this.scene.checkCollisionWithTile(playerX, playerY, this.entryTile.tileX, this.entryTile.tileY)) {
           this.collisionPosition = { x: playerX, y: playerY };
           this.startAction();
           return;
@@ -271,7 +272,8 @@ export class CharacterAI {
     let newY = playerY + dy * speed;
 
     // Проверяем коллизию ТОЛЬКО с entry tile - только он триггерит действие
-    if (this.currentGoal && this.checkCollisionWithEntryTile(newX, newY)) {
+    if (this.currentGoal && this.entryTile &&
+        this.scene.checkCollisionWithTile(newX, newY, this.entryTile.tileX, this.entryTile.tileY)) {
       // Коллизия с entry tile - начинаем действие
       this.collisionPosition = { x: playerX, y: playerY };
       this.startAction();
@@ -279,8 +281,8 @@ export class CharacterAI {
     }
 
     // Для всех остальных объектов - обычная проверка коллизий
-    // Но исключаем entry tile из проверки
-    const collision = this.checkCollisionExcludingEntry(newX, newY);
+    // Но исключаем entry tile из проверки (используем унифицированный метод)
+    const collision = this.scene.checkCollision(newX, newY, { excludeTile: this.entryTile });
 
     // Debug: логируем если застряли
     if (collision.x && collision.y) {
@@ -312,67 +314,6 @@ export class CharacterAI {
 
     // Обновляем позицию персонажа на экране
     this.scene.updateCharacterPosition();
-  }
-
-  // Проверка коллизий, исключая entry tile текущей цели
-  checkCollisionExcludingEntry(newX, newY) {
-    const radius = this.scene.playerCollisionRadius;
-    const result = { x: false, y: false };
-
-    // Проверка границ поля
-    if (newX - radius < 0 || newX + radius >= this.scene.gridSize) {
-      result.x = true;
-    }
-    if (newY - radius < 0 || newY + radius >= this.scene.gridSize) {
-      result.y = true;
-    }
-
-    // Проверка по X
-    const tilesX = this.scene.getTilesInRadius(newX, this.scene.playerY, radius);
-    for (const tile of tilesX) {
-      // Пропускаем entry tile
-      if (this.entryTile && tile.x === this.entryTile.tileX && tile.y === this.entryTile.tileY) {
-        continue;
-      }
-      if (this.scene.isTileOccupied(tile.x, tile.y)) {
-        if (this.scene.checkCircleTileCollision(newX, this.scene.playerY, radius, tile.x, tile.y)) {
-          result.x = true;
-          break;
-        }
-      }
-    }
-
-    // Проверка по Y
-    const tilesY = this.scene.getTilesInRadius(this.scene.playerX, newY, radius);
-    for (const tile of tilesY) {
-      // Пропускаем entry tile
-      if (this.entryTile && tile.x === this.entryTile.tileX && tile.y === this.entryTile.tileY) {
-        continue;
-      }
-      if (this.scene.isTileOccupied(tile.x, tile.y)) {
-        if (this.scene.checkCircleTileCollision(this.scene.playerX, newY, radius, tile.x, tile.y)) {
-          result.y = true;
-          break;
-        }
-      }
-    }
-
-    return result;
-  }
-
-  // Проверка коллизии с ENTRY TILE целевого объекта
-  // Только entry tile триггерит начало действия, остальные тайлы - обычная коллизия
-  checkCollisionWithEntryTile(checkX, checkY) {
-    if (!this.entryTile) return false;
-
-    const radius = this.scene.playerCollisionRadius;
-    return this.scene.checkCircleTileCollision(
-      checkX,
-      checkY,
-      radius,
-      this.entryTile.tileX,
-      this.entryTile.tileY
-    );
   }
 
   // Решение о следующем действии

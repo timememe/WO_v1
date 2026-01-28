@@ -18,7 +18,8 @@
       "Bash(ls:*)",
       "Bash(npm install:*)",
       "Bash(npx eslint:*)",
-      "Bash(npm start)"
+      "Bash(npm start)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
