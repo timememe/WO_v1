@@ -48,38 +48,6 @@ export default function Sup() {
     chromaOffset: 0.8,
   };
 
-  const casesData = [
-    {
-      title: 'OREO X PACMAN',
-      textBlocks: [
-        'Game contest for Oreo and Bandai Namco, where users could play Oreo version of Pacman and win prizes!',
-        'I have fully redevelop original Pacman game with Bandai Namco guidelines, so the Pacman spirit wouldnt dissapear.',
-        'Also i made offline version and directed final offline battle between blogers and finalists of contest',
-      ],
-    },
-    { title: 'Case 02', textBlocks: ['Second tile: process and approach.'] },
-    { title: 'Case 03', textBlocks: ['Third tile: outcome and impact.'] },
-    { title: 'Case 04', textBlocks: ['Fourth tile: visuals and systems.'] },
-    { title: 'Case 05', textBlocks: ['Fifth tile: notes and next steps.'] },
-  ];
-
-  const buildCasesSceneData = (assetManager) => {
-    const pacmanGif = assetManager.getCaseScreenMedia?.('oreo_pacman2');
-    return casesData.map((caseItem, index) => ({
-      title: caseItem.title,
-      textBlocks: caseItem.textBlocks,
-      contents: index === 0
-        ? [
-            {
-              createDisplayObject: () => {
-                if (!pacmanGif) return null;
-                return pacmanGif.clone ? pacmanGif.clone() : pacmanGif;
-              },
-            },
-          ]
-        : [],
-    }));
-  };
 
   useEffect(() => {
     // Инициализация Pixi.js
@@ -251,12 +219,10 @@ export default function Sup() {
           casesSceneRef.current = new CasesScene(
             appRef.current,
             {
-              tileCount: 5,
               tileGap: 0,
               tileOverlap: 20,
               backgroundColor: 0x000000,
               debugMode: true,
-              casesData: buildCasesSceneData(assetManager),
             },
             sceneRootRef.current,
             assetManager
@@ -558,7 +524,8 @@ export default function Sup() {
                   <button
                     className="sup-cases-button"
                     onClick={() => {
-                      const nextIndex = Math.min(casesData.length - 1, activeCaseIndex + 1);
+                      const total = casesSceneRef.current?.tileCount ?? 1;
+                      const nextIndex = Math.min(total - 1, activeCaseIndex + 1);
                       setActiveCaseIndex(nextIndex);
                       casesSceneRef.current?.setActiveTile?.(nextIndex);
                     }}

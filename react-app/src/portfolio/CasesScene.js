@@ -1,5 +1,25 @@
 import { Container, Sprite, Graphics, TilingSprite, Text } from 'pixi.js';
 
+// ═══════════════════════════════════════════════════════════════
+// КОНТЕНТНЫЕ ДАННЫЕ КЕЙСОВ
+// ═══════════════════════════════════════════════════════════════
+const CASES_DATA = [
+  {
+    title: 'OREO X PACMAN',
+    category: 'Разработка игр',
+    mediaKey: 'oreo_pacman2',
+    textBlocks: [
+      'Game contest for Oreo and Bandai Namco, where users could play Oreo version of Pacman and win prizes!',
+      'I have fully redevelop original Pacman game with Bandai Namco guidelines, so the Pacman spirit wouldnt dissapear.',
+      'Also i made offline version and directed final offline battle between blogers and finalists of contest',
+    ],
+  },
+  { title: '7DAYS', category: 'Разработка NPC кампаний', textBlocks: ['Second tile: process and approach.'] },
+  { title: 'DREAME AI', category: 'Разработка ИИ механик и офлайн стендов', textBlocks: ['Third tile: outcome and impact.'] },
+  { title: 'LOREAL ML', category: 'Обучение ИИ моделей', textBlocks: ['Fourth tile: visuals and systems.'] },
+  { title: 'DIROL SMM', category: 'Создание ИИ контента', textBlocks: ['Fifth tile: notes and next steps.'] },
+];
+
 export class CasesScene {
   constructor(app, options = {}, rootContainer = null, assetManager = null) {
     this.app = app;
@@ -8,26 +28,28 @@ export class CasesScene {
     this.sceneId = 'cases';
 
     this.tileCount = options.tileCount || 5;
-    this.floorTopWidth = 980;
-    this.floorHeightRatio = 1 / 3;
-    this.floorBottomScale = 1.25;
-    this.tileWidth = options.tileWidth || this.floorTopWidth;
+    this.tileWidth = options.tileWidth || 980;
     this.tileHeight = options.tileHeight || 512;
     this.tileGap = options.tileGap ?? 0;
     this.tileOverlap = options.tileOverlap ?? 2;
     this.backgroundColor = options.backgroundColor ?? 0x000000;
     this.debugMode = options.debugMode ?? false;
-    this.floorTexture = null;
-    this.casesData = options.casesData ?? [];
+    this.casesData = [];
     this.contentBoxScale = 0.7;
+    this.paddingTiles = options.paddingTiles ?? 1;
     this.dialogPadding = 20;
     this.dialogHeight = 170;
-    this.bottomPadding = 160; // Отступ для внешнего меню навигации
+    this.bottomPadding = 160;
+
+    // ── Параллакс ──
+    this.parallaxFactor = options.parallaxFactor ?? 0.3; // Скорость дальнего слоя (0 = статичный, 1 = как тайлы)
 
     this.container = new Container();
+    this.parallaxContainer = new Container();
     this.tilesContainer = new Container();
     this.background = new Graphics();
     this.container.addChild(this.background);
+    this.container.addChild(this.parallaxContainer);
     this.container.addChild(this.tilesContainer);
     this.dialogContainer = new Container();
     this.container.addChild(this.dialogContainer);
@@ -40,13 +62,16 @@ export class CasesScene {
     this.cameraTickerFn = null;
     this.isPaused = false;
     this.resizeHandler = null;
+    this.parallaxLayers = [];
 
     this.init();
   }
 
   async init() {
     this.loadAssets();
+    this.buildCasesData();
     this.createBackground();
+    this.createParallaxLayers();
     this.createTiles();
     this.createDialog();
     this.centerOnIndex(0, true);
@@ -62,26 +87,116 @@ export class CasesScene {
     this.background.fill({ color: this.backgroundColor, alpha: 1 });
     this.background.x = -this.container.x;
     this.background.y = -this.container.y;
-
   }
 
   bindResize() {
     this.resizeHandler = () => {
       this.createBackground();
+      this.rebuildParallaxLayers();
       this.rebuildTiles();
     };
     this.app.renderer.on('resize', this.resizeHandler);
   }
 
   loadAssets() {
-    // Получаем предзагруженную текстуру из AssetManager
     if (this.assetManager) {
-      this.tileTexture = this.assetManager.getCasesFrameTexture();
+      this.wallTexture = this.assetManager.getCasesFrameTexture();
       this.floorTexture = this.assetManager.getCasesFloorTexture();
-      console.log('CasesScene: Texture loaded from AssetManager');
+      console.log('CasesScene: Textures loaded from AssetManager');
     } else {
       console.error('CasesScene: AssetManager not provided');
-      this.tileTexture = null;
+      this.wallTexture = null;
+      this.floorTexture = null;
+    }
+  }
+
+  buildCasesData() {
+    this.casesData = CASES_DATA.map((item) => {
+      const media = item.mediaKey && this.assetManager
+        ? this.assetManager.getCaseScreenMedia?.(item.mediaKey)
+        : null;
+
+      return {
+        title: item.title,
+        category: item.category,
+        textBlocks: item.textBlocks,
+        contents: media
+          ? [{ createDisplayObject: () => media.clone ? media.clone() : media }]
+          : [],
+      };
+    });
+    this.tileCount = this.casesData.length;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ПАРАЛЛАКС-СЛОИ
+  // ═══════════════════════════════════════════════════════════════
+
+  createParallaxLayers() {
+    const screenW = this.app.screen.width;
+    const screenH = this.app.screen.height;
+
+    // Дальний слой — текстура пола (мозаика), заполняет весь экран
+    if (this.floorTexture) {
+      const farLayer = new TilingSprite({
+        texture: this.floorTexture,
+        width: screenW,
+        height: screenH,
+      });
+      const texH = this.floorTexture.height || 1;
+      const scale = screenH / texH;
+      farLayer.tileScale.set(scale, scale);
+      farLayer.label = 'parallax-far';
+      farLayer.parallaxFactor = this.parallaxFactor;
+      this.parallaxContainer.addChild(farLayer);
+      this.parallaxLayers.push(farLayer);
+    }
+
+    // Средний слой — текстура стены, полоса в верхней трети
+    if (this.wallTexture) {
+      const wallH = Math.round(screenH * 0.45);
+      const midLayer = new TilingSprite({
+        texture: this.wallTexture,
+        width: screenW,
+        height: wallH,
+      });
+      const texH = this.wallTexture.height || 1;
+      const scale = wallH / texH;
+      midLayer.tileScale.set(scale, scale);
+      midLayer.label = 'parallax-mid';
+      midLayer.parallaxFactor = this.parallaxFactor * 1.5; // чуть быстрее дальнего
+      this.parallaxContainer.addChild(midLayer);
+      this.parallaxLayers.push(midLayer);
+    }
+  }
+
+  rebuildParallaxLayers() {
+    this.parallaxContainer.removeChildren().forEach((child) => {
+      child.destroy({ children: true, texture: false, baseTexture: false });
+    });
+    this.parallaxLayers = [];
+    this.createParallaxLayers();
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ТАЙЛЫ
+  // ═══════════════════════════════════════════════════════════════
+
+  addTileVisuals(tileGroup) {
+    // Рамка стены — тайлится горизонтально, масштаб по высоте
+    if (this.wallTexture) {
+      const texH = this.wallTexture.height || 1;
+      const wallScale = this.tileHeight / texH;
+
+      const tile = new TilingSprite({
+        texture: this.wallTexture,
+        width: this.tileWidth,
+        height: this.tileHeight,
+      });
+      tile.anchor.set(0.5, 0.5);
+      tile.tileScale.set(wallScale, wallScale);
+      tile.y = 0;
+      tileGroup.addChild(tile);
     }
   }
 
@@ -90,74 +205,23 @@ export class CasesScene {
     const step = this.tileWidth + this.tileGap - this.tileOverlap;
     const totalWidth = this.tileCount * this.tileWidth + (this.tileCount - 1) * (this.tileGap - this.tileOverlap);
     const startX = -totalWidth / 2 + this.tileWidth / 2;
-    const floorHeight = Math.round(this.app.screen.height * this.floorHeightRatio);
-    const floorTopY = this.tileHeight / 2;
 
+    // Тайлы-заполнители слева
+    for (let p = this.paddingTiles; p > 0; p--) {
+      const padGroup = new Container();
+      padGroup.x = startX - p * step;
+      padGroup.y = 0;
+      this.addTileVisuals(padGroup);
+      this.tilesContainer.addChild(padGroup);
+    }
+
+    // Основные тайлы
     for (let i = 0; i < this.tileCount; i++) {
       const tileGroup = new Container();
       tileGroup.x = startX + i * step;
       tileGroup.y = 0;
 
-      const floorTopWidth = this.tileWidth;
-      const floorBottomWidth = Math.round(this.tileWidth * this.floorBottomScale);
-      const halfTop = floorTopWidth / 2;
-      const halfBottom = floorBottomWidth / 2;
-
-      if (this.floorTexture) {
-        const floorTile = new TilingSprite({
-          texture: this.floorTexture,
-          width: floorBottomWidth,
-          height: floorHeight,
-        });
-        const texW = this.floorTexture.width || 1;
-        const texH = this.floorTexture.height || 1;
-        floorTile.tileScale.set(floorBottomWidth / texW, floorHeight / texH);
-        floorTile.x = -halfBottom;
-        floorTile.y = floorTopY;
-
-        const floorMask = new Graphics();
-        floorMask.moveTo(-halfBottom, floorTopY + floorHeight);
-        floorMask.lineTo(halfBottom, floorTopY + floorHeight);
-        floorMask.lineTo(halfTop, floorTopY);
-        floorMask.lineTo(-halfTop, floorTopY);
-        floorMask.lineTo(-halfBottom, floorTopY + floorHeight);
-        floorMask.fill({ color: 0xffffff, alpha: 1 });
-
-        floorTile.mask = floorMask;
-        tileGroup.addChild(floorTile);
-        tileGroup.addChild(floorMask);
-      } else {
-        const floorGfx = new Graphics();
-        floorGfx.moveTo(-halfBottom, floorTopY + floorHeight);
-        floorGfx.lineTo(halfBottom, floorTopY + floorHeight);
-        floorGfx.lineTo(halfTop, floorTopY);
-        floorGfx.lineTo(-halfTop, floorTopY);
-        floorGfx.lineTo(-halfBottom, floorTopY + floorHeight);
-        floorGfx.fill({ color: 0x0a0a0a, alpha: 1 });
-        tileGroup.addChild(floorGfx);
-      }
-
-      if (this.debugMode) {
-        const floorOutline = new Graphics();
-        floorOutline.moveTo(-halfBottom, floorTopY + floorHeight);
-        floorOutline.lineTo(halfBottom, floorTopY + floorHeight);
-        floorOutline.lineTo(halfTop, floorTopY);
-        floorOutline.lineTo(-halfTop, floorTopY);
-        floorOutline.lineTo(-halfBottom, floorTopY + floorHeight);
-        floorOutline.stroke({ width: 2, color: 0x00ffff, alpha: 0.7 });
-        tileGroup.addChild(floorOutline);
-      }
-
-      let tile = null;
-      if (this.tileTexture) {
-        tile = new Sprite(this.tileTexture);
-        tile.anchor.set(0.5, 0.5);
-        const textureWidth = tile.texture?.width || 1;
-        const textureHeight = tile.texture?.height || 1;
-        tile.scale.set(this.tileWidth / textureWidth, this.tileHeight / textureHeight);
-        tile.y = 0;
-        tileGroup.addChild(tile);
-      }
+      this.addTileVisuals(tileGroup);
 
       const contentContainer = new Container();
       contentContainer.label = 'content';
@@ -176,7 +240,20 @@ export class CasesScene {
       this.tilesContainer.addChild(tileGroup);
       this.tiles.push(tileGroup);
     }
+
+    // Тайлы-заполнители справа
+    for (let p = 1; p <= this.paddingTiles; p++) {
+      const padGroup = new Container();
+      padGroup.x = startX + (this.tileCount - 1 + p) * step;
+      padGroup.y = 0;
+      this.addTileVisuals(padGroup);
+      this.tilesContainer.addChild(padGroup);
+    }
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ДИАЛОГ
+  // ═══════════════════════════════════════════════════════════════
 
   createDialog() {
     this.dialogContainer.removeChildren().forEach((child) => {
@@ -185,6 +262,21 @@ export class CasesScene {
 
     const dialogWidth = Math.round(this.app.screen.width * 0.88);
     const dialogHeight = this.dialogHeight;
+
+    // ── Крупный заголовок категории над диалогом ──
+    const categoryLabel = new Text({
+      text: '',
+      style: {
+        fill: 0xffffff,
+        fontSize: 32,
+        fontFamily: 'Sonic Genesis, monospace',
+        fontWeight: 'bold',
+      },
+    });
+    categoryLabel.anchor.set(0, 1);
+    categoryLabel.x = 0;
+    categoryLabel.y = -12;
+
     const dialog = new Graphics();
     dialog.roundRect(0, 0, dialogWidth, dialogHeight, 16);
     dialog.fill({ color: 0x0b0f1d, alpha: 0.9 });
@@ -253,6 +345,7 @@ export class CasesScene {
     pageIndicator.x = dialogWidth - 54;
     pageIndicator.y = 18;
 
+    this.dialogContainer.addChild(categoryLabel);
     this.dialogContainer.addChild(dialog);
     this.dialogContainer.addChild(title);
     this.dialogContainer.addChild(body);
@@ -261,6 +354,7 @@ export class CasesScene {
     this.dialogContainer.addChild(pageIndicator);
 
     this.dialogBox = dialog;
+    this.dialogCategory = categoryLabel;
     this.dialogTitle = title;
     this.dialogBody = body;
     this.dialogLeft = leftArrow;
@@ -274,10 +368,12 @@ export class CasesScene {
     const caseData = this.casesData?.[index];
     if (!caseData) return;
     const title = caseData.title || `CASE ${index + 1}`;
+    const category = caseData.category || '';
     const blocks = caseData.textBlocks || [];
     const active = caseData.activeTextIndex ?? 0;
     const block = blocks[active] || '';
 
+    if (this.dialogCategory) this.dialogCategory.text = category;
     if (this.dialogTitle) this.dialogTitle.text = title;
     if (this.dialogBody) this.dialogBody.text = block;
     const showArrows = blocks.length > 1;
@@ -288,6 +384,10 @@ export class CasesScene {
       this.dialogPage.visible = blocks.length > 1;
     }
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  // КОНТЕНТ ТАЙЛОВ
+  // ═══════════════════════════════════════════════════════════════
 
   renderTileContent(index, container) {
     container.removeChildren().forEach((child) => {
@@ -315,16 +415,13 @@ export class CasesScene {
 
     const activeIndex = caseData.activeIndex ?? 0;
     const contentItem = caseData.contents[activeIndex];
-    if (!contentItem) {
-      return;
-    }
+    if (!contentItem) return;
 
     const contentNode = contentItem.createDisplayObject
       ? contentItem.createDisplayObject()
       : contentItem.displayObject;
-    if (!contentNode) {
-      return;
-    }
+    if (!contentNode) return;
+
     contentNode.anchor?.set?.(0.5, 0.5);
     const box = this.getContentBox();
     this.fitDisplayObject(contentNode, box.width, box.height);
@@ -381,6 +478,10 @@ export class CasesScene {
     this.updateDialogForCase(this.activeIndex);
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // КАМЕРА И НАВИГАЦИЯ
+  // ═══════════════════════════════════════════════════════════════
+
   clearTiles() {
     this.tilesContainer.removeChildren().forEach((child) => {
       child.destroy({ children: true, texture: false, baseTexture: false });
@@ -400,16 +501,29 @@ export class CasesScene {
   }
 
   updateCamera() {
-    const targetX = this.cameraTargetX;
-    this.container.x += (targetX - this.container.x) * this.cameraSmoothing;
+    const prevX = this.container.x;
+    this.container.x += (this.cameraTargetX - this.container.x) * this.cameraSmoothing;
     this.container.y += (this.cameraTargetY - this.container.y) * 0.08;
+    const dx = this.container.x - prevX;
+
+    // Фон следует за камерой
     if (this.background) {
       this.background.x = -this.container.x;
       this.background.y = -this.container.y;
     }
+
+    // Параллакс: сдвигаем tilePosition пропорционально движению камеры
+    for (const layer of this.parallaxLayers) {
+      const factor = layer.parallaxFactor ?? this.parallaxFactor;
+      // Слой «прилипает» к экрану и сдвигается медленнее тайлов
+      layer.x = -this.container.x;
+      layer.y = -this.container.y;
+      layer.tilePosition.x += dx * (1 - factor);
+    }
+
+    // Диалог фиксирован на экране
     if (this.dialogContainer && this.dialogBox) {
       this.dialogContainer.x = -this.container.x + (this.app.screen.width - this.dialogBox.width) / 2;
-      // Позиционируем диалог над внешним меню навигации
       this.dialogContainer.y = -this.container.y + this.app.screen.height - this.bottomPadding - this.dialogBox.height - 20;
     }
   }
@@ -434,6 +548,10 @@ export class CasesScene {
     this.centerOnIndex(index, false);
     this.updateDialogForCase(index);
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ЖИЗНЕННЫЙ ЦИКЛ
+  // ═══════════════════════════════════════════════════════════════
 
   pause() {
     if (this.isPaused) return;
@@ -469,16 +587,14 @@ export class CasesScene {
       this.resizeHandler = null;
     }
 
-    // Очищаем массив тайлов (текстуры остаются в AssetManager)
     this.tiles = [];
-    this.tileTexture = null;
+    this.parallaxLayers = [];
+    this.wallTexture = null;
+    this.floorTexture = null;
 
     if (this.container.parent) {
       this.container.parent.removeChild(this.container);
     }
-
-    // Уничтожаем контейнер и все дочерние объекты
-    // НЕ уничтожаем текстуры - они управляются AssetManager
     this.container.destroy({ children: true, texture: false, baseTexture: false });
   }
 

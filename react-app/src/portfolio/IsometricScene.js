@@ -102,7 +102,7 @@ export class IsometricScene {
     this.cameraLookX = 0;               // Текущий look ahead offset X
     this.cameraLookY = 0;               // Текущий look ahead offset Y
     this.controllerMode = true;        // true = ручное управление, false = AI
-    this.debugMode = true;            // Показывать debug графику
+    this.debugMode = false;            // Показывать debug графику
 
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ UI (БАББЛ АКТИВНОСТИ)
