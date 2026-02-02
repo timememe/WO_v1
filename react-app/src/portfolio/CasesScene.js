@@ -41,18 +41,24 @@ export class CasesScene {
     this.dialogHeight = 170;
     this.bottomPadding = 160;
 
+    // ── Персонаж: позиция и размер ──
+    this.charGroundY = options.charGroundY ?? 0;
+    this.charHeight = options.charHeight ?? 160;
+
     // ── Параллакс ──
     this.parallaxFactor = options.parallaxFactor ?? 0.3; // Скорость дальнего слоя (0 = статичный, 1 = как тайлы)
 
     this.container = new Container();
-    this.parallaxContainer = new Container();
+    this.parallaxBgContainer = new Container();   // back + ext layers
+    this.tilesContainer = new Container();         // case tiles (behind floor)
+    this.parallaxFloorContainer = new Container(); // road/floor layer (on top of tiles)
     this.characterContainer = new Container();
-    this.tilesContainer = new Container();
     this.background = new Graphics();
     this.container.addChild(this.background);
-    this.container.addChild(this.parallaxContainer);
-    this.container.addChild(this.characterContainer);
+    this.container.addChild(this.parallaxBgContainer);
     this.container.addChild(this.tilesContainer);
+    this.container.addChild(this.parallaxFloorContainer);
+    this.container.addChild(this.characterContainer);
     this.dialogContainer = new Container();
     this.container.addChild(this.dialogContainer);
     this.rootContainer.addChild(this.container);
@@ -113,6 +119,7 @@ export class CasesScene {
       this.createBackground();
       this.rebuildParallaxLayers();
       this.rebuildTiles();
+      this.centerOnIndex(this.activeIndex, true);
     };
     this.app.renderer.on('resize', this.resizeHandler);
   }
@@ -153,13 +160,19 @@ export class CasesScene {
 
   createParallaxLayers() {
     const screenW = this.app.screen.width;
-    const screenH = this.app.screen.height;
 
     const layerDefs = [
-      { texture: this.assetManager?.getSideBack?.(), speed: 0 },
-      { texture: this.assetManager?.getSideExt?.(), speed: 0.3 },
-      { texture: this.assetManager?.getSideRoad?.(), speed: 0.6 },
+      { texture: this.assetManager?.getSideBack?.(), speed: 0, isFloor: false },
+      { texture: this.assetManager?.getSideExt?.(), speed: 0.3, isFloor: false },
+      { texture: this.assetManager?.getSideRoad?.(), speed: 0.6, isFloor: true },
     ];
+
+    // Масштаб по высоте экрана — сохраняет пропорции текстуры
+    const screenH = this.app.screen.height;
+    const refTexture = layerDefs.find(l => l.texture)?.texture;
+    const texH = refTexture?.height || 336;
+    const scale = screenH / texH;
+    this.sceneHeight = screenH;
 
     for (const layerDef of layerDefs) {
       if (!layerDef.texture) continue;
@@ -168,19 +181,21 @@ export class CasesScene {
         width: screenW,
         height: screenH,
       });
-      const texH = layerDef.texture.height || 336;
-      const scale = screenH / texH;
       layer.tileScale.set(scale, scale);
       layer.parallaxFactor = layerDef.speed;
-      this.parallaxContainer.addChild(layer);
+
+      const target = layerDef.isFloor ? this.parallaxFloorContainer : this.parallaxBgContainer;
+      target.addChild(layer);
       this.parallaxLayers.push(layer);
     }
   }
 
   rebuildParallaxLayers() {
-    this.parallaxContainer.removeChildren().forEach((child) => {
-      child.destroy({ children: true, texture: false, baseTexture: false });
-    });
+    for (const cont of [this.parallaxBgContainer, this.parallaxFloorContainer]) {
+      cont.removeChildren().forEach((child) => {
+        child.destroy({ children: true, texture: false, baseTexture: false });
+      });
+    }
     this.parallaxLayers = [];
     this.createParallaxLayers();
   }
@@ -476,8 +491,7 @@ export class CasesScene {
   // ═══════════════════════════════════════════════════════════════
 
   createCharacter() {
-    const groundY = this.tileHeight / 2 + 40;
-    this.groundY = groundY;
+    this.groundY = this.charGroundY;
     this.charX = this.tiles?.[0]?.x ?? 0;
 
     // Загружаем фреймы из AssetManager
@@ -487,7 +501,7 @@ export class CasesScene {
     this.charSprite = new Sprite();
     this.charSprite.anchor.set(0.5, 1); // якорь внизу по центру (ноги)
     this.charSprite.x = this.charX;
-    this.charSprite.y = groundY;
+    this.charSprite.y = this.groundY;
 
     // Начальный кадр
     if (this.charIdleFrames.length > 0) {
@@ -495,9 +509,8 @@ export class CasesScene {
     }
 
     // Масштаб — подгоняем высоту спрайта
-    const targetHeight = 80;
     const texH = this.charSprite.texture?.height || 256;
-    this.charSprite.scale.set(targetHeight / texH);
+    this.charSprite.scale.set(this.charHeight / texH);
 
     this.characterContainer.addChild(this.charSprite);
   }
@@ -537,9 +550,8 @@ export class CasesScene {
 
     // Позиция и направление
     this.charSprite.x = this.charX;
-    const targetHeight = 80;
     const texH = this.charSprite.texture?.height || 256;
-    const s = targetHeight / texH;
+    const s = this.charHeight / texH;
     this.charSprite.scale.set(this.charDirection === 'left' ? -s : s, s);
   }
 
@@ -631,13 +643,13 @@ export class CasesScene {
       this.background.y = -this.container.y;
     }
 
-    // Параллакс: сдвигаем tilePosition пропорционально движению камеры
-    // Низ параллакса совпадает с groundY персонажа
+    // Параллакс: ноги персонажа = середина высоты слоя, сцена центрирована
     const groundScreenY = (this.groundY ?? 0) + this.container.y;
+    const sceneH = this.sceneHeight || this.app.screen.height;
     for (const layer of this.parallaxLayers) {
       const factor = layer.parallaxFactor ?? this.parallaxFactor;
       layer.x = -this.container.x;
-      layer.y = groundScreenY - layer.height;
+      layer.y = groundScreenY - sceneH / 2;
       layer.tilePosition.x += dx * (1 - factor);
     }
 
