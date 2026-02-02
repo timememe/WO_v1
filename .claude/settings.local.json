@@ -19,7 +19,14 @@
       "Bash(npm install:*)",
       "Bash(npx eslint:*)",
       "Bash(npm start)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(cd:*)",
+      "Bash(npm run build:*)",
+      "Bash(wrangler pages deploy:*)",
+      "Bash(npx wrangler pages deploy:*)",
+      "Bash(npx wrangler pages project create:*)",
+      "Bash(npx wrangler pages domains add:*)",
+      "Bash(npx wrangler pages project list:*)"
     ],
     "deny": [],
     "ask": []
