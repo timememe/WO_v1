@@ -32,6 +32,11 @@ const BUNDLE_CONFIG = {
       { alias: 'casesFrame', src: '/assets/cases_frame.jpg' },
       { alias: 'casesFloor', src: '/assets/cases_floor.jpg' },
       { alias: 'casesPacman', src: '/assets/cases_screens/oreo_pacman2.gif' },
+      { alias: 'charSideIdle', src: '/assets/char_side_idle.png' },
+      { alias: 'charSideWalk', src: '/assets/char_side_walk.png' },
+      { alias: 'sideBack', src: '/assets/side_back.png' },
+      { alias: 'sideExt', src: '/assets/side_ext.png' },
+      { alias: 'sideRoad', src: '/assets/side_road.png' },
     ]
   },
   // Сцена "Обо мне"
@@ -219,6 +224,11 @@ export class AssetManager {
       caseScreens: {
         oreo_pacman2: raw.casesPacman,
       },
+      charSideIdle: this.parse2x2Atlas(raw.charSideIdle),
+      charSideWalk: this.parse2x2Atlas(raw.charSideWalk),
+      sideBack: raw.sideBack,
+      sideExt: raw.sideExt,
+      sideRoad: raw.sideRoad,
     };
   }
 
@@ -338,6 +348,27 @@ export class AssetManager {
   }
 
   /**
+   * Парсинг 2x2 атласа (512x512, спрайты 256x256 = 4 кадра)
+   */
+  parse2x2Atlas(baseTexture) {
+    if (!baseTexture) return [];
+    const size = 256;
+    const frames = [];
+    for (let row = 0; row < 2; row++) {
+      for (let col = 0; col < 2; col++) {
+        const frame = new Rectangle(col * size, row * size, size, size);
+        frames.push(new Texture({
+          source: baseTexture.source,
+          frame: frame,
+          orig: frame,
+        }));
+      }
+    }
+    console.log(`  -> Parsed 2x2 atlas: ${frames.length} frames`);
+    return frames;
+  }
+
+  /**
    * Парсинг атласа персонажа (2560x512, спрайты 512x512 = 5 направлений)
    */
   parseCharacterAtlas(baseTexture) {
@@ -440,6 +471,26 @@ export class AssetManager {
 
   getCaseScreenMedia(key) {
     return this.bundles.cases.data?.caseScreens?.[key] || null;
+  }
+
+  getCharSideIdle() {
+    return this.bundles.cases.data?.charSideIdle || [];
+  }
+
+  getCharSideWalk() {
+    return this.bundles.cases.data?.charSideWalk || [];
+  }
+
+  getSideBack() {
+    return this.bundles.cases.data?.sideBack || null;
+  }
+
+  getSideExt() {
+    return this.bundles.cases.data?.sideExt || null;
+  }
+
+  getSideRoad() {
+    return this.bundles.cases.data?.sideRoad || null;
   }
 
   // ═══════════════════════════════════════════════════════════════

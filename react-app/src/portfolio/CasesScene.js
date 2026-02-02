@@ -46,10 +46,12 @@ export class CasesScene {
 
     this.container = new Container();
     this.parallaxContainer = new Container();
+    this.characterContainer = new Container();
     this.tilesContainer = new Container();
     this.background = new Graphics();
     this.container.addChild(this.background);
     this.container.addChild(this.parallaxContainer);
+    this.container.addChild(this.characterContainer);
     this.container.addChild(this.tilesContainer);
     this.dialogContainer = new Container();
     this.container.addChild(this.dialogContainer);
@@ -64,18 +66,35 @@ export class CasesScene {
     this.resizeHandler = null;
     this.parallaxLayers = [];
 
+    // ── Сайдскроллер-персонаж ──
+    this.characterMode = false;
+    this.charX = 0;
+    this.charSpeed = 4;
+    this.charSprite = null;
+    this.charIdleFrames = [];
+    this.charWalkFrames = [];
+    this.charFrameIndex = 0;
+    this.charFrameTime = 0;
+    this.charFps = 6;
+    this.charDirection = 'right';
+    this.inputKeys = new Set();
+    this.keydownHandler = null;
+    this.keyupHandler = null;
+
     this.init();
   }
 
-  async init() {
+  init() {
     this.loadAssets();
     this.buildCasesData();
     this.createBackground();
     this.createParallaxLayers();
     this.createTiles();
+    this.createCharacter();
     this.createDialog();
     this.centerOnIndex(0, true);
     this.startCamera();
+    this.bindKeyboard();
     this.bindResize();
   }
 
@@ -136,37 +155,25 @@ export class CasesScene {
     const screenW = this.app.screen.width;
     const screenH = this.app.screen.height;
 
-    // Дальний слой — текстура пола (мозаика), заполняет весь экран
-    if (this.floorTexture) {
-      const farLayer = new TilingSprite({
-        texture: this.floorTexture,
+    const layerDefs = [
+      { texture: this.assetManager?.getSideBack?.(), speed: 0 },
+      { texture: this.assetManager?.getSideExt?.(), speed: 0.3 },
+      { texture: this.assetManager?.getSideRoad?.(), speed: 0.6 },
+    ];
+
+    for (const layerDef of layerDefs) {
+      if (!layerDef.texture) continue;
+      const layer = new TilingSprite({
+        texture: layerDef.texture,
         width: screenW,
         height: screenH,
       });
-      const texH = this.floorTexture.height || 1;
+      const texH = layerDef.texture.height || 336;
       const scale = screenH / texH;
-      farLayer.tileScale.set(scale, scale);
-      farLayer.label = 'parallax-far';
-      farLayer.parallaxFactor = this.parallaxFactor;
-      this.parallaxContainer.addChild(farLayer);
-      this.parallaxLayers.push(farLayer);
-    }
-
-    // Средний слой — текстура стены, полоса в верхней трети
-    if (this.wallTexture) {
-      const wallH = Math.round(screenH * 0.45);
-      const midLayer = new TilingSprite({
-        texture: this.wallTexture,
-        width: screenW,
-        height: wallH,
-      });
-      const texH = this.wallTexture.height || 1;
-      const scale = wallH / texH;
-      midLayer.tileScale.set(scale, scale);
-      midLayer.label = 'parallax-mid';
-      midLayer.parallaxFactor = this.parallaxFactor * 1.5; // чуть быстрее дальнего
-      this.parallaxContainer.addChild(midLayer);
-      this.parallaxLayers.push(midLayer);
+      layer.tileScale.set(scale, scale);
+      layer.parallaxFactor = layerDef.speed;
+      this.parallaxContainer.addChild(layer);
+      this.parallaxLayers.push(layer);
     }
   }
 
@@ -183,21 +190,7 @@ export class CasesScene {
   // ═══════════════════════════════════════════════════════════════
 
   addTileVisuals(tileGroup) {
-    // Рамка стены — тайлится горизонтально, масштаб по высоте
-    if (this.wallTexture) {
-      const texH = this.wallTexture.height || 1;
-      const wallScale = this.tileHeight / texH;
-
-      const tile = new TilingSprite({
-        texture: this.wallTexture,
-        width: this.tileWidth,
-        height: this.tileHeight,
-      });
-      tile.anchor.set(0.5, 0.5);
-      tile.tileScale.set(wallScale, wallScale);
-      tile.y = 0;
-      tileGroup.addChild(tile);
-    }
+    // Placeholder — визуалы тайлов добавляются здесь при необходимости
   }
 
   createTiles() {
@@ -479,6 +472,122 @@ export class CasesScene {
   }
 
   // ═══════════════════════════════════════════════════════════════
+  // САЙДСКРОЛЛЕР-ПЕРСОНАЖ
+  // ═══════════════════════════════════════════════════════════════
+
+  createCharacter() {
+    const groundY = this.tileHeight / 2 + 40;
+    this.groundY = groundY;
+    this.charX = this.tiles?.[0]?.x ?? 0;
+
+    // Загружаем фреймы из AssetManager
+    this.charIdleFrames = this.assetManager?.getCharSideIdle?.() || [];
+    this.charWalkFrames = this.assetManager?.getCharSideWalk?.() || [];
+
+    this.charSprite = new Sprite();
+    this.charSprite.anchor.set(0.5, 1); // якорь внизу по центру (ноги)
+    this.charSprite.x = this.charX;
+    this.charSprite.y = groundY;
+
+    // Начальный кадр
+    if (this.charIdleFrames.length > 0) {
+      this.charSprite.texture = this.charIdleFrames[0];
+    }
+
+    // Масштаб — подгоняем высоту спрайта
+    const targetHeight = 80;
+    const texH = this.charSprite.texture?.height || 256;
+    this.charSprite.scale.set(targetHeight / texH);
+
+    this.characterContainer.addChild(this.charSprite);
+  }
+
+  updateCharacter(dt) {
+    if (!this.charSprite) return;
+
+    const moveAmount = this.charSpeed * dt * 60;
+    let moving = false;
+
+    if (this.inputKeys.has('right')) {
+      this.charX += moveAmount;
+      this.charDirection = 'right';
+      moving = true;
+    }
+    if (this.inputKeys.has('left')) {
+      this.charX -= moveAmount;
+      this.charDirection = 'left';
+      moving = true;
+    }
+
+    if (moving) {
+      this.characterMode = true;
+    }
+
+    // Анимация
+    const frames = moving ? this.charWalkFrames : this.charIdleFrames;
+    if (frames.length > 0) {
+      this.charFrameTime += dt;
+      const frameDuration = 1 / this.charFps;
+      if (this.charFrameTime >= frameDuration) {
+        this.charFrameTime -= frameDuration;
+        this.charFrameIndex = (this.charFrameIndex + 1) % frames.length;
+      }
+      this.charSprite.texture = frames[this.charFrameIndex];
+    }
+
+    // Позиция и направление
+    this.charSprite.x = this.charX;
+    const targetHeight = 80;
+    const texH = this.charSprite.texture?.height || 256;
+    const s = targetHeight / texH;
+    this.charSprite.scale.set(this.charDirection === 'left' ? -s : s, s);
+  }
+
+  bindKeyboard() {
+    this.keydownHandler = (e) => {
+      const key = e.key;
+      if (key === 'd' || key === 'D' || key === 'ArrowRight') this.inputKeys.add('right');
+      if (key === 'a' || key === 'A' || key === 'ArrowLeft') this.inputKeys.add('left');
+    };
+    this.keyupHandler = (e) => {
+      const key = e.key;
+      if (key === 'd' || key === 'D' || key === 'ArrowRight') this.inputKeys.delete('right');
+      if (key === 'a' || key === 'A' || key === 'ArrowLeft') this.inputKeys.delete('left');
+    };
+    window.addEventListener('keydown', this.keydownHandler);
+    window.addEventListener('keyup', this.keyupHandler);
+  }
+
+  unbindKeyboard() {
+    if (this.keydownHandler) {
+      window.removeEventListener('keydown', this.keydownHandler);
+      this.keydownHandler = null;
+    }
+    if (this.keyupHandler) {
+      window.removeEventListener('keyup', this.keyupHandler);
+      this.keyupHandler = null;
+    }
+    this.inputKeys.clear();
+  }
+
+  updateActiveIndexFromCharacter() {
+    if (!this.tiles || this.tiles.length === 0) return;
+    let closestIndex = 0;
+    let closestDist = Infinity;
+    for (let i = 0; i < this.tiles.length; i++) {
+      const dist = Math.abs(this.tiles[i].x - this.charX);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closestIndex = i;
+      }
+    }
+    if (closestIndex !== this.activeIndex) {
+      this.activeIndex = closestIndex;
+      this.updateDialogForCase(this.activeIndex);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
   // КАМЕРА И НАВИГАЦИЯ
   // ═══════════════════════════════════════════════════════════════
 
@@ -501,6 +610,16 @@ export class CasesScene {
   }
 
   updateCamera() {
+    // Обновить персонажа
+    const dt = this.app.ticker.deltaMS / 1000;
+    this.updateCharacter(dt);
+
+    // В режиме персонажа — камера следует за ним
+    if (this.characterMode) {
+      this.cameraTargetX = this.app.screen.width / 2 - this.charX;
+      this.updateActiveIndexFromCharacter();
+    }
+
     const prevX = this.container.x;
     this.container.x += (this.cameraTargetX - this.container.x) * this.cameraSmoothing;
     this.container.y += (this.cameraTargetY - this.container.y) * 0.08;
@@ -513,11 +632,12 @@ export class CasesScene {
     }
 
     // Параллакс: сдвигаем tilePosition пропорционально движению камеры
+    // Низ параллакса совпадает с groundY персонажа
+    const groundScreenY = (this.groundY ?? 0) + this.container.y;
     for (const layer of this.parallaxLayers) {
       const factor = layer.parallaxFactor ?? this.parallaxFactor;
-      // Слой «прилипает» к экрану и сдвигается медленнее тайлов
       layer.x = -this.container.x;
-      layer.y = -this.container.y;
+      layer.y = groundScreenY - layer.height;
       layer.tilePosition.x += dx * (1 - factor);
     }
 
@@ -545,8 +665,15 @@ export class CasesScene {
   }
 
   setActiveTile(index) {
+    this.characterMode = false;
     this.centerOnIndex(index, false);
     this.updateDialogForCase(index);
+    // Телепортируем персонажа к выбранному тайлу
+    const targetTile = this.tiles?.[index];
+    if (targetTile) {
+      this.charX = targetTile.x;
+      if (this.charSprite) this.charSprite.x = this.charX;
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -556,6 +683,7 @@ export class CasesScene {
   pause() {
     if (this.isPaused) return;
     this.isPaused = true;
+    this.unbindKeyboard();
     this.container.visible = false;
     if (this.container.parent) {
       this.container.parent.removeChild(this.container);
@@ -575,9 +703,11 @@ export class CasesScene {
     if (this.cameraTickerFn) {
       this.app.ticker.add(this.cameraTickerFn);
     }
+    this.bindKeyboard();
   }
 
   destroy() {
+    this.unbindKeyboard();
     if (this.cameraTickerFn) {
       this.app.ticker.remove(this.cameraTickerFn);
       this.cameraTickerFn = null;
