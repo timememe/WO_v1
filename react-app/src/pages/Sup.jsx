@@ -5,9 +5,11 @@ import { CasesScene } from '../portfolio/CasesScene';
 import { AboutScene } from '../portfolio/AboutScene';
 import { CRTFilter } from '../portfolio/CRTFilter';
 import { getAssetManager } from '../portfolio/AssetManager';
+import { useI18n } from '../i18n';
 import './Sup.css';
 
 export default function Sup() {
+  const { t, lang, toggleLanguage } = useI18n();
   const [activeSection, setActiveSection] = useState(null);
   const [aiStatus, setAiStatus] = useState(null);
   const [controllerMode, setControllerMode] = useState(true); // true = manual, false = AI
@@ -223,12 +225,14 @@ export default function Sup() {
               tileOverlap: 20,
               backgroundColor: 0x000000,
               debugMode: true,
+              lang: lang,
             },
             sceneRootRef.current,
             assetManager
           );
         } else {
-          // Сцена уже есть - просто возобновляем
+          // Сцена уже есть - обновляем язык и возобновляем
+          casesSceneRef.current.setLanguage(lang);
           casesSceneRef.current.resume();
         }
 
@@ -317,6 +321,14 @@ export default function Sup() {
     window.addEventListener('resize', checkTouch);
     return () => window.removeEventListener('resize', checkTouch);
   }, []);
+
+  // Обновление языка в сценах при смене
+  useEffect(() => {
+    if (casesSceneRef.current?.setLanguage) {
+      casesSceneRef.current.setLanguage(lang);
+    }
+    // TODO: добавить setLanguage для AboutScene когда будет реализовано
+  }, [lang]);
 
   // Переключение режима управления
   const handleControllerModeToggle = () => {
@@ -408,7 +420,7 @@ export default function Sup() {
             {!assetsLoaded && (
               <div className="sup-loader">
                 <div className="sup-loader-panel">
-                  <div className="sup-loader-title">Loading assets</div>
+                  <div className="sup-loader-title">{t.loading.title}</div>
                   <div className="sup-loader-bar">
                     <span
                       className="sup-loader-bar-fill"
@@ -433,7 +445,7 @@ export default function Sup() {
                 <div className="sup-genesis-hud">
                   <div className="sup-genesis-hud-grid">
                     <div className="sup-hud-tile sup-hud-need is-energy">
-                      <span className="sup-hud-label">Energy</span>
+                      <span className="sup-hud-label">{t.hud.energy}</span>
                       <div className="sup-hud-need-bar">
                         <div
                           className="sup-hud-need-fill"
@@ -444,7 +456,7 @@ export default function Sup() {
                     </div>
 
                     <div className="sup-hud-tile sup-hud-need is-hunger">
-                      <span className="sup-hud-label">Hunger</span>
+                      <span className="sup-hud-label">{t.hud.hunger}</span>
                       <div className="sup-hud-need-bar">
                         <div
                           className="sup-hud-need-fill"
@@ -455,7 +467,7 @@ export default function Sup() {
                     </div>
 
                     <div className="sup-hud-tile sup-hud-need is-fun">
-                      <span className="sup-hud-label">Fun</span>
+                      <span className="sup-hud-label">{t.hud.fun}</span>
                       <div className="sup-hud-need-bar">
                         <div
                           className="sup-hud-need-fill"
@@ -466,7 +478,7 @@ export default function Sup() {
                     </div>
 
                     <div className="sup-hud-tile sup-hud-need is-social">
-                      <span className="sup-hud-label">Social</span>
+                      <span className="sup-hud-label">{t.hud.social}</span>
                       <div className="sup-hud-need-bar">
                         <div
                           className="sup-hud-need-fill"
@@ -507,6 +519,19 @@ export default function Sup() {
 
         {/* НИЖНЯЯ ЧАСТЬ - GAME UI / CONTROL PANEL */}
         <div className="sup-control-panel">
+          {/* Переключатель языка */}
+          <div className="sup-lang-toggle">
+            <span className={`sup-lang-label ${lang === 'en' ? 'active' : ''}`}>EN</span>
+            <button
+              className={`sup-toggle-switch ${lang === 'ru' ? 'is-ru' : ''}`}
+              onClick={toggleLanguage}
+              aria-label="Toggle language"
+            >
+              <span className="sup-toggle-thumb"></span>
+            </button>
+            <span className={`sup-lang-label ${lang === 'ru' ? 'active' : ''}`}>RU</span>
+          </div>
+
           {activeSection === 'cases' ? (
             <div className="sup-cases-panel">
               <div className="sup-cases-controls">
@@ -537,7 +562,7 @@ export default function Sup() {
                   className="sup-cases-button is-back"
                   onClick={() => setActiveSection(null)}
                 >
-                  Back to Scene
+                  {t.controls.backToScene}
                 </button>
               </div>
 
@@ -549,7 +574,7 @@ export default function Sup() {
                   className="sup-cases-button is-back"
                   onClick={() => setActiveSection(null)}
                 >
-                  Back to Scene
+                  {t.controls.backToScene}
                 </button>
               </div>
             </div>
@@ -557,7 +582,7 @@ export default function Sup() {
             <>
               {/* Mode Toggle */}
               <div className="sup-mode-toggle">
-                <span className={`sup-mode-label ${!controllerMode ? 'active' : ''}`}>AI</span>
+                <span className={`sup-mode-label ${!controllerMode ? 'active' : ''}`}>{t.controls.ai}</span>
                 <button
                   className={`sup-toggle-switch ${controllerMode ? 'is-manual' : ''}`}
                   onClick={handleControllerModeToggle}
@@ -565,7 +590,7 @@ export default function Sup() {
                 >
                   <span className="sup-toggle-thumb"></span>
                 </button>
-                <span className={`sup-mode-label ${controllerMode ? 'active' : ''}`}>Manual</span>
+                <span className={`sup-mode-label ${controllerMode ? 'active' : ''}`}>{t.controls.manual}</span>
               </div>
               <div className="sup-menu">
               <button
@@ -573,8 +598,8 @@ export default function Sup() {
                 onClick={() => setActiveSection('about')}
               >
                 <div className="sup-menu-content">
-                  <h3>ABOUT</h3>
-                  <p>Who am I & what I do</p>
+                  <h3>{t.menu.about}</h3>
+                  <p>{t.menu.aboutDesc}</p>
                 </div>
                 <span className="sup-menu-arrow">→</span>
               </button>
@@ -584,8 +609,8 @@ export default function Sup() {
                 onClick={() => setActiveSection('cases')}
               >
                 <div className="sup-menu-content">
-                  <h3>CASES</h3>
-                  <p>Client projects & case studies</p>
+                  <h3>{t.menu.cases}</h3>
+                  <p>{t.menu.casesDesc}</p>
                 </div>
                 <span className="sup-menu-arrow">→</span>
               </button>
@@ -595,8 +620,8 @@ export default function Sup() {
                 onClick={() => setActiveSection('projects')}
               >
                 <div className="sup-menu-content">
-                  <h3>PROJECTS</h3>
-                  <p>Personal & experimental work</p>
+                  <h3>{t.menu.projects}</h3>
+                  <p>{t.menu.projectsDesc}</p>
                 </div>
                 <span className="sup-menu-arrow">→</span>
               </button>
@@ -606,8 +631,8 @@ export default function Sup() {
                 onClick={() => setActiveSection('old-portfolio')}
               >
                 <div className="sup-menu-content">
-                  <h3>OLD</h3>
-                  <p>Archive & previous works</p>
+                  <h3>{t.menu.old}</h3>
+                  <p>{t.menu.oldDesc}</p>
                 </div>
                 <span className="sup-menu-arrow">→</span>
               </button>

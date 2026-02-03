@@ -6,6 +6,14 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "VMV Sega";
+  src: url("/assets/VMVSegaGenesis-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* MAIN CONTAINER - Fullscreen Game Layout */
 .sup-game-container {
   width: 100%;
@@ -85,7 +93,7 @@
   justify-content: center;
   background: radial-gradient(circle at 50% 40%, rgba(20, 30, 60, 0.6), rgba(0, 0, 0, 0.85));
   z-index: 30;
-  font-family: "Sonic Genesis", "Cascadia Mono", "Fira Code", "Consolas", monospace;
+  font-family: "VMV Sega", "Sonic Genesis", "Cascadia Mono", "Fira Code", "Consolas", monospace;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -190,7 +198,7 @@
   align-items: center;
   gap: 1rem;
   z-index: 60;
-  font-family: "Sonic Genesis", "Cascadia Mono", "Fira Code", "Consolas", monospace;
+  font-family: "VMV Sega", "Sonic Genesis", "Cascadia Mono", "Fira Code", "Consolas", monospace;
 }
 
 .sup-status-bar-item {
@@ -226,7 +234,7 @@
   padding: 1rem;
   z-index: 60;
   pointer-events: none;
-  font-family: "Sonic Genesis", "Cascadia Mono", "Fira Code", "Consolas", monospace;
+  font-family: "VMV Sega", "Sonic Genesis", "Cascadia Mono", "Fira Code", "Consolas", monospace;
   --hud-bg: #0b1020;
   --hud-edge: #1d2a4a;
   --hud-accent: #4de3ff;
@@ -351,6 +359,34 @@
   pointer-events: auto;
 }
 
+/* Language Toggle */
+.sup-lang-toggle {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 100;
+}
+
+.sup-lang-label {
+  font-family: "VMV Sega", "Sonic Genesis", monospace;
+  font-size: 14px;
+  color: #556;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: color 0.2s ease;
+}
+
+.sup-lang-label.active {
+  color: #4de3ff;
+}
+
+.sup-lang-toggle .sup-toggle-switch.is-ru .sup-toggle-thumb {
+  transform: translateX(20px);
+}
+
 .sup-menu {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -377,7 +413,7 @@
   cursor: pointer;
   width: 100%;
   text-align: left;
-  font-family: "Sonic Genesis", "Cascadia Mono", "Fira Code", "Consolas", monospace;
+  font-family: "VMV Sega", "Sonic Genesis", "Cascadia Mono", "Fira Code", "Consolas", monospace;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   box-shadow: 0 4px 0 #05070f, 0 10px 20px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
@@ -491,7 +527,7 @@
   background: rgba(17, 24, 39, 0.95);
   border: 2px solid #26324f;
   color: #e8f2ff;
-  font-family: "Sonic Genesis", "Cascadia Mono", "Fira Code", "Consolas", monospace;
+  font-family: "VMV Sega", "Sonic Genesis", "Cascadia Mono", "Fira Code", "Consolas", monospace;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   padding: 0.6rem 1rem;
@@ -546,7 +582,7 @@
   justify-content: center;
   gap: 0.75rem;
   margin-bottom: 1rem;
-  font-family: "Sonic Genesis", "Cascadia Mono", "Fira Code", "Consolas", monospace;
+  font-family: "VMV Sega", "Sonic Genesis", "Cascadia Mono", "Fira Code", "Consolas", monospace;
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }

@@ -1,23 +1,29 @@
 import { Container, Sprite, Graphics, TilingSprite, Text } from 'pixi.js';
+import { getLocale, GAME_FONT } from '../i18n';
 
 // ═══════════════════════════════════════════════════════════════
-// КОНТЕНТНЫЕ ДАННЫЕ КЕЙСОВ
+// КОНТЕНТНЫЕ ДАННЫЕ КЕЙСОВ (только ключи и медиа)
 // ═══════════════════════════════════════════════════════════════
 const CASES_DATA = [
   {
-    title: 'OREO X PACMAN',
-    category: 'Разработка игр',
+    localeKey: 'oreo',
     mediaKey: 'oreo_pacman2',
-    textBlocks: [
-      'Game contest for Oreo and Bandai Namco, where users could play Oreo version of Pacman and win prizes!',
-      'I have fully redevelop original Pacman game with Bandai Namco guidelines, so the Pacman spirit wouldnt dissapear.',
-      'Also i made offline version and directed final offline battle between blogers and finalists of contest',
-    ],
   },
-  { title: '7DAYS', category: 'Разработка NPC кампаний', textBlocks: ['Second tile: process and approach.'] },
-  { title: 'DREAME AI', category: 'Разработка ИИ механик и офлайн стендов', textBlocks: ['Third tile: outcome and impact.'] },
-  { title: 'LOREAL ML', category: 'Обучение ИИ моделей', textBlocks: ['Fourth tile: visuals and systems.'] },
-  { title: 'DIROL SMM', category: 'Создание ИИ контента', textBlocks: ['Fifth tile: notes and next steps.'] },
+  {
+    localeKey: 'sevendays',
+    mediaKeys: ['7days_0', '7days_1', '7days_2', '7days_3'],
+  },
+  {
+    localeKey: 'dreame',
+    mediaKeys: ['dreame_0', 'dreame_1', 'dreame_2', 'dreame_3', 'dreame_4'],
+  },
+  {
+    localeKey: 'loreal',
+  },
+  {
+    localeKey: 'dirol',
+    mediaKeys: ['dirol_0', 'dirol_1', 'dirol_2', 'dirol_3', 'dirol_4'],
+  },
 ];
 
 export class CasesScene {
@@ -27,9 +33,16 @@ export class CasesScene {
     this.assetManager = assetManager;
     this.sceneId = 'cases';
 
+    // Локализация
+    this.lang = options.lang || 'en';
+    this.locale = getLocale(this.lang);
+    this.font = GAME_FONT;
+
     this.tileCount = options.tileCount || 5;
-    this.tileWidth = options.tileWidth || 980;
-    this.tileHeight = options.tileHeight || 512;
+    // tileWidthRatio: доля ширины экрана для тайла (0.85 = 85%)
+    this.tileWidthRatio = options.tileWidthRatio ?? 0.85;
+    this.tileWidth = options.tileWidth || 980; // будет пересчитано
+    this.tileHeight = options.tileHeight || 512; // будет пересчитано
     this.tileGap = options.tileGap ?? 0;
     this.tileOverlap = options.tileOverlap ?? 2;
     this.backgroundColor = options.backgroundColor ?? 0x000000;
@@ -42,7 +55,8 @@ export class CasesScene {
     this.bottomPadding = 160;
 
     // ── Персонаж: позиция и размер ──
-    this.charGroundY = options.charGroundY ?? 0;
+    // charGroundOffset: 0 = центр экрана, 0.33 = нижняя треть, -0.33 = верхняя треть
+    this.charGroundOffset = options.charGroundOffset ?? 0.3;
     this.charHeight = options.charHeight ?? 160;
 
     // ── Параллакс ──
@@ -65,7 +79,6 @@ export class CasesScene {
 
     this.activeIndex = 0;
     this.cameraTargetX = 0;
-    this.cameraTargetY = 0;
     this.cameraSmoothing = 0.08;
     this.cameraTickerFn = null;
     this.isPaused = false;
@@ -120,6 +133,10 @@ export class CasesScene {
       this.rebuildParallaxLayers();
       this.rebuildTiles();
       this.centerOnIndex(this.activeIndex, true);
+      // Обновляем позицию персонажа после пересчёта groundY
+      if (this.charSprite) {
+        this.charSprite.y = this.groundY;
+      }
     };
     this.app.renderer.on('resize', this.resizeHandler);
   }
@@ -137,21 +154,64 @@ export class CasesScene {
   }
 
   buildCasesData() {
+    // Хелпер: создаёт DisplayObject из медиа (Texture или AnimatedGIF)
+    const createDisplayObjectFromMedia = (media) => {
+      if (!media) return null;
+      // AnimatedGIF имеет метод clone и является DisplayObject
+      if (media.clone && typeof media.clone === 'function') {
+        return media.clone();
+      }
+      // Texture — оборачиваем в Sprite
+      if (media.source || media.baseTexture || media.frame) {
+        return new Sprite(media);
+      }
+      // Уже DisplayObject
+      return media;
+    };
+
     this.casesData = CASES_DATA.map((item) => {
-      const media = item.mediaKey && this.assetManager
-        ? this.assetManager.getCaseScreenMedia?.(item.mediaKey)
-        : null;
+      // Получаем локализованные тексты по ключу
+      const localized = this.locale.cases?.[item.localeKey] || {};
+      const title = localized.title || item.localeKey.toUpperCase();
+      const category = localized.category || '';
+      const textBlocks = localized.slides || [];
+
+      let contents = [];
+
+      if (item.mediaKeys && this.assetManager) {
+        // Массив mediaKeys — каждый текстовый блок имеет своё изображение
+        contents = item.mediaKeys.map((key) => {
+          const media = this.assetManager.getCaseScreenMedia?.(key);
+          return media
+            ? { createDisplayObject: () => createDisplayObjectFromMedia(media) }
+            : null;
+        }).filter(Boolean);
+      } else if (item.mediaKey && this.assetManager) {
+        // Один mediaKey — одно изображение для всех текстовых блоков
+        const media = this.assetManager.getCaseScreenMedia?.(item.mediaKey);
+        if (media) {
+          contents = [{ createDisplayObject: () => createDisplayObjectFromMedia(media) }];
+        }
+      }
 
       return {
-        title: item.title,
-        category: item.category,
-        textBlocks: item.textBlocks,
-        contents: media
-          ? [{ createDisplayObject: () => media.clone ? media.clone() : media }]
-          : [],
+        title,
+        category,
+        textBlocks,
+        contents,
+        // Флаг: синхронизировать изображение с текстовым блоком
+        syncMediaWithText: !!item.mediaKeys,
       };
     });
     this.tileCount = this.casesData.length;
+  }
+
+  // Метод для смены языка
+  setLanguage(lang) {
+    this.lang = lang;
+    this.locale = getLocale(lang);
+    this.buildCasesData();
+    this.updateDialogForCase(this.activeIndex);
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -160,6 +220,7 @@ export class CasesScene {
 
   createParallaxLayers() {
     const screenW = this.app.screen.width;
+    const screenH = this.app.screen.height;
 
     const layerDefs = [
       { texture: this.assetManager?.getSideBack?.(), speed: 0, isFloor: false },
@@ -168,11 +229,23 @@ export class CasesScene {
     ];
 
     // Масштаб по высоте экрана — сохраняет пропорции текстуры
-    const screenH = this.app.screen.height;
     const refTexture = layerDefs.find(l => l.texture)?.texture;
     const texH = refTexture?.height || 336;
     const scale = screenH / texH;
     this.sceneHeight = screenH;
+
+    // Вычисляем groundY: центр экрана + смещение (charGroundOffset)
+    // 0 = центр, 0.33 = нижняя треть, -0.33 = верхняя треть
+    this.groundY = screenH / 2 + screenH * this.charGroundOffset;
+
+    // Адаптивные размеры тайлов
+    this.tileWidth = Math.round(screenW * this.tileWidthRatio);
+    // Высота пропорционально (соотношение 16:9 примерно)
+    this.tileHeight = Math.round(this.tileWidth * 0.52);
+
+    // Позиция тайлов по вертикали — верх тайлов привязан к верху экрана
+    // tileHeight/2 потому что anchor тайлов в центре
+    this.tilesY = this.tileHeight / 2;
 
     for (const layerDef of layerDefs) {
       if (!layerDef.texture) continue;
@@ -214,11 +287,14 @@ export class CasesScene {
     const totalWidth = this.tileCount * this.tileWidth + (this.tileCount - 1) * (this.tileGap - this.tileOverlap);
     const startX = -totalWidth / 2 + this.tileWidth / 2;
 
+    // Позиция тайлов по вертикали — центрируем относительно groundY
+    const tileY = this.tilesY ?? this.app.screen.height / 2;
+
     // Тайлы-заполнители слева
     for (let p = this.paddingTiles; p > 0; p--) {
       const padGroup = new Container();
       padGroup.x = startX - p * step;
-      padGroup.y = 0;
+      padGroup.y = tileY;
       this.addTileVisuals(padGroup);
       this.tilesContainer.addChild(padGroup);
     }
@@ -227,7 +303,7 @@ export class CasesScene {
     for (let i = 0; i < this.tileCount; i++) {
       const tileGroup = new Container();
       tileGroup.x = startX + i * step;
-      tileGroup.y = 0;
+      tileGroup.y = tileY;
 
       this.addTileVisuals(tileGroup);
 
@@ -253,7 +329,7 @@ export class CasesScene {
     for (let p = 1; p <= this.paddingTiles; p++) {
       const padGroup = new Container();
       padGroup.x = startX + (this.tileCount - 1 + p) * step;
-      padGroup.y = 0;
+      padGroup.y = tileY;
       this.addTileVisuals(padGroup);
       this.tilesContainer.addChild(padGroup);
     }
@@ -277,7 +353,7 @@ export class CasesScene {
       style: {
         fill: 0xffffff,
         fontSize: 32,
-        fontFamily: 'Sonic Genesis, monospace',
+        fontFamily: this.font,
         fontWeight: 'bold',
       },
     });
@@ -295,7 +371,7 @@ export class CasesScene {
       style: {
         fill: 0xffffff,
         fontSize: 22,
-        fontFamily: 'Sonic Genesis, monospace',
+        fontFamily: this.font,
       },
     });
     title.anchor.set(0, 0);
@@ -307,7 +383,7 @@ export class CasesScene {
       style: {
         fill: 0xc7d3f1,
         fontSize: 16,
-        fontFamily: 'Sonic Genesis, monospace',
+        fontFamily: this.font,
         wordWrap: true,
         wordWrapWidth: dialogWidth - this.dialogPadding * 2 - 80,
         lineHeight: 20,
@@ -346,7 +422,7 @@ export class CasesScene {
       style: {
         fill: 0x9fb8ff,
         fontSize: 14,
-        fontFamily: 'Sonic Genesis, monospace',
+        fontFamily: this.font,
       },
     });
     pageIndicator.anchor.set(0.5, 0);
@@ -372,7 +448,7 @@ export class CasesScene {
     this.updateDialogForCase(this.activeIndex);
   }
 
-  updateDialogForCase(index) {
+  updateDialogForCase(index, syncMedia = false) {
     const caseData = this.casesData?.[index];
     if (!caseData) return;
     const title = caseData.title || `CASE ${index + 1}`;
@@ -390,6 +466,14 @@ export class CasesScene {
     if (this.dialogPage) {
       this.dialogPage.text = blocks.length > 0 ? `${active + 1}/${blocks.length}` : '';
       this.dialogPage.visible = blocks.length > 1;
+    }
+
+    // Синхронизация изображения с текстовым блоком
+    if (syncMedia && caseData.syncMediaWithText && caseData.contents.length > 0) {
+      const mediaIndex = Math.min(active, caseData.contents.length - 1);
+      if (caseData.activeIndex !== mediaIndex) {
+        this.setActiveContent(index, mediaIndex);
+      }
     }
   }
 
@@ -484,6 +568,12 @@ export class CasesScene {
     const next = (current + direction + caseData.textBlocks.length) % caseData.textBlocks.length;
     caseData.activeTextIndex = next;
     this.updateDialogForCase(this.activeIndex);
+
+    // Если mediaKeys синхронизированы с текстом — обновляем изображение
+    if (caseData.syncMediaWithText && caseData.contents.length > 0) {
+      const mediaIndex = Math.min(next, caseData.contents.length - 1);
+      this.setActiveContent(this.activeIndex, mediaIndex);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -491,7 +581,7 @@ export class CasesScene {
   // ═══════════════════════════════════════════════════════════════
 
   createCharacter() {
-    this.groundY = this.charGroundY;
+    // groundY уже вычислен в createParallaxLayers() как середина экрана
     this.charX = this.tiles?.[0]?.x ?? 0;
 
     // Загружаем фреймы из AssetManager
@@ -634,29 +724,27 @@ export class CasesScene {
 
     const prevX = this.container.x;
     this.container.x += (this.cameraTargetX - this.container.x) * this.cameraSmoothing;
-    this.container.y += (this.cameraTargetY - this.container.y) * 0.08;
+    // Убрано вертикальное смещение камеры - сцена фиксирована по вертикали
     const dx = this.container.x - prevX;
 
-    // Фон следует за камерой
+    // Фон следует за камерой (только по X)
     if (this.background) {
       this.background.x = -this.container.x;
-      this.background.y = -this.container.y;
+      this.background.y = 0;
     }
 
-    // Параллакс: ноги персонажа = середина высоты слоя, сцена центрирована
-    const groundScreenY = (this.groundY ?? 0) + this.container.y;
-    const sceneH = this.sceneHeight || this.app.screen.height;
+    // Параллакс: слои фиксированы по вертикали (занимают весь экран), двигаются только по X
     for (const layer of this.parallaxLayers) {
       const factor = layer.parallaxFactor ?? this.parallaxFactor;
       layer.x = -this.container.x;
-      layer.y = groundScreenY - sceneH / 2;
+      layer.y = 0; // Слои всегда начинаются с верха экрана
       layer.tilePosition.x += dx * (1 - factor);
     }
 
     // Диалог фиксирован на экране
     if (this.dialogContainer && this.dialogBox) {
       this.dialogContainer.x = -this.container.x + (this.app.screen.width - this.dialogBox.width) / 2;
-      this.dialogContainer.y = -this.container.y + this.app.screen.height - this.bottomPadding - this.dialogBox.height - 20;
+      this.dialogContainer.y = this.app.screen.height - this.bottomPadding - this.dialogBox.height - 20;
     }
   }
 
@@ -668,10 +756,10 @@ export class CasesScene {
 
     const targetX = this.app.screen.width / 2 - targetTile.x;
     this.cameraTargetX = targetX;
-    this.cameraTargetY = this.tileHeight / 2;
+    // Убрано вертикальное смещение - сцена фиксирована по Y
     if (immediate) {
       this.container.x = targetX;
-      this.container.y = this.cameraTargetY;
+      this.container.y = 0;
     }
     this.updateDialogForCase(this.activeIndex);
   }
@@ -679,7 +767,7 @@ export class CasesScene {
   setActiveTile(index) {
     this.characterMode = false;
     this.centerOnIndex(index, false);
-    this.updateDialogForCase(index);
+    this.updateDialogForCase(index, true); // syncMedia = true
     // Телепортируем персонажа к выбранному тайлу
     const targetTile = this.tiles?.[index];
     if (targetTile) {
