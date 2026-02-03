@@ -519,19 +519,6 @@ export default function Sup() {
 
         {/* НИЖНЯЯ ЧАСТЬ - GAME UI / CONTROL PANEL */}
         <div className="sup-control-panel">
-          {/* Переключатель языка */}
-          <div className="sup-lang-toggle">
-            <span className={`sup-lang-label ${lang === 'en' ? 'active' : ''}`}>EN</span>
-            <button
-              className={`sup-toggle-switch ${lang === 'ru' ? 'is-ru' : ''}`}
-              onClick={toggleLanguage}
-              aria-label="Toggle language"
-            >
-              <span className="sup-toggle-thumb"></span>
-            </button>
-            <span className={`sup-lang-label ${lang === 'ru' ? 'active' : ''}`}>RU</span>
-          </div>
-
           {activeSection === 'cases' ? (
             <div className="sup-cases-panel">
               <div className="sup-cases-controls">
@@ -579,65 +566,79 @@ export default function Sup() {
               </div>
             </div>
           ) : (
-            <>
-              {/* Mode Toggle */}
-              <div className="sup-mode-toggle">
-                <span className={`sup-mode-label ${!controllerMode ? 'active' : ''}`}>{t.controls.ai}</span>
+            <div className="sup-main-nav">
+              {/* Переключатель языка */}
+              <div className="sup-lang-toggle sup-toggle-row">
                 <button
-                  className={`sup-toggle-switch ${controllerMode ? 'is-manual' : ''}`}
+                  className={`sup-toggle-switch ${lang === 'ru' ? 'is-on' : ''}`}
+                  onClick={toggleLanguage}
+                  aria-label="Toggle language"
+                >
+                  <span className="sup-toggle-thumb"></span>
+                </button>
+                <span className="sup-toggle-value">{lang === 'ru' ? 'RU' : 'EN'}</span>
+              </div>
+
+              {/* Mode Toggle */}
+              <div className="sup-mode-toggle sup-toggle-row">
+                <button
+                  className={`sup-toggle-switch ${controllerMode ? 'is-on' : ''}`}
                   onClick={handleControllerModeToggle}
                   aria-label="Toggle control mode"
                 >
                   <span className="sup-toggle-thumb"></span>
                 </button>
-                <span className={`sup-mode-label ${controllerMode ? 'active' : ''}`}>{t.controls.manual}</span>
+                <span className="sup-toggle-value">
+                  {controllerMode ? t.controls.manual : t.controls.ai}
+                </span>
               </div>
+
               <div className="sup-menu">
-              <button
-                className={`sup-menu-item ${activeSection === 'about' ? 'active' : ''}`}
-                onClick={() => setActiveSection('about')}
-              >
-                <div className="sup-menu-content">
-                  <h3>{t.menu.about}</h3>
-                  <p>{t.menu.aboutDesc}</p>
-                </div>
-                <span className="sup-menu-arrow">→</span>
-              </button>
+                <button
+                  className={`sup-menu-item ${activeSection === 'about' ? 'active' : ''}`}
+                  onClick={() => setActiveSection('about')}
+                >
+                  <div className="sup-menu-content">
+                    <h3>{t.menu.about}</h3>
+                    <p>{t.menu.aboutDesc}</p>
+                  </div>
+                  <span className="sup-menu-arrow">→</span>
+                </button>
 
-              <button
-                className={`sup-menu-item ${activeSection === 'cases' ? 'active' : ''}`}
-                onClick={() => setActiveSection('cases')}
-              >
-                <div className="sup-menu-content">
-                  <h3>{t.menu.cases}</h3>
-                  <p>{t.menu.casesDesc}</p>
-                </div>
-                <span className="sup-menu-arrow">→</span>
-              </button>
+                <button
+                  className={`sup-menu-item ${activeSection === 'cases' ? 'active' : ''}`}
+                  onClick={() => setActiveSection('cases')}
+                >
+                  <div className="sup-menu-content">
+                    <h3>{t.menu.cases}</h3>
+                    <p>{t.menu.casesDesc}</p>
+                  </div>
+                  <span className="sup-menu-arrow">→</span>
+                </button>
 
-              <button
-                className={`sup-menu-item ${activeSection === 'projects' ? 'active' : ''}`}
-                onClick={() => setActiveSection('projects')}
-              >
-                <div className="sup-menu-content">
-                  <h3>{t.menu.projects}</h3>
-                  <p>{t.menu.projectsDesc}</p>
-                </div>
-                <span className="sup-menu-arrow">→</span>
-              </button>
+                <button
+                  className={`sup-menu-item ${activeSection === 'projects' ? 'active' : ''}`}
+                  onClick={() => setActiveSection('projects')}
+                >
+                  <div className="sup-menu-content">
+                    <h3>{t.menu.projects}</h3>
+                    <p>{t.menu.projectsDesc}</p>
+                  </div>
+                  <span className="sup-menu-arrow">→</span>
+                </button>
 
-              <button
-                className={`sup-menu-item ${activeSection === 'old-portfolio' ? 'active' : ''}`}
-                onClick={() => setActiveSection('old-portfolio')}
-              >
-                <div className="sup-menu-content">
-                  <h3>{t.menu.old}</h3>
-                  <p>{t.menu.oldDesc}</p>
-                </div>
-                <span className="sup-menu-arrow">→</span>
-              </button>
+                <button
+                  className={`sup-menu-item ${activeSection === 'old-portfolio' ? 'active' : ''}`}
+                  onClick={() => setActiveSection('old-portfolio')}
+                >
+                  <div className="sup-menu-content">
+                    <h3>{t.menu.old}</h3>
+                    <p>{t.menu.oldDesc}</p>
+                  </div>
+                  <span className="sup-menu-arrow">→</span>
+                </button>
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>

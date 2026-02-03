@@ -346,6 +346,7 @@
   right: 0;
   z-index: 50;
   padding: 1.5rem;
+  padding-bottom: calc(1.5rem + 10vh + env(safe-area-inset-bottom, 0px));
   background: linear-gradient(
     180deg,
     rgba(0, 0, 0, 0) 0%,
@@ -359,32 +360,31 @@
   pointer-events: auto;
 }
 
-/* Language Toggle */
-.sup-lang-toggle {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
+.sup-main-nav {
+  display: grid;
+  gap: 1rem;
+  justify-items: stretch;
+  width: 100%;
+}
+
+/* Toggle rows */
+.sup-toggle-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  z-index: 100;
-}
-
-.sup-lang-label {
-  font-family: "VMV Sega", "Sonic Genesis", monospace;
-  font-size: 14px;
-  color: #556;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  font-family: "VMV Sega", "Sonic Genesis", "Cascadia Mono", "Fira Code", "Consolas", monospace;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  transition: color 0.2s ease;
+  letter-spacing: 0.1em;
 }
 
-.sup-lang-label.active {
+.sup-toggle-value {
+  font-size: 0.75rem;
   color: #4de3ff;
-}
-
-.sup-lang-toggle .sup-toggle-switch.is-ru .sup-toggle-thumb {
-  transform: translateX(20px);
+  text-shadow: 0 0 10px rgba(77, 227, 255, 0.35);
 }
 
 .sup-menu {
@@ -577,25 +577,7 @@
 
 /* MODE TOGGLE */
 .sup-mode-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-  font-family: "VMV Sega", "Sonic Genesis", "Cascadia Mono", "Fira Code", "Consolas", monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-
-.sup-mode-label {
-  font-size: 0.75rem;
-  color: #5a6a8a;
-  transition: color 0.3s ease;
-}
-
-.sup-mode-label.active {
-  color: #4de3ff;
-  text-shadow: 0 0 10px rgba(77, 227, 255, 0.4);
+  margin-bottom: 0;
 }
 
 .sup-toggle-switch {
@@ -635,7 +617,7 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), 0 0 8px rgba(77, 227, 255, 0.3);
 }
 
-.sup-toggle-switch.is-manual .sup-toggle-thumb {
+.sup-toggle-switch.is-on .sup-toggle-thumb {
   transform: translateX(28px);
   background: linear-gradient(180deg, #6dff9d 0%, #3dc46a 100%);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), 0 0 8px rgba(109, 255, 157, 0.3);
@@ -727,7 +709,7 @@
 
   .sup-control-panel {
     padding: 1rem;
-    padding-bottom: calc(1rem + 7vh + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(1rem + 10vh + env(safe-area-inset-bottom, 0px));
   }
 
   .sup-menu {
@@ -775,12 +757,11 @@
   }
 
   /* Mode toggle mobile */
-  .sup-mode-toggle {
+  .sup-toggle-row {
     gap: 0.5rem;
-    margin-bottom: 0.75rem;
   }
 
-  .sup-mode-label {
+  .sup-toggle-value {
     font-size: 0.65rem;
   }
 
@@ -796,7 +777,7 @@
     left: 2px;
   }
 
-  .sup-toggle-switch.is-manual .sup-toggle-thumb {
+  .sup-toggle-switch.is-on .sup-toggle-thumb {
     transform: translateX(24px);
   }
 
@@ -815,7 +796,7 @@
 @media (max-width: 480px) {
   .sup-control-panel {
     padding: 0.75rem;
-    padding-bottom: calc(0.75rem + 7vh + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(0.75rem + 10vh + env(safe-area-inset-bottom, 0px));
   }
 
   .sup-menu {
@@ -854,8 +835,8 @@
   }
 
   /* Mode toggle for small screens */
-  .sup-mode-toggle {
-    margin-bottom: 0.5rem;
+  .sup-toggle-row {
+    gap: 0.4rem;
   }
 
   .sup-toggle-switch {
@@ -868,7 +849,7 @@
     height: 14px;
   }
 
-  .sup-toggle-switch.is-manual .sup-toggle-thumb {
+  .sup-toggle-switch.is-on .sup-toggle-thumb {
     transform: translateX(22px);
   }
 }

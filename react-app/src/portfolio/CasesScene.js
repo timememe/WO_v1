@@ -39,20 +39,33 @@ export class CasesScene {
     this.font = GAME_FONT;
 
     this.tileCount = options.tileCount || 5;
-    // tileWidthRatio: доля ширины экрана для тайла (0.85 = 85%)
+    // tileWidthRatio: screen width share for the content box (0.85 = 85%)
     this.tileWidthRatio = options.tileWidthRatio ?? 0.85;
+    // NOTE: tileWidthRatio now drives content box width, not tile size.
     this.tileWidth = options.tileWidth || 980; // будет пересчитано
     this.tileHeight = options.tileHeight || 512; // будет пересчитано
     this.tileGap = options.tileGap ?? 0;
     this.tileOverlap = options.tileOverlap ?? 2;
+    this.baseTileWidth = this.tileWidth;
+    this.baseTileHeight = this.tileHeight;
     this.backgroundColor = options.backgroundColor ?? 0x000000;
     this.debugMode = options.debugMode ?? false;
     this.casesData = [];
     this.contentBoxScale = 0.7;
+    this.contentBoxWidth = null;
+    this.contentBoxHeight = null;
     this.paddingTiles = options.paddingTiles ?? 1;
     this.dialogPadding = 20;
     this.dialogHeight = 170;
     this.bottomPadding = 160;
+    this.dialogTitleFontSize = 22;
+    this.dialogBodyFontSize = 16;
+    this.dialogBodyLineHeight = 20;
+    this.dialogCategoryFontSize = 32;
+    this.dialogTitleMinFontSize = 12;
+    this.dialogBodyMinFontSize = 12;
+    this.dialogCategoryMinFontSize = 14;
+    this.dialogRightGutter = 80;
 
     // ── Персонаж: позиция и размер ──
     // charGroundOffset: 0 = центр экрана, 0.33 = нижняя треть, -0.33 = верхняя треть
@@ -132,6 +145,7 @@ export class CasesScene {
       this.createBackground();
       this.rebuildParallaxLayers();
       this.rebuildTiles();
+      this.createDialog();
       this.centerOnIndex(this.activeIndex, true);
       // Обновляем позицию персонажа после пересчёта groundY
       if (this.charSprite) {
@@ -239,9 +253,14 @@ export class CasesScene {
     this.groundY = screenH / 2 + screenH * this.charGroundOffset;
 
     // Адаптивные размеры тайлов
-    this.tileWidth = Math.round(screenW * this.tileWidthRatio);
+    this.tileWidth = this.baseTileWidth;
     // Высота пропорционально (соотношение 16:9 примерно)
-    this.tileHeight = Math.round(this.tileWidth * 0.52);
+    this.tileHeight = this.baseTileHeight;
+
+    const targetContentWidth = Math.round(screenW * this.tileWidthRatio * this.contentBoxScale);
+    const maxContentWidth = Math.round(this.tileWidth * this.contentBoxScale);
+    this.contentBoxWidth = Math.min(targetContentWidth, maxContentWidth);
+    this.contentBoxHeight = Math.round(this.tileHeight * this.contentBoxScale);
 
     // Позиция тайлов по вертикали — верх тайлов привязан к верху экрана
     // tileHeight/2 потому что anchor тайлов в центре
@@ -352,7 +371,7 @@ export class CasesScene {
       text: '',
       style: {
         fill: 0xffffff,
-        fontSize: 32,
+        fontSize: this.dialogCategoryFontSize,
         fontFamily: this.font,
         fontWeight: 'bold',
       },
@@ -370,7 +389,7 @@ export class CasesScene {
       text: '',
       style: {
         fill: 0xffffff,
-        fontSize: 22,
+        fontSize: this.dialogTitleFontSize,
         fontFamily: this.font,
       },
     });
@@ -382,11 +401,11 @@ export class CasesScene {
       text: '',
       style: {
         fill: 0xc7d3f1,
-        fontSize: 16,
+        fontSize: this.dialogBodyFontSize,
         fontFamily: this.font,
         wordWrap: true,
-        wordWrapWidth: dialogWidth - this.dialogPadding * 2 - 80,
-        lineHeight: 20,
+        wordWrapWidth: dialogWidth - this.dialogPadding * 2 - this.dialogRightGutter,
+        lineHeight: this.dialogBodyLineHeight,
       },
     });
     body.anchor.set(0, 0);
@@ -467,6 +486,7 @@ export class CasesScene {
       this.dialogPage.text = blocks.length > 0 ? `${active + 1}/${blocks.length}` : '';
       this.dialogPage.visible = blocks.length > 1;
     }
+    this.fitDialogText();
 
     // Синхронизация изображения с текстовым блоком
     if (syncMedia && caseData.syncMediaWithText && caseData.contents.length > 0) {
@@ -523,10 +543,101 @@ export class CasesScene {
   }
 
   getContentBox() {
+    if (this.contentBoxWidth && this.contentBoxHeight) {
+      return {
+        width: this.contentBoxWidth,
+        height: this.contentBoxHeight,
+      };
+    }
     return {
       width: Math.round(this.tileWidth * this.contentBoxScale),
       height: Math.round(this.tileHeight * this.contentBoxScale),
     };
+  }
+
+  fitDialogText() {
+    if (!this.dialogBox) return;
+    const dialogWidth = this.dialogBox.width;
+    const dialogHeight = this.dialogBox.height;
+    const maxTextWidth = dialogWidth - this.dialogPadding * 2 - this.dialogRightGutter;
+
+    if (this.dialogTitle) {
+      const titleMaxHeight = Math.max(
+        12,
+        (this.dialogBody?.y ?? (this.dialogTitle.y + 30)) - this.dialogTitle.y - 6
+      );
+      this.fitTextToBox(this.dialogTitle, {
+        maxWidth: maxTextWidth,
+        maxHeight: titleMaxHeight,
+        maxFontSize: this.dialogTitleFontSize,
+        minFontSize: this.dialogTitleMinFontSize,
+        wordWrap: true,
+      });
+    }
+
+    if (this.dialogBody) {
+      const bodyMaxHeight = Math.max(24, dialogHeight - this.dialogBody.y - 16);
+      this.fitTextToBox(this.dialogBody, {
+        maxWidth: maxTextWidth,
+        maxHeight: bodyMaxHeight,
+        maxFontSize: this.dialogBodyFontSize,
+        minFontSize: this.dialogBodyMinFontSize,
+        wordWrap: true,
+        lineHeightRatio: this.dialogBodyLineHeight / this.dialogBodyFontSize,
+      });
+    }
+
+    if (this.dialogCategory) {
+      const categoryMaxHeight = Math.max(18, this.dialogCategoryFontSize + 6);
+      this.fitTextToBox(this.dialogCategory, {
+        maxWidth: dialogWidth - this.dialogPadding * 2,
+        maxHeight: categoryMaxHeight,
+        maxFontSize: this.dialogCategoryFontSize,
+        minFontSize: this.dialogCategoryMinFontSize,
+        wordWrap: false,
+      });
+    }
+  }
+
+  fitTextToBox(textObject, options) {
+    if (!textObject || !options) return;
+    const {
+      maxWidth,
+      maxHeight,
+      maxFontSize,
+      minFontSize,
+      wordWrap,
+      lineHeightRatio,
+    } = options;
+
+    if (!maxWidth || !maxHeight) return;
+    const style = textObject.style;
+    style.wordWrap = !!wordWrap;
+    style.wordWrapWidth = maxWidth;
+
+    let size = maxFontSize;
+    const ratio = lineHeightRatio || 1.2;
+    const guard = Math.max(1, maxFontSize - minFontSize + 2);
+
+    for (let i = 0; i < guard; i += 1) {
+      style.fontSize = size;
+      if (lineHeightRatio) {
+        style.lineHeight = Math.round(size * ratio);
+      }
+      textObject.onViewUpdate?.();
+      if (textObject.width <= maxWidth + 0.5 && textObject.height <= maxHeight + 0.5) {
+        break;
+      }
+      size -= 1;
+      if (size < minFontSize) {
+        style.fontSize = minFontSize;
+        if (lineHeightRatio) {
+          style.lineHeight = Math.round(minFontSize * ratio);
+        }
+        textObject.onViewUpdate?.();
+        break;
+      }
+    }
   }
 
   fitDisplayObject(node, maxW, maxH) {
