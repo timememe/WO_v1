@@ -72,6 +72,9 @@ export class CasesScene {
     this.charGroundOffset = options.charGroundOffset ?? 0.3;
     this.charHeight = options.charHeight ?? 160;
 
+    // ── Speech Bubble ──
+    this.bubbleOffsetY = options.bubbleOffsetY ?? 20; // Вертикальный оффсет бабла относительно верха персонажа
+
     // ── Параллакс ──
     this.parallaxFactor = options.parallaxFactor ?? 0.3; // Скорость дальнего слоя (0 = статичный, 1 = как тайлы)
 
@@ -88,6 +91,8 @@ export class CasesScene {
     this.container.addChild(this.characterContainer);
     this.dialogContainer = new Container();
     this.container.addChild(this.dialogContainer);
+    this.speechBubbleContainer = new Container();
+    this.container.addChild(this.speechBubbleContainer);
     this.rootContainer.addChild(this.container);
 
     this.activeIndex = 0;
@@ -151,6 +156,12 @@ export class CasesScene {
       if (this.charSprite) {
         this.charSprite.y = this.groundY;
       }
+      // Обновляем размер бабла
+      this.bubbleWidth = Math.min(280, this.app.screen.width * 0.7);
+      if (this.bubbleBody) {
+        this.bubbleBody.style.wordWrapWidth = this.bubbleWidth - this.bubblePadding * 2;
+      }
+      this.updateBubbleBackground();
     };
     this.app.renderer.on('resize', this.resizeHandler);
   }
@@ -363,10 +374,7 @@ export class CasesScene {
       child.destroy({ children: true, texture: false, baseTexture: false });
     });
 
-    const dialogWidth = Math.round(this.app.screen.width * 0.88);
-    const dialogHeight = this.dialogHeight;
-
-    // ── Крупный заголовок категории над диалогом ──
+    // ── Крупный заголовок категории ──
     const categoryLabel = new Text({
       text: '',
       style: {
@@ -374,64 +382,71 @@ export class CasesScene {
         fontSize: this.dialogCategoryFontSize,
         fontFamily: this.font,
         fontWeight: 'bold',
+        dropShadow: true,
+        dropShadowColor: 0x000000,
+        dropShadowDistance: 2,
+        dropShadowBlur: 0,
       },
     });
-    categoryLabel.anchor.set(0, 1);
-    categoryLabel.x = 0;
-    categoryLabel.y = -12;
+    categoryLabel.anchor.set(0.5, 1);
 
-    const dialog = new Graphics();
-    dialog.roundRect(0, 0, dialogWidth, dialogHeight, 16);
-    dialog.fill({ color: 0x0b0f1d, alpha: 0.9 });
-    dialog.stroke({ width: 2, color: 0x1c2a4a, alpha: 0.9 });
-
+    // ── Title под category ──
     const title = new Text({
       text: '',
       style: {
-        fill: 0xffffff,
+        fill: 0xc7d3f1,
         fontSize: this.dialogTitleFontSize,
         fontFamily: this.font,
+        dropShadow: true,
+        dropShadowColor: 0x000000,
+        dropShadowDistance: 2,
+        dropShadowBlur: 0,
       },
     });
-    title.anchor.set(0, 0);
-    title.x = this.dialogPadding;
-    title.y = 18;
+    title.anchor.set(0.5, 0);
 
-    const body = new Text({
-      text: '',
-      style: {
-        fill: 0xc7d3f1,
-        fontSize: this.dialogBodyFontSize,
-        fontFamily: this.font,
-        wordWrap: true,
-        wordWrapWidth: dialogWidth - this.dialogPadding * 2 - this.dialogRightGutter,
-        lineHeight: this.dialogBodyLineHeight,
-      },
+    this.dialogContainer.addChild(categoryLabel);
+    this.dialogContainer.addChild(title);
+
+    this.dialogCategory = categoryLabel;
+    this.dialogTitle = title;
+
+    // ── Speech Bubble над персонажем ──
+    this.createSpeechBubble();
+
+    this.updateDialogForCase(this.activeIndex);
+  }
+
+  createSpeechBubble() {
+    this.speechBubbleContainer.removeChildren().forEach((child) => {
+      child.destroy({ children: true, texture: false, baseTexture: false });
     });
-    body.anchor.set(0, 0);
-    body.x = this.dialogPadding;
-    body.y = 54;
+
+    const bubbleWidth = Math.min(280, this.app.screen.width * 0.7);
+    const bubblePadding = 14;
+    const tailHeight = 12;
+
+    // ── Навигация над баблом ──
+    const navContainer = new Container();
 
     const leftArrow = new Graphics();
-    leftArrow.moveTo(0, 12);
-    leftArrow.lineTo(20, 0);
-    leftArrow.lineTo(20, 24);
+    leftArrow.moveTo(0, 10);
+    leftArrow.lineTo(16, 0);
+    leftArrow.lineTo(16, 20);
     leftArrow.closePath();
-    leftArrow.fill({ color: 0x4de3ff, alpha: 0.9 });
-    leftArrow.x = dialogWidth - 72;
-    leftArrow.y = dialogHeight - 44;
+    leftArrow.fill({ color: 0xffffff, alpha: 0.9 });
+    leftArrow.x = -40;
     leftArrow.eventMode = 'static';
     leftArrow.cursor = 'pointer';
     leftArrow.on('pointertap', () => this.nextText(-1));
 
     const rightArrow = new Graphics();
-    rightArrow.moveTo(20, 12);
+    rightArrow.moveTo(16, 10);
     rightArrow.lineTo(0, 0);
-    rightArrow.lineTo(0, 24);
+    rightArrow.lineTo(0, 20);
     rightArrow.closePath();
-    rightArrow.fill({ color: 0x4de3ff, alpha: 0.9 });
-    rightArrow.x = dialogWidth - 36;
-    rightArrow.y = dialogHeight - 44;
+    rightArrow.fill({ color: 0xffffff, alpha: 0.9 });
+    rightArrow.x = 24;
     rightArrow.eventMode = 'static';
     rightArrow.cursor = 'pointer';
     rightArrow.on('pointertap', () => this.nextText(1));
@@ -439,32 +454,92 @@ export class CasesScene {
     const pageIndicator = new Text({
       text: '',
       style: {
-        fill: 0x9fb8ff,
+        fill: 0xffffff,
         fontSize: 14,
         fontFamily: this.font,
+        dropShadow: true,
+        dropShadowColor: 0x000000,
+        dropShadowDistance: 2,
+        dropShadowBlur: 0,
       },
     });
-    pageIndicator.anchor.set(0.5, 0);
-    pageIndicator.x = dialogWidth - 54;
-    pageIndicator.y = 18;
+    pageIndicator.anchor.set(0.5, 0.5);
+    pageIndicator.y = 10;
 
-    this.dialogContainer.addChild(categoryLabel);
-    this.dialogContainer.addChild(dialog);
-    this.dialogContainer.addChild(title);
-    this.dialogContainer.addChild(body);
-    this.dialogContainer.addChild(leftArrow);
-    this.dialogContainer.addChild(rightArrow);
-    this.dialogContainer.addChild(pageIndicator);
+    navContainer.addChild(leftArrow);
+    navContainer.addChild(pageIndicator);
+    navContainer.addChild(rightArrow);
 
-    this.dialogBox = dialog;
-    this.dialogCategory = categoryLabel;
-    this.dialogTitle = title;
-    this.dialogBody = body;
-    this.dialogLeft = leftArrow;
-    this.dialogRight = rightArrow;
-    this.dialogPage = pageIndicator;
+    // ── Бабл с текстом ──
+    const bubbleBody = new Text({
+      text: '',
+      style: {
+        fill: 0x333333,
+        fontSize: this.dialogBodyFontSize,
+        fontFamily: this.font,
+        wordWrap: true,
+        wordWrapWidth: bubbleWidth - bubblePadding * 2,
+        lineHeight: this.dialogBodyLineHeight,
+        align: 'left',
+      },
+    });
+    bubbleBody.anchor.set(0, 0);
 
-    this.updateDialogForCase(this.activeIndex);
+    // Placeholder bubble background (будет перерисовываться при обновлении текста)
+    const bubbleBg = new Graphics();
+
+    this.speechBubbleContainer.addChild(navContainer);
+    this.speechBubbleContainer.addChild(bubbleBg);
+    this.speechBubbleContainer.addChild(bubbleBody);
+
+    this.bubbleNav = navContainer;
+    this.bubbleLeft = leftArrow;
+    this.bubbleRight = rightArrow;
+    this.bubblePage = pageIndicator;
+    this.bubbleBg = bubbleBg;
+    this.bubbleBody = bubbleBody;
+    this.bubbleWidth = bubbleWidth;
+    this.bubblePadding = bubblePadding;
+    this.bubbleTailHeight = tailHeight;
+  }
+
+  updateBubbleBackground() {
+    if (!this.bubbleBg || !this.bubbleBody) return;
+
+    const padding = this.bubblePadding;
+    const tailHeight = this.bubbleTailHeight;
+    const textW = Math.max(60, this.bubbleBody.width);
+    const textH = Math.max(20, this.bubbleBody.height);
+    const bubbleW = textW + padding * 2;
+    const bubbleH = textH + padding * 2;
+
+    this.bubbleBg.clear();
+
+    // Белый фон с закруглением
+    this.bubbleBg.roundRect(-bubbleW / 2, -bubbleH - tailHeight, bubbleW, bubbleH, 8);
+    this.bubbleBg.fill({ color: 0xffffff, alpha: 0.95 });
+    this.bubbleBg.stroke({ width: 3, color: 0x333333 });
+
+    // Хвостик вниз
+    this.bubbleBg.moveTo(-8, -tailHeight);
+    this.bubbleBg.lineTo(0, 0);
+    this.bubbleBg.lineTo(8, -tailHeight);
+    this.bubbleBg.fill({ color: 0xffffff, alpha: 0.95 });
+    this.bubbleBg.stroke({ width: 2, color: 0x333333 });
+
+    // Закрашиваем линию между хвостиком и бабблом
+    this.bubbleBg.moveTo(-7, -tailHeight - 1);
+    this.bubbleBg.lineTo(7, -tailHeight - 1);
+    this.bubbleBg.stroke({ width: 3, color: 0xffffff });
+
+    // Позиция текста внутри бабла
+    this.bubbleBody.x = -bubbleW / 2 + padding;
+    this.bubbleBody.y = -bubbleH - tailHeight + padding;
+
+    // Позиция навигации над баблом
+    if (this.bubbleNav) {
+      this.bubbleNav.y = -bubbleH - tailHeight - 30;
+    }
   }
 
   updateDialogForCase(index, syncMedia = false) {
@@ -476,16 +551,22 @@ export class CasesScene {
     const active = caseData.activeTextIndex ?? 0;
     const block = blocks[active] || '';
 
+    // Обновляем category и title
     if (this.dialogCategory) this.dialogCategory.text = category;
     if (this.dialogTitle) this.dialogTitle.text = title;
-    if (this.dialogBody) this.dialogBody.text = block;
+
+    // Обновляем speech bubble
+    if (this.bubbleBody) this.bubbleBody.text = block;
     const showArrows = blocks.length > 1;
-    if (this.dialogLeft) this.dialogLeft.visible = showArrows;
-    if (this.dialogRight) this.dialogRight.visible = showArrows;
-    if (this.dialogPage) {
-      this.dialogPage.text = blocks.length > 0 ? `${active + 1}/${blocks.length}` : '';
-      this.dialogPage.visible = blocks.length > 1;
+    if (this.bubbleLeft) this.bubbleLeft.visible = showArrows;
+    if (this.bubbleRight) this.bubbleRight.visible = showArrows;
+    if (this.bubblePage) {
+      this.bubblePage.text = blocks.length > 0 ? `${active + 1}/${blocks.length}` : '';
+      this.bubblePage.visible = blocks.length > 1;
     }
+
+    // Перерисовываем фон бабла под размер текста
+    this.updateBubbleBackground();
     this.fitDialogText();
 
     // Синхронизация изображения с текстовым блоком
@@ -556,46 +637,39 @@ export class CasesScene {
   }
 
   fitDialogText() {
-    if (!this.dialogBox) return;
-    const dialogWidth = this.dialogBox.width;
-    const dialogHeight = this.dialogBox.height;
-    const maxTextWidth = dialogWidth - this.dialogPadding * 2 - this.dialogRightGutter;
+    const maxTextWidth = this.app.screen.width * 0.8;
+
+    if (this.dialogCategory) {
+      this.fitTextToBox(this.dialogCategory, {
+        maxWidth: maxTextWidth,
+        maxHeight: 40,
+        maxFontSize: this.dialogCategoryFontSize,
+        minFontSize: this.dialogCategoryMinFontSize,
+        wordWrap: false,
+      });
+    }
 
     if (this.dialogTitle) {
-      const titleMaxHeight = Math.max(
-        12,
-        (this.dialogBody?.y ?? (this.dialogTitle.y + 30)) - this.dialogTitle.y - 6
-      );
       this.fitTextToBox(this.dialogTitle, {
         maxWidth: maxTextWidth,
-        maxHeight: titleMaxHeight,
+        maxHeight: 30,
         maxFontSize: this.dialogTitleFontSize,
         minFontSize: this.dialogTitleMinFontSize,
         wordWrap: true,
       });
     }
 
-    if (this.dialogBody) {
-      const bodyMaxHeight = Math.max(24, dialogHeight - this.dialogBody.y - 16);
-      this.fitTextToBox(this.dialogBody, {
-        maxWidth: maxTextWidth,
-        maxHeight: bodyMaxHeight,
+    // Fit bubble body text
+    if (this.bubbleBody) {
+      this.fitTextToBox(this.bubbleBody, {
+        maxWidth: this.bubbleWidth - this.bubblePadding * 2,
+        maxHeight: 120,
         maxFontSize: this.dialogBodyFontSize,
         minFontSize: this.dialogBodyMinFontSize,
         wordWrap: true,
         lineHeightRatio: this.dialogBodyLineHeight / this.dialogBodyFontSize,
       });
-    }
-
-    if (this.dialogCategory) {
-      const categoryMaxHeight = Math.max(18, this.dialogCategoryFontSize + 6);
-      this.fitTextToBox(this.dialogCategory, {
-        maxWidth: dialogWidth - this.dialogPadding * 2,
-        maxHeight: categoryMaxHeight,
-        maxFontSize: this.dialogCategoryFontSize,
-        minFontSize: this.dialogCategoryMinFontSize,
-        wordWrap: false,
-      });
+      this.updateBubbleBackground();
     }
   }
 
@@ -852,10 +926,22 @@ export class CasesScene {
       layer.tilePosition.x += dx * (1 - factor);
     }
 
-    // Диалог фиксирован на экране
-    if (this.dialogContainer && this.dialogBox) {
-      this.dialogContainer.x = -this.container.x + (this.app.screen.width - this.dialogBox.width) / 2;
-      this.dialogContainer.y = this.app.screen.height - this.bottomPadding - this.dialogBox.height - 20;
+    // Диалог (category + title) внизу по центру экрана
+    if (this.dialogContainer) {
+      this.dialogContainer.x = -this.container.x + this.app.screen.width / 2;
+      this.dialogContainer.y = this.app.screen.height - this.bottomPadding;
+      if (this.dialogCategory) {
+        this.dialogCategory.y = -30;
+      }
+      if (this.dialogTitle) {
+        this.dialogTitle.y = -10;
+      }
+    }
+
+    // Speech bubble над персонажем
+    if (this.speechBubbleContainer && this.charSprite) {
+      this.speechBubbleContainer.x = this.charSprite.x;
+      this.speechBubbleContainer.y = this.charSprite.y - this.charHeight + this.bubbleOffsetY;
     }
   }
 
@@ -932,6 +1018,13 @@ export class CasesScene {
     this.parallaxLayers = [];
     this.wallTexture = null;
     this.floorTexture = null;
+
+    // Clear references
+    this.bubbleBg = null;
+    this.bubbleBody = null;
+    this.bubbleNav = null;
+    this.dialogCategory = null;
+    this.dialogTitle = null;
 
     if (this.container.parent) {
       this.container.parent.removeChild(this.container);

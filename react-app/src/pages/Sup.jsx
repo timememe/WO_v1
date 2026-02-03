@@ -12,7 +12,7 @@ export default function Sup() {
   const { t, lang, toggleLanguage } = useI18n();
   const [activeSection, setActiveSection] = useState(null);
   const [aiStatus, setAiStatus] = useState(null);
-  const [controllerMode, setControllerMode] = useState(true); // true = manual, false = AI
+  const [controllerMode, setControllerMode] = useState(false); // true = manual, false = AI
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [joystickActive, setJoystickActive] = useState(false);
   const [joystickPos, setJoystickPos] = useState({ x: 0, y: 0 });
@@ -441,55 +441,26 @@ export default function Sup() {
 
             {/* OVERLAY - AI STATUS */}
             {aiStatus && sceneTypeRef.current === 'main' && (
-              <>
-                <div className="sup-genesis-hud">
-                  <div className="sup-genesis-hud-grid">
-                    <div className="sup-hud-tile sup-hud-need is-energy">
-                      <span className="sup-hud-label">{t.hud.energy}</span>
-                      <div className="sup-hud-need-bar">
-                        <div
-                          className="sup-hud-need-fill"
-                          style={{ width: `${aiStatus.needs.energy}%` }}
-                        ></div>
-                      </div>
-                      <span className="sup-hud-value">{aiStatus.needs.energy}%</span>
-                    </div>
-
-                    <div className="sup-hud-tile sup-hud-need is-hunger">
-                      <span className="sup-hud-label">{t.hud.hunger}</span>
-                      <div className="sup-hud-need-bar">
-                        <div
-                          className="sup-hud-need-fill"
-                          style={{ width: `${aiStatus.needs.hunger}%` }}
-                        ></div>
-                      </div>
-                      <span className="sup-hud-value">{aiStatus.needs.hunger}%</span>
-                    </div>
-
-                    <div className="sup-hud-tile sup-hud-need is-fun">
-                      <span className="sup-hud-label">{t.hud.fun}</span>
-                      <div className="sup-hud-need-bar">
-                        <div
-                          className="sup-hud-need-fill"
-                          style={{ width: `${aiStatus.needs.fun}%` }}
-                        ></div>
-                      </div>
-                      <span className="sup-hud-value">{aiStatus.needs.fun}%</span>
-                    </div>
-
-                    <div className="sup-hud-tile sup-hud-need is-social">
-                      <span className="sup-hud-label">{t.hud.social}</span>
-                      <div className="sup-hud-need-bar">
-                        <div
-                          className="sup-hud-need-fill"
-                          style={{ width: `${aiStatus.needs.social}%` }}
-                        ></div>
-                      </div>
-                      <span className="sup-hud-value">{aiStatus.needs.social}%</span>
+              <div className="sup-genesis-hud">
+                {[
+                  { key: 'energy', label: t.hud.energy, value: aiStatus.needs.energy },
+                  { key: 'hunger', label: t.hud.hunger, value: aiStatus.needs.hunger },
+                  { key: 'fun', label: t.hud.fun, value: aiStatus.needs.fun },
+                  { key: 'social', label: t.hud.social, value: aiStatus.needs.social },
+                ].map(({ key, label, value }) => (
+                  <div key={key} className={`sup-sega-stat is-${key}`}>
+                    <span className="sup-sega-label">{label}</span>
+                    <div className="sup-sega-bar">
+                      {[...Array(10)].map((_, i) => (
+                        <span
+                          key={i}
+                          className={`sup-sega-cell ${i < Math.round(value / 10) ? 'is-filled' : ''}`}
+                        />
+                      ))}
                     </div>
                   </div>
-                </div>
-              </>
+                ))}
+              </div>
             )}
 
             {/* Touch area for floating joystick */}

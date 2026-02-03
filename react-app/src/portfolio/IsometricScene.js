@@ -101,7 +101,7 @@ export class IsometricScene {
     this.cameraVelocityY = 0;           // Текущая скорость камеры Y
     this.cameraLookX = 0;               // Текущий look ahead offset X
     this.cameraLookY = 0;               // Текущий look ahead offset Y
-    this.controllerMode = true;        // true = ручное управление, false = AI
+    this.controllerMode = false;       // true = ручное управление, false = AI
     this.debugMode = false;            // Показывать debug графику
 
     // ═══════════════════════════════════════════════════════════════
