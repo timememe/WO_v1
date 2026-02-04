@@ -19,6 +19,7 @@ const CASES_DATA = [
   },
   {
     localeKey: 'loreal',
+    mediaKeys: ['loreal_0', 'loreal_1', 'loreal_2', 'loreal_3'],
   },
   {
     localeKey: 'dirol',
@@ -374,37 +375,34 @@ export class CasesScene {
       child.destroy({ children: true, texture: false, baseTexture: false });
     });
 
+    // ── Фон для title/category ──
+    const dialogBg = new Graphics();
+    this.dialogBg = dialogBg;
+
     // ── Крупный заголовок категории ──
     const categoryLabel = new Text({
       text: '',
       style: {
-        fill: 0xffffff,
+        fill: 0x4de3ff,
         fontSize: this.dialogCategoryFontSize,
         fontFamily: this.font,
         fontWeight: 'bold',
-        dropShadow: true,
-        dropShadowColor: 0x000000,
-        dropShadowDistance: 2,
-        dropShadowBlur: 0,
       },
     });
-    categoryLabel.anchor.set(0.5, 1);
+    categoryLabel.anchor.set(1, 1);
 
     // ── Title под category ──
     const title = new Text({
       text: '',
       style: {
-        fill: 0xc7d3f1,
+        fill: 0xffffff,
         fontSize: this.dialogTitleFontSize,
         fontFamily: this.font,
-        dropShadow: true,
-        dropShadowColor: 0x000000,
-        dropShadowDistance: 2,
-        dropShadowBlur: 0,
       },
     });
-    title.anchor.set(0.5, 0);
+    title.anchor.set(1, 1);
 
+    this.dialogContainer.addChild(dialogBg);
     this.dialogContainer.addChild(categoryLabel);
     this.dialogContainer.addChild(title);
 
@@ -417,6 +415,29 @@ export class CasesScene {
     this.updateDialogForCase(this.activeIndex);
   }
 
+  updateDialogBackground() {
+    if (!this.dialogBg || !this.dialogCategory || !this.dialogTitle) return;
+
+    const padding = 12;
+    const catW = this.dialogCategory.width;
+    const catH = this.dialogCategory.height;
+    const titleW = this.dialogTitle.width;
+    const titleH = this.dialogTitle.height;
+    const totalW = Math.max(catW, titleW) + padding * 2;
+    const totalH = catH + titleH + 8 + padding * 2;
+
+    this.dialogBg.clear();
+    this.dialogBg.roundRect(-totalW, -totalH, totalW, totalH, 8);
+    this.dialogBg.fill({ color: 0x000000, alpha: 0.7 });
+    this.dialogBg.stroke({ width: 2, color: 0x4de3ff, alpha: 0.8 });
+
+    // Позиционируем тексты внутри фона
+    this.dialogCategory.x = -padding;
+    this.dialogCategory.y = -titleH - 8 - padding;
+    this.dialogTitle.x = -padding;
+    this.dialogTitle.y = -padding;
+  }
+
   createSpeechBubble() {
     this.speechBubbleContainer.removeChildren().forEach((child) => {
       child.destroy({ children: true, texture: false, baseTexture: false });
@@ -426,27 +447,35 @@ export class CasesScene {
     const bubblePadding = 14;
     const tailHeight = 12;
 
-    // ── Навигация над баблом ──
+    // ── Навигация над баблом с фоном ──
     const navContainer = new Container();
 
+    // Фон навигации
+    const navBg = new Graphics();
+    navBg.roundRect(-50, -4, 100, 28, 14);
+    navBg.fill({ color: 0x000000, alpha: 0.8 });
+    navBg.stroke({ width: 2, color: 0xffffff, alpha: 0.9 });
+
     const leftArrow = new Graphics();
-    leftArrow.moveTo(0, 10);
-    leftArrow.lineTo(16, 0);
-    leftArrow.lineTo(16, 20);
+    leftArrow.moveTo(0, 8);
+    leftArrow.lineTo(12, 0);
+    leftArrow.lineTo(12, 16);
     leftArrow.closePath();
-    leftArrow.fill({ color: 0xffffff, alpha: 0.9 });
-    leftArrow.x = -40;
+    leftArrow.fill({ color: 0x4de3ff, alpha: 1 });
+    leftArrow.x = -38;
+    leftArrow.y = 2;
     leftArrow.eventMode = 'static';
     leftArrow.cursor = 'pointer';
     leftArrow.on('pointertap', () => this.nextText(-1));
 
     const rightArrow = new Graphics();
-    rightArrow.moveTo(16, 10);
+    rightArrow.moveTo(12, 8);
     rightArrow.lineTo(0, 0);
-    rightArrow.lineTo(0, 20);
+    rightArrow.lineTo(0, 16);
     rightArrow.closePath();
-    rightArrow.fill({ color: 0xffffff, alpha: 0.9 });
-    rightArrow.x = 24;
+    rightArrow.fill({ color: 0x4de3ff, alpha: 1 });
+    rightArrow.x = 26;
+    rightArrow.y = 2;
     rightArrow.eventMode = 'static';
     rightArrow.cursor = 'pointer';
     rightArrow.on('pointertap', () => this.nextText(1));
@@ -455,20 +484,19 @@ export class CasesScene {
       text: '',
       style: {
         fill: 0xffffff,
-        fontSize: 14,
+        fontSize: 12,
         fontFamily: this.font,
-        dropShadow: true,
-        dropShadowColor: 0x000000,
-        dropShadowDistance: 2,
-        dropShadowBlur: 0,
       },
     });
     pageIndicator.anchor.set(0.5, 0.5);
     pageIndicator.y = 10;
 
+    navContainer.addChild(navBg);
     navContainer.addChild(leftArrow);
     navContainer.addChild(pageIndicator);
     navContainer.addChild(rightArrow);
+
+    this.navBg = navBg;
 
     // ── Бабл с текстом ──
     const bubbleBody = new Text({
@@ -560,13 +588,15 @@ export class CasesScene {
     const showArrows = blocks.length > 1;
     if (this.bubbleLeft) this.bubbleLeft.visible = showArrows;
     if (this.bubbleRight) this.bubbleRight.visible = showArrows;
+    if (this.navBg) this.navBg.visible = showArrows;
     if (this.bubblePage) {
       this.bubblePage.text = blocks.length > 0 ? `${active + 1}/${blocks.length}` : '';
-      this.bubblePage.visible = blocks.length > 1;
+      this.bubblePage.visible = showArrows;
     }
 
-    // Перерисовываем фон бабла под размер текста
+    // Перерисовываем фоны
     this.updateBubbleBackground();
+    this.updateDialogBackground();
     this.fitDialogText();
 
     // Синхронизация изображения с текстовым блоком
@@ -615,8 +645,60 @@ export class CasesScene {
       : contentItem.displayObject;
     if (!contentNode) return;
 
-    contentNode.anchor?.set?.(0.5, 0.5);
     const box = this.getContentBox();
+    const framePadding = 10;
+    const frameX = -box.width / 2 - framePadding;
+    const frameY = -box.height / 2 - framePadding;
+    const frameW = box.width + framePadding * 2;
+    const frameH = box.height + framePadding * 2;
+    const radius = 4;
+
+    // ── Star Wars голограмма ──
+    const holoColor = 0x4fc3f7; // Голубой как в SW
+    const holoColorDark = 0x0288d1;
+
+    const frame = new Graphics();
+
+    // Внешнее свечение
+    frame.roundRect(frameX - 4, frameY - 4, frameW + 8, frameH + 8, radius + 2);
+    frame.stroke({ width: 6, color: holoColor, alpha: 0.15 });
+    frame.roundRect(frameX - 2, frameY - 2, frameW + 4, frameH + 4, radius + 1);
+    frame.stroke({ width: 3, color: holoColor, alpha: 0.25 });
+
+    // Основная рамка с заливкой
+    frame.roundRect(frameX, frameY, frameW, frameH, radius);
+    frame.fill({ color: holoColor, alpha: 0.15 });
+    frame.stroke({ width: 2, color: holoColor, alpha: 0.9 });
+
+    // Угловые акценты (как в техно-интерфейсах SW)
+    const cornerSize = 16;
+    const corners = [
+      [frameX, frameY], // top-left
+      [frameX + frameW - cornerSize, frameY], // top-right
+      [frameX, frameY + frameH - cornerSize], // bottom-left
+      [frameX + frameW - cornerSize, frameY + frameH - cornerSize], // bottom-right
+    ];
+
+    corners.forEach(([cx, cy], i) => {
+      frame.moveTo(cx + (i % 2 === 0 ? 0 : cornerSize), cy);
+      frame.lineTo(cx + (i % 2 === 0 ? cornerSize : 0), cy);
+      frame.moveTo(cx + (i % 2 === 0 ? 0 : cornerSize), cy);
+      frame.lineTo(cx + (i % 2 === 0 ? 0 : cornerSize), cy + (i < 2 ? cornerSize : -cornerSize + cornerSize));
+      frame.stroke({ width: 3, color: holoColor, alpha: 1 });
+    });
+
+    // Scanlines эффект
+    const scanlines = new Graphics();
+    for (let y = frameY; y < frameY + frameH; y += 4) {
+      scanlines.moveTo(frameX, y);
+      scanlines.lineTo(frameX + frameW, y);
+    }
+    scanlines.stroke({ width: 1, color: holoColorDark, alpha: 0.12 });
+
+    container.addChild(frame);
+    container.addChild(scanlines);
+
+    contentNode.anchor?.set?.(0.5, 0.5);
     this.fitDisplayObject(contentNode, box.width, box.height);
     contentNode.x = 0;
     contentNode.y = 0;
@@ -926,16 +1008,13 @@ export class CasesScene {
       layer.tilePosition.x += dx * (1 - factor);
     }
 
-    // Диалог (category + title) внизу по центру экрана
-    if (this.dialogContainer) {
-      this.dialogContainer.x = -this.container.x + this.app.screen.width / 2;
-      this.dialogContainer.y = this.app.screen.height - this.bottomPadding;
-      if (this.dialogCategory) {
-        this.dialogCategory.y = -30;
-      }
-      if (this.dialogTitle) {
-        this.dialogTitle.y = -10;
-      }
+    // Диалог (category + title) в правом нижнем углу активного тайла
+    const activeTile = this.tiles?.[this.activeIndex];
+    if (this.dialogContainer && activeTile) {
+      const tileRight = activeTile.x + this.tileWidth / 2 - 20;
+      const tileBottom = activeTile.y + this.tileHeight / 2 - 20;
+      this.dialogContainer.x = tileRight;
+      this.dialogContainer.y = tileBottom;
     }
 
     // Speech bubble над персонажем

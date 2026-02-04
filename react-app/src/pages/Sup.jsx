@@ -224,7 +224,7 @@ export default function Sup() {
               tileGap: 0,
               tileOverlap: 20,
               backgroundColor: 0x000000,
-              debugMode: true,
+              debugMode: false,
               lang: lang,
             },
             sceneRootRef.current,
