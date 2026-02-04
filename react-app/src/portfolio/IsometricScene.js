@@ -153,6 +153,11 @@ export class IsometricScene {
     this.speechWaitTimer = null;
     this.isPaused = false;
     this.isDestroyed = false;
+
+    // FPS Counter (данные для внешнего UI)
+    this.fpsHistory = [];
+    this.fpsHistoryMaxLength = 60; // Средний FPS за последние 60 кадров
+    this.fpsData = { current: 0, avg: 0, min: 0, max: 0 };
     this.aiWasRunning = false;
     this.backgroundTiles = [];
     this.walls = [];
@@ -489,6 +494,9 @@ export class IsometricScene {
 
       // Debug: отрисовка пути AI
       this.drawPathDebug();
+
+      // Обновляем данные FPS (без PixiJS UI)
+      this.updateFPSData();
     };
     this.app.ticker.add(this.idleAnimationFn);
 
@@ -665,6 +673,49 @@ export class IsometricScene {
       return;
     }
     this.cameraTarget = { x: target.x, y: target.y };
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // FPS DATA (для внешнего HTML UI)
+  // ═══════════════════════════════════════════════════════════════
+  updateFPSData() {
+    // Обновляем только каждые 10 кадров для производительности
+    this.fpsUpdateCounter = (this.fpsUpdateCounter || 0) + 1;
+    if (this.fpsUpdateCounter < 10) return;
+    this.fpsUpdateCounter = 0;
+
+    const currentFPS = this.app.ticker.FPS;
+
+    // Добавляем в историю для подсчёта среднего
+    this.fpsHistory.push(currentFPS);
+    if (this.fpsHistory.length > this.fpsHistoryMaxLength) {
+      this.fpsHistory.shift();
+    }
+
+    // Вычисляем статистику
+    const avgFPS = this.fpsHistory.reduce((a, b) => a + b, 0) / this.fpsHistory.length;
+    const minFPS = Math.min(...this.fpsHistory);
+    const maxFPS = Math.max(...this.fpsHistory);
+
+    // Сохраняем данные для внешнего доступа
+    this.fpsData = {
+      current: Math.round(currentFPS),
+      avg: Math.round(avgFPS),
+      min: Math.round(minFPS),
+      max: Math.round(maxFPS),
+    };
+  }
+
+  // Получить данные для отображения в HTML UI
+  getDebugInfo() {
+    const aiStatus = this.characterAI ? this.characterAI.getStatus() : null;
+    return {
+      fps: this.fpsData,
+      time: aiStatus?.time || null,
+      needs: aiStatus?.needs || null,
+      state: aiStatus?.state || null,
+      activity: aiStatus?.activity || null,
+    };
   }
 
   getLocationCenter(location) {
@@ -1561,6 +1612,7 @@ export class IsometricScene {
 
     this.rootContainer.addChild(this.container);
 
+
     // Инициализируем камеру (центрируем на игроке)
     this.updateCamera();
 
@@ -1716,6 +1768,10 @@ export class IsometricScene {
       this.boundsDebugGraphics.destroy();
       this.boundsDebugGraphics = null;
     }
+
+    // Очищаем FPS данные
+    this.fpsHistory = [];
+    this.fpsData = { current: 0, avg: 0, min: 0, max: 0 };
 
     // Очищаем озёра
     if (this.lakes) {

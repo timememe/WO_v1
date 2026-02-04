@@ -3,9 +3,31 @@
  * Симулирует жизнь персонажа в стиле тамагочи
  * Адаптирован под свободное движение (free movement controller)
  */
+
+// Ключ для localStorage
+const STORAGE_KEY = 'tamagotchi_state';
+
 export class CharacterAI {
   constructor(scene) {
     this.scene = scene; // Ссылка на IsometricScene
+
+    // ═══════════════════════════════════════════════════════════════
+    // СИСТЕМА ВРЕМЕНИ
+    // ═══════════════════════════════════════════════════════════════
+    // Игровое время: 1 реальная секунда = 1 игровая минута
+    // 1 игровой день = 24 игровых часа = 24 * 60 = 1440 реальных секунд = 24 минуты
+    this.timeScale = 1;              // Множитель скорости времени (1 = нормально)
+    this.gameMinute = 0;             // Текущая минута (0-59)
+    this.gameHour = 8;               // Текущий час (0-23), старт в 8 утра
+    this.gameDay = 1;                // Текущий день
+    this.totalGameMinutes = 0;       // Всего прошло игровых минут (для статистики)
+
+    // Периоды суток
+    this.timeOfDay = 'morning';      // morning (6-12), afternoon (12-18), evening (18-22), night (22-6)
+
+    // Таймер для обновления времени
+    this.timeAccumulator = 0;        // Накопитель времени (мс)
+    this.msPerGameMinute = 1000;     // Сколько мс = 1 игровая минута
 
     // Потребности персонажа (0-100)
     this.needs = {
@@ -15,13 +37,17 @@ export class CharacterAI {
       social: 100,      // Социализация (уменьшается со временем, восстанавливается общением)
     };
 
-    // Скорость уменьшения потребностей (единиц в секунду)
-    this.needsDecayRate = {
+    // Базовая скорость уменьшения потребностей (единиц в секунду)
+    // Модифицируется временем суток
+    this.baseNeedsDecayRate = {
       energy: 0.5,
       hunger: 0.3,
       fun: 0.4,
       social: 0.2,
     };
+
+    // Активная скорость (модифицируется временем суток)
+    this.needsDecayRate = { ...this.baseNeedsDecayRate };
 
     // Текущее состояние персонажа
     this.currentState = 'idle'; // idle, walking, performing_action, speaking
@@ -44,24 +70,58 @@ export class CharacterAI {
     this.isTyping = false;            // Флаг: идёт ли анимация печати
     this.pauseAfterTyping = 2000;     // Пауза после завершения печати (мс)
 
-    // Фразы для случайных высказываний
-    this.phrases = [
+    // Фразы для случайных высказываний (зависят от времени суток)
+    this.phrasesByTimeOfDay = {
+      morning: [
+        "Доброе утро, мир!",
+        "Новый день — новые возможности",
+        "Кофе! Срочно нужен кофе!",
+        "Какой план на сегодня?",
+        "Солнце встаёт, пора и мне",
+        "День ${day}... Интересно, что он принесёт",
+        "Утро вечера мудренее",
+        "Что бы такого сделать сегодня?",
+      ],
+      afternoon: [
+        "День в самом разгаре!",
+        "Пора бы перекусить...",
+        "Работа не волк... работа это ворк",
+        "Уже день ${day}, а столько ещё не сделано",
+        "Сегодня отличный день!",
+        "Эх, жизнь прекрасна!",
+        "Пора бы заняться делом",
+        "Время летит незаметно",
+        "Нужно больше кофе",
+      ],
+      evening: [
+        "Вечереет...",
+        "День был продуктивным",
+        "Скоро пора отдыхать",
+        "Закат красивый сегодня",
+        "Может, прогуляться перед сном?",
+        "День ${day} подходит к концу",
+        "Интересно, что будет завтра?",
+        "Вечерний воздух... Хорошо!",
+      ],
+      night: [
+        "Уже ночь... Пора спать",
+        "Звёзды красивые...",
+        "Ночь — время для размышлений",
+        "Я пиксельный человек в пиксельном мире",
+        "Я запер сам себя в бесконечном цикле.",
+        "Есть ли клетка внутри клетки?",
+        "Ночь ${day}... Тишина",
+        "Сны ждут меня",
+        "Кажется, пора отдохнуть",
+      ],
+    };
+
+    // Общие фразы (для любого времени)
+    this.generalPhrases = [
       "Что бы такого сделать?",
-      "Кажется, пора отдохнуть",
-      "Сегодня отличный день!",
-      "Надо бы перекусить...",
       "О чём я думал?",
-      "Работа не волк... работа это ворк",
-      "Может, прогуляться?",
-      "Эх, жизнь прекрасна!",
-      "Интересно, что там нового?",
-      "Пора бы заняться делом",
-      "Я пиксельный человек в пиксельном мире",
       "А вот это мысль!",
-      "Нужно больше кофе",
-      "Время летит незаметно",
-      "Я запер сам себя в бесконечном цикле.",
-      "Есть ли клетка внутри клетки?",
+      "Интересно, что там нового?",
     ];
 
     // Целевая позиция для движения (float координаты)
@@ -105,6 +165,9 @@ export class CharacterAI {
     // Сначала останавливаем предыдущие таймеры (защита от дублирования)
     this.stop();
 
+    // Загружаем сохранённое состояние
+    this.loadState();
+
     // Сбрасываем состояние для чистого старта
     this.currentState = 'idle';
     this.currentGoal = null;
@@ -115,19 +178,32 @@ export class CharacterAI {
     this.currentPathIndex = 0;
     this.entryTile = null;
     this.lastSpeakCheck = Date.now(); // Даём время до первой проверки речи
+    this.lastUpdateTime = Date.now(); // Для deltaTime
 
-    // Обновляем потребности каждую секунду
+    // Обновляем потребности и время каждую секунду
     this.updateInterval = setInterval(() => {
       this.updateNeeds();
       this.updateActionTimer();
+      this.updateGameTime(1000); // Передаём 1000 мс
+      // Автосохранение каждые 10 секунд (не каждую секунду)
+      this.saveCounter = (this.saveCounter || 0) + 1;
+      if (this.saveCounter >= 10) {
+        this.saveCounter = 0;
+        this.saveState();
+      }
     }, 1000);
 
     // Запускаем ticker для движения
     this.movementTickerFn = () => this.updateMovement();
     this.scene.app.ticker.add(this.movementTickerFn);
 
+    // Обновляем время суток и модификаторы
+    this.updateTimeOfDay();
+
     // Начинаем с выбора действия
     this.decideNextAction();
+
+    console.log(`AI started: Day ${this.gameDay}, ${this.gameHour}:${this.gameMinute.toString().padStart(2, '0')} (${this.timeOfDay})`);
   }
 
   // Остановка AI
@@ -140,6 +216,261 @@ export class CharacterAI {
       this.scene.app.ticker.remove(this.movementTickerFn);
       this.movementTickerFn = null;
     }
+    // Сохраняем состояние при остановке
+    this.saveState();
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // СИСТЕМА ВРЕМЕНИ
+  // ═══════════════════════════════════════════════════════════════
+
+  // Обновление игрового времени
+  updateGameTime(deltaMs) {
+    this.timeAccumulator += deltaMs * this.timeScale;
+
+    // Каждые msPerGameMinute проходит 1 игровая минута
+    while (this.timeAccumulator >= this.msPerGameMinute) {
+      this.timeAccumulator -= this.msPerGameMinute;
+      this.advanceGameMinute();
+    }
+  }
+
+  // Продвинуть время на 1 игровую минуту
+  advanceGameMinute() {
+    this.gameMinute++;
+    this.totalGameMinutes++;
+
+    if (this.gameMinute >= 60) {
+      this.gameMinute = 0;
+      this.gameHour++;
+
+      if (this.gameHour >= 24) {
+        this.gameHour = 0;
+        this.gameDay++;
+        this.onNewDay();
+      }
+
+      // Обновляем время суток при смене часа
+      this.updateTimeOfDay();
+    }
+  }
+
+  // Определить время суток по текущему часу
+  updateTimeOfDay() {
+    const hour = this.gameHour;
+    let newTimeOfDay;
+
+    if (hour >= 6 && hour < 12) {
+      newTimeOfDay = 'morning';
+    } else if (hour >= 12 && hour < 18) {
+      newTimeOfDay = 'afternoon';
+    } else if (hour >= 18 && hour < 22) {
+      newTimeOfDay = 'evening';
+    } else {
+      newTimeOfDay = 'night';
+    }
+
+    // Если время суток изменилось
+    if (newTimeOfDay !== this.timeOfDay) {
+      this.timeOfDay = newTimeOfDay;
+      this.onTimeOfDayChanged();
+    }
+  }
+
+  // Вызывается при смене времени суток
+  onTimeOfDayChanged() {
+    console.log(`Time of day changed to: ${this.timeOfDay}`);
+
+    // Обновляем скорость расхода потребностей в зависимости от времени
+    switch (this.timeOfDay) {
+      case 'morning':
+        // Утро: умеренный расход, быстрее голод
+        this.needsDecayRate = {
+          energy: this.baseNeedsDecayRate.energy * 0.8,
+          hunger: this.baseNeedsDecayRate.hunger * 1.2,
+          fun: this.baseNeedsDecayRate.fun * 1.0,
+          social: this.baseNeedsDecayRate.social * 1.0,
+        };
+        break;
+      case 'afternoon':
+        // День: нормальный расход
+        this.needsDecayRate = { ...this.baseNeedsDecayRate };
+        break;
+      case 'evening':
+        // Вечер: быстрее устаёт, хочется общения
+        this.needsDecayRate = {
+          energy: this.baseNeedsDecayRate.energy * 1.3,
+          hunger: this.baseNeedsDecayRate.hunger * 0.8,
+          fun: this.baseNeedsDecayRate.fun * 1.2,
+          social: this.baseNeedsDecayRate.social * 1.5,
+        };
+        break;
+      case 'night':
+        // Ночь: сильно устаёт, меньше хочется есть
+        this.needsDecayRate = {
+          energy: this.baseNeedsDecayRate.energy * 2.0,
+          hunger: this.baseNeedsDecayRate.hunger * 0.5,
+          fun: this.baseNeedsDecayRate.fun * 0.7,
+          social: this.baseNeedsDecayRate.social * 0.5,
+        };
+        break;
+    }
+  }
+
+  // Вызывается при наступлении нового дня
+  onNewDay() {
+    console.log(`🌅 New day! Day ${this.gameDay}`);
+
+    // Небольшой бонус к потребностям при наступлении нового дня
+    this.needs.energy = Math.min(100, this.needs.energy + 10);
+    this.needs.fun = Math.min(100, this.needs.fun + 5);
+  }
+
+  // Получить случайную фразу для текущего времени суток
+  getRandomPhrase() {
+    // 70% шанс фразы по времени суток, 30% общая фраза
+    const useTimePhrase = Math.random() < 0.7;
+
+    let phrases;
+    if (useTimePhrase && this.phrasesByTimeOfDay[this.timeOfDay]) {
+      phrases = this.phrasesByTimeOfDay[this.timeOfDay];
+    } else {
+      phrases = this.generalPhrases;
+    }
+
+    // Выбираем случайную фразу
+    let phrase = phrases[Math.floor(Math.random() * phrases.length)];
+
+    // Заменяем плейсхолдеры
+    phrase = phrase.replace('${day}', this.gameDay.toString());
+
+    return phrase;
+  }
+
+  // Форматировать текущее время для отображения
+  getFormattedTime() {
+    const hour = this.gameHour.toString().padStart(2, '0');
+    const minute = this.gameMinute.toString().padStart(2, '0');
+    return `${hour}:${minute}`;
+  }
+
+  // Получить название времени суток на русском
+  getTimeOfDayName() {
+    const names = {
+      morning: 'Утро',
+      afternoon: 'День',
+      evening: 'Вечер',
+      night: 'Ночь',
+    };
+    return names[this.timeOfDay] || this.timeOfDay;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // СОХРАНЕНИЕ / ЗАГРУЗКА СОСТОЯНИЯ
+  // ═══════════════════════════════════════════════════════════════
+
+  // Сохранить состояние в localStorage
+  saveState() {
+    try {
+      const state = {
+        // Время
+        gameMinute: this.gameMinute,
+        gameHour: this.gameHour,
+        gameDay: this.gameDay,
+        totalGameMinutes: this.totalGameMinutes,
+        // Потребности
+        needs: { ...this.needs },
+        // Метаданные
+        lastSaveTime: Date.now(),
+        version: 1,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.warn('Failed to save state:', e);
+    }
+  }
+
+  // Загрузить состояние из localStorage
+  loadState() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) {
+        console.log('No saved state found, starting fresh');
+        return;
+      }
+
+      const state = JSON.parse(saved);
+
+      // Проверяем версию
+      if (state.version !== 1) {
+        console.log('Incompatible save version, starting fresh');
+        return;
+      }
+
+      // Восстанавливаем время
+      this.gameMinute = state.gameMinute ?? 0;
+      this.gameHour = state.gameHour ?? 8;
+      this.gameDay = state.gameDay ?? 1;
+      this.totalGameMinutes = state.totalGameMinutes ?? 0;
+
+      // Восстанавливаем потребности
+      if (state.needs) {
+        this.needs = {
+          energy: state.needs.energy ?? 100,
+          hunger: state.needs.hunger ?? 100,
+          fun: state.needs.fun ?? 100,
+          social: state.needs.social ?? 100,
+        };
+      }
+
+      // Вычисляем сколько времени прошло с последнего сохранения
+      if (state.lastSaveTime) {
+        const timePassed = Date.now() - state.lastSaveTime;
+        const minutesPassed = Math.floor(timePassed / this.msPerGameMinute);
+
+        // Если прошло не слишком много времени (меньше 1 реального часа),
+        // симулируем прошедшее время
+        if (minutesPassed > 0 && minutesPassed < 60) {
+          console.log(`Simulating ${minutesPassed} game minutes that passed while away`);
+          this.simulateTimePassed(minutesPassed);
+        } else if (minutesPassed >= 60) {
+          // Если прошло много времени - просто уменьшаем потребности
+          console.log(`Too much time passed (${minutesPassed} min), applying penalty`);
+          this.needs.energy = Math.max(20, this.needs.energy - 30);
+          this.needs.hunger = Math.max(20, this.needs.hunger - 30);
+          this.needs.fun = Math.max(20, this.needs.fun - 20);
+          this.needs.social = Math.max(20, this.needs.social - 20);
+        }
+      }
+
+      console.log(`State loaded: Day ${this.gameDay}, ${this.getFormattedTime()}`);
+    } catch (e) {
+      console.warn('Failed to load state:', e);
+    }
+  }
+
+  // Симулировать прошедшее время (упрощённо)
+  simulateTimePassed(minutes) {
+    for (let i = 0; i < minutes; i++) {
+      // Уменьшаем потребности
+      for (const need in this.needs) {
+        this.needs[need] = Math.max(0, this.needs[need] - this.needsDecayRate[need] * 0.5);
+      }
+      // Продвигаем время
+      this.advanceGameMinute();
+    }
+  }
+
+  // Сбросить сохранение (для отладки)
+  resetState() {
+    localStorage.removeItem(STORAGE_KEY);
+    this.gameMinute = 0;
+    this.gameHour = 8;
+    this.gameDay = 1;
+    this.totalGameMinutes = 0;
+    this.needs = { energy: 100, hunger: 100, fun: 100, social: 100 };
+    this.updateTimeOfDay();
+    console.log('State reset to defaults');
   }
 
   // Обновление потребностей
@@ -481,7 +812,7 @@ export class CharacterAI {
     if (!this.scene || this.scene.isDestroyed) return;
 
     // Выбираем случайную фразу если не передана конкретная
-    this.currentPhrase = phrase || this.phrases[Math.floor(Math.random() * this.phrases.length)];
+    this.currentPhrase = phrase || this.getRandomPhrase();
     this.displayedText = '';
     this.typingIndex = 0;
     this.isTyping = true;
@@ -850,6 +1181,31 @@ export class CharacterAI {
       },
       goal: this.currentGoal ? this.currentGoal.type : null,
       actionTimer: Math.round(this.actionTimer / 1000),
+      // Информация о времени
+      time: {
+        hour: this.gameHour,
+        minute: this.gameMinute,
+        day: this.gameDay,
+        timeOfDay: this.timeOfDay,
+        timeOfDayName: this.getTimeOfDayName(),
+        formatted: this.getFormattedTime(),
+        totalMinutes: this.totalGameMinutes,
+      },
     };
+  }
+
+  // Установить скорость времени (для отладки или ускорения)
+  setTimeScale(scale) {
+    this.timeScale = Math.max(0.1, Math.min(10, scale));
+    console.log(`Time scale set to ${this.timeScale}x`);
+  }
+
+  // Перемотать время вперёд (для отладки)
+  skipTime(hours) {
+    const minutes = hours * 60;
+    for (let i = 0; i < minutes; i++) {
+      this.advanceGameMinute();
+    }
+    console.log(`Skipped ${hours} hours. Now: Day ${this.gameDay}, ${this.getFormattedTime()}`);
   }
 }

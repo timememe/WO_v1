@@ -12,6 +12,7 @@ export default function Sup() {
   const { t, lang, toggleLanguage } = useI18n();
   const [activeSection, setActiveSection] = useState(null);
   const [aiStatus, setAiStatus] = useState(null);
+  const [debugInfo, setDebugInfo] = useState(null);
   const [controllerMode, setControllerMode] = useState(false); // true = manual, false = AI
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [joystickActive, setJoystickActive] = useState(false);
@@ -297,12 +298,17 @@ export default function Sup() {
     }
   }, [activeSection]);
 
-  // Обновление статусов AI
+  // Обновление статусов AI и debug info
   useEffect(() => {
     const updateStatus = () => {
       if (sceneRef.current?.getAIStatus) {
         const status = sceneRef.current.getAIStatus();
         setAiStatus(status || null);
+      }
+      // Обновляем debug info (FPS, время)
+      if (sceneRef.current?.getDebugInfo) {
+        const info = sceneRef.current.getDebugInfo();
+        setDebugInfo(info || null);
       }
     };
 
@@ -416,6 +422,26 @@ export default function Sup() {
         <div className="sup-viewport">
           <div className={`sup-viewport-inner ${activeSection === 'cases' ? 'is-cases' : ''}`}>
             <canvas ref={canvasRef} className="sup-canvas"></canvas>
+
+            {/* DEBUG OVERLAY - FPS & TIME */}
+            {debugInfo && assetsLoaded && (
+              <div className="sup-debug-overlay">
+                <div className="sup-debug-fps" style={{
+                  color: debugInfo.fps?.avg >= 55 ? '#0f0' : debugInfo.fps?.avg >= 30 ? '#ff0' : '#f00'
+                }}>
+                  FPS: {debugInfo.fps?.current} | AVG: {debugInfo.fps?.avg} | MIN: {debugInfo.fps?.min} | MAX: {debugInfo.fps?.max}
+                </div>
+                {debugInfo.time && (
+                  <div className="sup-debug-time" style={{
+                    color: debugInfo.time.timeOfDay === 'morning' ? '#ffd700' :
+                           debugInfo.time.timeOfDay === 'afternoon' ? '#fff' :
+                           debugInfo.time.timeOfDay === 'evening' ? '#ffa500' : '#87ceeb'
+                  }}>
+                    Day {debugInfo.time.day} | {debugInfo.time.formatted} | {debugInfo.time.timeOfDayName}
+                  </div>
+                )}
+              </div>
+            )}
 
             {!assetsLoaded && (
               <div className="sup-loader">
