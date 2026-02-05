@@ -18,7 +18,7 @@ export default function Home() {
           <div className="logo-container">
             <img
               src="/shared/assets/images/logo.png"
-              alt="Логотип Мирового Правительства"
+              alt="yeah, a world order logo"
               id="logo"
               loading="eager"
               fetchpriority="high"
@@ -28,9 +28,6 @@ export default function Home() {
         <main>
           <section id="about">
             <p>You know who we are.</p>
-            <div className="projects-link-container">
-              <Link to="/projects" className="projects-link">View Projects</Link>
-            </div>
           </section>
         </main>
         <footer>
