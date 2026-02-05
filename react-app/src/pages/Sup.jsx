@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { Application, Container, Rectangle } from 'pixi.js';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Application, Container, Rectangle, Ticker } from 'pixi.js';
 import { IsometricScene } from '../portfolio/IsometricScene';
 import { CasesScene } from '../portfolio/CasesScene';
 import { AboutScene } from '../portfolio/AboutScene';
@@ -10,9 +10,11 @@ import './Sup.css';
 
 export default function Sup() {
   const { t, lang, toggleLanguage } = useI18n();
+  const GAME_FPS = 60;
   const [activeSection, setActiveSection] = useState(null);
   const [aiStatus, setAiStatus] = useState(null);
   const [debugInfo, setDebugInfo] = useState(null);
+  const [showCrtControls, setShowCrtControls] = useState(false);
   const [controllerMode, setControllerMode] = useState(false); // true = manual, false = AI
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [joystickActive, setJoystickActive] = useState(false);
@@ -28,6 +30,19 @@ export default function Sup() {
   const crtFilterRef = useRef(null);
   const crtTickerRef = useRef(null);
   const crtContainerRef = useRef(null);  // Контейнер для CRT фильтра
+  const crtBaseRef = useRef(null);
+  const transitionRef = useRef({ active: false, t: 0, loopTimer: 0 });
+  const transitionSettingsRef = useRef({
+    loop: false,
+    interval: 2.5,
+    duration: 1,
+    strength: 0.8,
+    brightnessBoost: 1,
+    vignetteBoost: 0.25,
+    chromaBoost: 0.85,
+    scanlineBoost: 0.08,
+    flickerBoost: 0.02,
+  });
   const sceneRootRef = useRef(null);
   const resizeHandlerRef = useRef(null);
   const assetManagerRef = useRef(null);
@@ -46,10 +61,131 @@ export default function Sup() {
     curvature: 12.0,
     scanlineIntensity: 0.15,
     scanlineCount: 1200.0,
+    scanlineSpeed: 0.5,
     vignetteIntensity: 0.25,
     brightness: 1.3,
     chromaOffset: 0.8,
+    flickerSpeed: 8.0,
+    flickerIntensity: 0.02,
   };
+
+  const [crtCurvatureEnabled, setCrtCurvatureEnabled] = useState(true);
+  const [crtCurvature, setCrtCurvature] = useState(crtDefaults.curvature);
+  const [crtScanlinesEnabled, setCrtScanlinesEnabled] = useState(true);
+  const [crtScanlineIntensity, setCrtScanlineIntensity] = useState(crtDefaults.scanlineIntensity);
+  const [crtScanlineCount, setCrtScanlineCount] = useState(crtDefaults.scanlineCount);
+  const [crtScanlineSpeed, setCrtScanlineSpeed] = useState(crtDefaults.scanlineSpeed);
+  const [crtVignetteEnabled, setCrtVignetteEnabled] = useState(true);
+  const [crtVignetteIntensity, setCrtVignetteIntensity] = useState(crtDefaults.vignetteIntensity);
+  const [crtBrightnessEnabled, setCrtBrightnessEnabled] = useState(true);
+  const [crtBrightness, setCrtBrightness] = useState(crtDefaults.brightness);
+  const [crtChromaEnabled, setCrtChromaEnabled] = useState(true);
+  const [crtChromaOffset, setCrtChromaOffset] = useState(crtDefaults.chromaOffset);
+  const [crtFlickerEnabled, setCrtFlickerEnabled] = useState(true);
+  const [crtFlickerSpeed, setCrtFlickerSpeed] = useState(crtDefaults.flickerSpeed);
+  const [crtFlickerIntensity, setCrtFlickerIntensity] = useState(crtDefaults.flickerIntensity);
+
+  const [transitionLoop, setTransitionLoop] = useState(false);
+  const [transitionInterval, setTransitionInterval] = useState(2.5);
+  const [transitionDuration, setTransitionDuration] = useState(1.5);
+  const [transitionStrength, setTransitionStrength] = useState(1);
+  const [transitionBrightnessBoost, setTransitionBrightnessBoost] = useState(1);
+  const [transitionVignetteBoost, setTransitionVignetteBoost] = useState(1.5);
+  const [transitionChromaBoost, setTransitionChromaBoost] = useState(0.85);
+  const [transitionScanlineBoost, setTransitionScanlineBoost] = useState(0.08);
+  const [transitionFlickerBoost, setTransitionFlickerBoost] = useState(0.02);
+
+  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+  const applyCrtSettings = useCallback(() => {
+    const filter = crtFilterRef.current;
+    if (!filter) return;
+
+    const base = {
+      curvature: crtCurvatureEnabled ? crtCurvature : 1000,
+      scanlineIntensity: crtScanlinesEnabled ? crtScanlineIntensity : 0,
+      scanlineCount: crtScanlineCount,
+      scanlineSpeed: crtScanlinesEnabled ? crtScanlineSpeed : 0,
+      vignetteIntensity: crtVignetteEnabled ? crtVignetteIntensity : 0,
+      brightness: crtBrightnessEnabled ? crtBrightness : 1,
+      chromaOffset: crtChromaEnabled ? crtChromaOffset : 0,
+      flickerSpeed: crtFlickerEnabled ? crtFlickerSpeed : 0,
+      flickerIntensity: crtFlickerEnabled ? crtFlickerIntensity : 0,
+      enabled: {
+        curvature: crtCurvatureEnabled,
+        scanlines: crtScanlinesEnabled,
+        vignette: crtVignetteEnabled,
+        brightness: crtBrightnessEnabled,
+        chroma: crtChromaEnabled,
+        flicker: crtFlickerEnabled,
+      },
+    };
+
+    crtBaseRef.current = base;
+    filter.curvature = base.curvature;
+    filter.scanlineIntensity = base.scanlineIntensity;
+    filter.scanlineCount = base.scanlineCount;
+    filter.scanlineSpeed = base.scanlineSpeed;
+    filter.vignetteIntensity = base.vignetteIntensity;
+    filter.brightness = base.brightness;
+    filter.chromaOffset = base.chromaOffset;
+    filter.flickerSpeed = base.flickerSpeed;
+    filter.flickerIntensity = base.flickerIntensity;
+  }, [
+    crtCurvatureEnabled,
+    crtCurvature,
+    crtScanlinesEnabled,
+    crtScanlineIntensity,
+    crtScanlineCount,
+    crtScanlineSpeed,
+    crtVignetteEnabled,
+    crtVignetteIntensity,
+    crtBrightnessEnabled,
+    crtBrightness,
+    crtChromaEnabled,
+    crtChromaOffset,
+    crtFlickerEnabled,
+    crtFlickerSpeed,
+    crtFlickerIntensity,
+  ]);
+
+  const triggerTransitionPulse = useCallback(() => {
+    const state = transitionRef.current;
+    state.active = true;
+    state.t = 0;
+    state.loopTimer = 0;
+  }, []);
+
+  useEffect(() => {
+    transitionSettingsRef.current = {
+      loop: transitionLoop,
+      interval: transitionInterval,
+      duration: transitionDuration,
+      strength: transitionStrength,
+      brightnessBoost: transitionBrightnessBoost,
+      vignetteBoost: transitionVignetteBoost,
+      chromaBoost: transitionChromaBoost,
+      scanlineBoost: transitionScanlineBoost,
+      flickerBoost: transitionFlickerBoost,
+    };
+  }, [
+    transitionLoop,
+    transitionInterval,
+    transitionDuration,
+    transitionStrength,
+    transitionBrightnessBoost,
+    transitionVignetteBoost,
+    transitionChromaBoost,
+    transitionScanlineBoost,
+    transitionFlickerBoost,
+  ]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    const debugFlag = url.searchParams.has('debug') || url.hash.includes('debug');
+    setShowCrtControls(debugFlag);
+  }, []);
 
 
   useEffect(() => {
@@ -66,6 +202,11 @@ export default function Sup() {
       });
 
       appRef.current = app;
+
+      const gameTicker = new Ticker();
+      gameTicker.maxFPS = GAME_FPS;
+      gameTicker.start();
+      appRef.current.gameTicker = gameTicker;
 
       crtContainerRef.current = new Container();
       crtContainerRef.current.filterArea = new Rectangle(0, 0, app.screen.width, app.screen.height);
@@ -118,20 +259,78 @@ export default function Sup() {
           curvature: crtDefaults.curvature,
           scanlineIntensity: crtDefaults.scanlineIntensity,
           scanlineCount: crtDefaults.scanlineCount,
+          scanlineSpeed: crtDefaults.scanlineSpeed,
           vignetteIntensity: crtDefaults.vignetteIntensity,
           brightness: crtDefaults.brightness,
           chromaOffset: crtDefaults.chromaOffset,
+          flickerSpeed: crtDefaults.flickerSpeed,
+          flickerIntensity: crtDefaults.flickerIntensity,
         });
         crtFilter.setResolution(app.screen.width, app.screen.height);
         crtFilterRef.current = crtFilter;
+        applyCrtSettings();
 
         // Применяем CRT к отдельному контейнеру, чтобы не конфликтовать с stage
         crtContainerRef.current.filters = [crtFilter];
 
         crtTickerRef.current = () => {
-          if (crtFilterRef.current) {
-            crtFilterRef.current.time += 0.016;
+          const filter = crtFilterRef.current;
+          if (!filter) return;
+
+          const dt = app.ticker.deltaMS / 1000;
+          filter.time += dt;
+
+          const base = crtBaseRef.current;
+          const settings = transitionSettingsRef.current;
+          if (!base || !settings) return;
+
+          const state = transitionRef.current;
+          if (settings.loop) {
+            const interval = Math.max(0.1, settings.interval);
+            state.loopTimer += dt;
+            if (state.loopTimer >= interval) {
+              state.loopTimer = 0;
+              state.active = true;
+              state.t = 0;
+            }
           }
+
+          let pulse = 0;
+          if (state.active) {
+            const duration = Math.max(0.05, settings.duration);
+            state.t += dt;
+            const progress = clamp(state.t / duration, 0, 1);
+            const decay = 1 - progress;
+            pulse = decay * decay;
+            if (progress >= 1) {
+              state.active = false;
+            }
+          }
+
+          const amount = pulse * (settings.strength ?? 1);
+          const enabled = base.enabled || {};
+
+          const brightness = enabled.brightness
+            ? clamp(base.brightness + settings.brightnessBoost * amount, 0.2, 4)
+            : base.brightness;
+          const vignetteIntensity = enabled.vignette
+            ? clamp(base.vignetteIntensity + settings.vignetteBoost * amount, 0, 2.5)
+            : base.vignetteIntensity;
+          const chromaOffset = enabled.chroma
+            ? clamp(base.chromaOffset + settings.chromaBoost * amount, 0, 3)
+            : base.chromaOffset;
+          const scanlineIntensity = enabled.scanlines
+            ? clamp(base.scanlineIntensity + settings.scanlineBoost * amount, 0, 0.6)
+            : base.scanlineIntensity;
+          const flickerIntensity = enabled.flicker
+            ? clamp(base.flickerIntensity + settings.flickerBoost * amount, 0, 0.2)
+            : base.flickerIntensity;
+
+          filter.brightness = brightness;
+          filter.vignetteIntensity = vignetteIntensity;
+          filter.chromaOffset = chromaOffset;
+          filter.scanlineIntensity = scanlineIntensity;
+          filter.flickerIntensity = flickerIntensity;
         };
         app.ticker.add(crtTickerRef.current);
       }
@@ -161,6 +360,11 @@ export default function Sup() {
         aboutSceneRef.current.destroy();
       }
       if (appRef.current) {
+        if (appRef.current.gameTicker) {
+          appRef.current.gameTicker.stop();
+          appRef.current.gameTicker.destroy();
+          appRef.current.gameTicker = null;
+        }
         if (crtTickerRef.current) {
           appRef.current.ticker.remove(crtTickerRef.current);
           crtTickerRef.current = null;
@@ -187,6 +391,11 @@ export default function Sup() {
       }
     };
   }, []);
+
+
+  useEffect(() => {
+    applyCrtSettings();
+  }, [applyCrtSettings]);
 
   // Обновление сцены при смене секции
   useEffect(() => {
@@ -242,6 +451,7 @@ export default function Sup() {
         setAiStatus(null);
         setActiveCaseIndex(0);
         ensureCrt();
+        triggerTransitionPulse();
       }
     } else if (activeSection === 'about') {
       if (sceneTypeRef.current !== 'about') {
@@ -264,6 +474,7 @@ export default function Sup() {
         sceneTypeRef.current = 'about';
         setAiStatus(null);
         ensureCrt();
+        triggerTransitionPulse();
       }
     } else {
       if (sceneTypeRef.current !== 'main') {
@@ -292,11 +503,12 @@ export default function Sup() {
           mainSceneRef.current.updateSection(activeSection);
         }
         ensureCrt();
+        triggerTransitionPulse();
       } else if (mainSceneRef.current?.updateSection) {
         mainSceneRef.current.updateSection(activeSection);
       }
     }
-  }, [activeSection]);
+  }, [activeSection, triggerTransitionPulse]);
 
   // Обновление статусов AI и debug info
   useEffect(() => {
@@ -589,6 +801,367 @@ export default function Sup() {
                   {controllerMode ? t.controls.manual : t.controls.ai}
                 </span>
               </div>
+
+              {showCrtControls && (
+                <div className="sup-crt-controls">
+                <div className="sup-crt-title">CRT FX</div>
+                <div className="sup-crt-grid">
+                  <div className="sup-crt-group">
+                    <div className="sup-crt-group-header">
+                      <label className="sup-crt-toggle">
+                        <input
+                          className="sup-crt-check"
+                          type="checkbox"
+                          checked={crtCurvatureEnabled}
+                          onChange={(e) => setCrtCurvatureEnabled(e.target.checked)}
+                        />
+                        <span>Curvature</span>
+                      </label>
+                      <span className="sup-crt-value">{crtCurvature.toFixed(1)}</span>
+                    </div>
+                    <input
+                      className="sup-crt-slider"
+                      type="range"
+                      min="2"
+                      max="30"
+                      step="0.5"
+                      value={crtCurvature}
+                      onChange={(e) => setCrtCurvature(Number(e.target.value))}
+                      disabled={!crtCurvatureEnabled}
+                    />
+                  </div>
+
+                  <div className="sup-crt-group">
+                    <div className="sup-crt-group-header">
+                      <label className="sup-crt-toggle">
+                        <input
+                          className="sup-crt-check"
+                          type="checkbox"
+                          checked={crtScanlinesEnabled}
+                          onChange={(e) => setCrtScanlinesEnabled(e.target.checked)}
+                        />
+                        <span>Scanlines</span>
+                      </label>
+                    </div>
+                    <div className="sup-crt-slider-row">
+                      <span className="sup-crt-label">Intensity</span>
+                      <span className="sup-crt-value">{crtScanlineIntensity.toFixed(3)}</span>
+                    </div>
+                    <input
+                      className="sup-crt-slider"
+                      type="range"
+                      min="0"
+                      max="0.3"
+                      step="0.005"
+                      value={crtScanlineIntensity}
+                      onChange={(e) => setCrtScanlineIntensity(Number(e.target.value))}
+                      disabled={!crtScanlinesEnabled}
+                    />
+                    <div className="sup-crt-slider-row">
+                      <span className="sup-crt-label">Count</span>
+                      <span className="sup-crt-value">{Math.round(crtScanlineCount)}</span>
+                    </div>
+                    <input
+                      className="sup-crt-slider"
+                      type="range"
+                      min="200"
+                      max="2000"
+                      step="50"
+                      value={crtScanlineCount}
+                      onChange={(e) => setCrtScanlineCount(Number(e.target.value))}
+                      disabled={!crtScanlinesEnabled}
+                    />
+                    <div className="sup-crt-slider-row">
+                      <span className="sup-crt-label">Speed</span>
+                      <span className="sup-crt-value">{crtScanlineSpeed.toFixed(2)}</span>
+                    </div>
+                    <input
+                      className="sup-crt-slider"
+                      type="range"
+                      min="0"
+                      max="2"
+                      step="0.05"
+                      value={crtScanlineSpeed}
+                      onChange={(e) => setCrtScanlineSpeed(Number(e.target.value))}
+                      disabled={!crtScanlinesEnabled}
+                    />
+                  </div>
+
+                  <div className="sup-crt-group">
+                    <div className="sup-crt-group-header">
+                      <label className="sup-crt-toggle">
+                        <input
+                          className="sup-crt-check"
+                          type="checkbox"
+                          checked={crtVignetteEnabled}
+                          onChange={(e) => setCrtVignetteEnabled(e.target.checked)}
+                        />
+                        <span>Vignette</span>
+                      </label>
+                      <span className="sup-crt-value">{crtVignetteIntensity.toFixed(2)}</span>
+                    </div>
+                    <input
+                      className="sup-crt-slider"
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.02"
+                      value={crtVignetteIntensity}
+                      onChange={(e) => setCrtVignetteIntensity(Number(e.target.value))}
+                      disabled={!crtVignetteEnabled}
+                    />
+                  </div>
+
+                  <div className="sup-crt-group">
+                    <div className="sup-crt-group-header">
+                      <label className="sup-crt-toggle">
+                        <input
+                          className="sup-crt-check"
+                          type="checkbox"
+                          checked={crtBrightnessEnabled}
+                          onChange={(e) => setCrtBrightnessEnabled(e.target.checked)}
+                        />
+                        <span>Brightness</span>
+                      </label>
+                      <span className="sup-crt-value">{crtBrightness.toFixed(2)}</span>
+                    </div>
+                    <input
+                      className="sup-crt-slider"
+                      type="range"
+                      min="0.6"
+                      max="1.8"
+                      step="0.02"
+                      value={crtBrightness}
+                      onChange={(e) => setCrtBrightness(Number(e.target.value))}
+                      disabled={!crtBrightnessEnabled}
+                    />
+                  </div>
+
+                  <div className="sup-crt-group">
+                    <div className="sup-crt-group-header">
+                      <label className="sup-crt-toggle">
+                        <input
+                          className="sup-crt-check"
+                          type="checkbox"
+                          checked={crtChromaEnabled}
+                          onChange={(e) => setCrtChromaEnabled(e.target.checked)}
+                        />
+                        <span>Chroma</span>
+                      </label>
+                      <span className="sup-crt-value">{crtChromaOffset.toFixed(2)}</span>
+                    </div>
+                    <input
+                      className="sup-crt-slider"
+                      type="range"
+                      min="0"
+                      max="2"
+                      step="0.05"
+                      value={crtChromaOffset}
+                      onChange={(e) => setCrtChromaOffset(Number(e.target.value))}
+                      disabled={!crtChromaEnabled}
+                    />
+                  </div>
+
+                  <div className="sup-crt-group">
+                    <div className="sup-crt-group-header">
+                      <label className="sup-crt-toggle">
+                        <input
+                          className="sup-crt-check"
+                          type="checkbox"
+                          checked={crtFlickerEnabled}
+                          onChange={(e) => setCrtFlickerEnabled(e.target.checked)}
+                        />
+                        <span>Flicker</span>
+                      </label>
+                    </div>
+                    <div className="sup-crt-slider-row">
+                      <span className="sup-crt-label">Intensity</span>
+                      <span className="sup-crt-value">{crtFlickerIntensity.toFixed(3)}</span>
+                    </div>
+                    <input
+                      className="sup-crt-slider"
+                      type="range"
+                      min="0"
+                      max="0.08"
+                      step="0.001"
+                      value={crtFlickerIntensity}
+                      onChange={(e) => setCrtFlickerIntensity(Number(e.target.value))}
+                      disabled={!crtFlickerEnabled}
+                    />
+                    <div className="sup-crt-slider-row">
+                      <span className="sup-crt-label">Speed</span>
+                      <span className="sup-crt-value">{crtFlickerSpeed.toFixed(2)}</span>
+                    </div>
+                    <input
+                      className="sup-crt-slider"
+                      type="range"
+                      min="0"
+                      max="12"
+                      step="0.1"
+                      value={crtFlickerSpeed}
+                      onChange={(e) => setCrtFlickerSpeed(Number(e.target.value))}
+                      disabled={!crtFlickerEnabled}
+                    />
+                  </div>
+                </div>
+
+                <div className="sup-crt-divider"></div>
+
+                <div className="sup-crt-transition">
+                  <div className="sup-crt-transition-header">
+                    <div className="sup-crt-title">Transition Test</div>
+                    <div className="sup-crt-transition-actions">
+                      <label className="sup-crt-toggle sup-crt-toggle-inline">
+                        <input
+                          className="sup-crt-check"
+                          type="checkbox"
+                          checked={transitionLoop}
+                          onChange={(e) => setTransitionLoop(e.target.checked)}
+                        />
+                        <span>Loop</span>
+                      </label>
+                      <button
+                        type="button"
+                        className="sup-crt-button"
+                        onClick={triggerTransitionPulse}
+                      >
+                        Pulse
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="sup-crt-grid">
+                    <div className="sup-crt-group">
+                      <div className="sup-crt-group-header">
+                        <span className="sup-crt-label">Interval (s)</span>
+                        <span className="sup-crt-value">{transitionInterval.toFixed(2)}</span>
+                      </div>
+                      <input
+                        className="sup-crt-slider"
+                        type="range"
+                        min="0.3"
+                        max="8"
+                        step="0.1"
+                        value={transitionInterval}
+                        onChange={(e) => setTransitionInterval(Number(e.target.value))}
+                      />
+                    </div>
+
+                    <div className="sup-crt-group">
+                      <div className="sup-crt-group-header">
+                        <span className="sup-crt-label">Duration (s)</span>
+                        <span className="sup-crt-value">{transitionDuration.toFixed(2)}</span>
+                      </div>
+                      <input
+                        className="sup-crt-slider"
+                        type="range"
+                        min="0.1"
+                        max="2"
+                        step="0.05"
+                        value={transitionDuration}
+                        onChange={(e) => setTransitionDuration(Number(e.target.value))}
+                      />
+                    </div>
+
+                    <div className="sup-crt-group">
+                      <div className="sup-crt-group-header">
+                        <span className="sup-crt-label">Strength</span>
+                        <span className="sup-crt-value">{transitionStrength.toFixed(2)}</span>
+                      </div>
+                      <input
+                        className="sup-crt-slider"
+                        type="range"
+                        min="0"
+                        max="2"
+                        step="0.05"
+                        value={transitionStrength}
+                        onChange={(e) => setTransitionStrength(Number(e.target.value))}
+                      />
+                    </div>
+
+                    <div className="sup-crt-group">
+                      <div className="sup-crt-group-header">
+                        <span className="sup-crt-label">Brightness Boost</span>
+                        <span className="sup-crt-value">{transitionBrightnessBoost.toFixed(2)}</span>
+                      </div>
+                      <input
+                        className="sup-crt-slider"
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.02"
+                        value={transitionBrightnessBoost}
+                        onChange={(e) => setTransitionBrightnessBoost(Number(e.target.value))}
+                      />
+                    </div>
+
+                    <div className="sup-crt-group">
+                      <div className="sup-crt-group-header">
+                        <span className="sup-crt-label">Vignette Boost</span>
+                        <span className="sup-crt-value">{transitionVignetteBoost.toFixed(2)}</span>
+                      </div>
+                      <input
+                        className="sup-crt-slider"
+                        type="range"
+                        min="0"
+                        max="2"
+                        step="0.02"
+                        value={transitionVignetteBoost}
+                        onChange={(e) => setTransitionVignetteBoost(Number(e.target.value))}
+                      />
+                    </div>
+
+                    <div className="sup-crt-group">
+                      <div className="sup-crt-group-header">
+                        <span className="sup-crt-label">Chroma Boost</span>
+                        <span className="sup-crt-value">{transitionChromaBoost.toFixed(2)}</span>
+                      </div>
+                      <input
+                        className="sup-crt-slider"
+                        type="range"
+                        min="0"
+                        max="2"
+                        step="0.05"
+                        value={transitionChromaBoost}
+                        onChange={(e) => setTransitionChromaBoost(Number(e.target.value))}
+                      />
+                    </div>
+
+                    <div className="sup-crt-group">
+                      <div className="sup-crt-group-header">
+                        <span className="sup-crt-label">Scanline Boost</span>
+                        <span className="sup-crt-value">{transitionScanlineBoost.toFixed(3)}</span>
+                      </div>
+                      <input
+                        className="sup-crt-slider"
+                        type="range"
+                        min="0"
+                        max="0.3"
+                        step="0.005"
+                        value={transitionScanlineBoost}
+                        onChange={(e) => setTransitionScanlineBoost(Number(e.target.value))}
+                      />
+                    </div>
+
+                    <div className="sup-crt-group">
+                      <div className="sup-crt-group-header">
+                        <span className="sup-crt-label">Flicker Boost</span>
+                        <span className="sup-crt-value">{transitionFlickerBoost.toFixed(3)}</span>
+                      </div>
+                      <input
+                        className="sup-crt-slider"
+                        type="range"
+                        min="0"
+                        max="0.08"
+                        step="0.002"
+                        value={transitionFlickerBoost}
+                        onChange={(e) => setTransitionFlickerBoost(Number(e.target.value))}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              )}
 
               <div className="sup-menu">
                 <button

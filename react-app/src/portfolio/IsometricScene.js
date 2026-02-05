@@ -498,7 +498,7 @@ export class IsometricScene {
       // Обновляем данные FPS (без PixiJS UI)
       this.updateFPSData();
     };
-    this.app.ticker.add(this.idleAnimationFn);
+    this.getTicker().add(this.idleAnimationFn);
 
     return character;
   }
@@ -684,7 +684,7 @@ export class IsometricScene {
     if (this.fpsUpdateCounter < 10) return;
     this.fpsUpdateCounter = 0;
 
-    const currentFPS = this.app.ticker.FPS;
+    const currentFPS = this.getTicker().FPS;
 
     // Добавляем в историю для подсчёта среднего
     this.fpsHistory.push(currentFPS);
@@ -1246,7 +1246,7 @@ export class IsometricScene {
         this.character.zIndex = (this.playerX + this.playerY) * 100 + Math.max(this.playerX, this.playerY);
 
         this.isMoving = false;
-        this.app.ticker.remove(animateTicker);
+        this.getTicker().remove(animateTicker);
         return;
       }
 
@@ -1256,7 +1256,7 @@ export class IsometricScene {
       this.character.y = startPos.y + (endPos.y - startPos.y) * eased;
     };
 
-    this.app.ticker.add(animateTicker);
+    this.getTicker().add(animateTicker);
   }
 
   // Easing функция для плавности
@@ -1396,8 +1396,8 @@ export class IsometricScene {
     };
 
     // Удаляем старый тикер перед добавлением нового (защита от дублирования)
-    this.app.ticker.remove(this.movementTickerFn);
-    this.app.ticker.add(this.movementTickerFn);
+    this.getTicker().remove(this.movementTickerFn);
+    this.getTicker().add(this.movementTickerFn);
 
     // Удаляем старые обработчики перед добавлением новых
     if (this.keyDownHandler) {
@@ -1578,6 +1578,10 @@ export class IsometricScene {
     return this.occupiedTiles.get(key) || null;
   }
 
+  getTicker() {
+    return this.app?.gameTicker ?? this.app?.ticker;
+  }
+
   async init() {
     // Загружаем ассеты
     await this.loadAssets();
@@ -1636,10 +1640,10 @@ export class IsometricScene {
     }
 
     if (this.idleAnimationFn) {
-      this.app.ticker.remove(this.idleAnimationFn);
+      this.getTicker().remove(this.idleAnimationFn);
     }
     if (this.movementTickerFn) {
-      this.app.ticker.remove(this.movementTickerFn);
+      this.getTicker().remove(this.movementTickerFn);
     }
 
     // Скрываем speech bubble и очищаем таймеры
@@ -1674,12 +1678,12 @@ export class IsometricScene {
 
     // Сначала удаляем тикеры (защита от дублирования), потом добавляем
     if (this.idleAnimationFn) {
-      this.app.ticker.remove(this.idleAnimationFn);
-      this.app.ticker.add(this.idleAnimationFn);
+      this.getTicker().remove(this.idleAnimationFn);
+      this.getTicker().add(this.idleAnimationFn);
     }
     if (this.movementTickerFn) {
-      this.app.ticker.remove(this.movementTickerFn);
-      this.app.ticker.add(this.movementTickerFn);
+      this.getTicker().remove(this.movementTickerFn);
+      this.getTicker().add(this.movementTickerFn);
     }
 
     // CharacterAI.start() уже содержит защиту от дублирования
@@ -1701,11 +1705,11 @@ export class IsometricScene {
 
     // Останавливаем все тикеры
     if (this.movementTickerFn) {
-      this.app.ticker.remove(this.movementTickerFn);
+      this.getTicker().remove(this.movementTickerFn);
       this.movementTickerFn = null;
     }
     if (this.idleAnimationFn) {
-      this.app.ticker.remove(this.idleAnimationFn);
+      this.getTicker().remove(this.idleAnimationFn);
       this.idleAnimationFn = null;
     }
 
@@ -1859,7 +1863,7 @@ export class IsometricScene {
       }
       // Останавливаем тикер движения
       if (this.movementTickerFn) {
-        this.app.ticker.remove(this.movementTickerFn);
+        this.getTicker().remove(this.movementTickerFn);
         this.movementTickerFn = null;
       }
       // Сбрасываем нажатые клавиши

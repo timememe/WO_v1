@@ -160,6 +160,10 @@ export class CharacterAI {
     this.movementTickerFn = null;
   }
 
+  getTicker() {
+    return this.scene?.app?.gameTicker ?? this.scene?.app?.ticker;
+  }
+
   // Запуск AI
   start() {
     // Сначала останавливаем предыдущие таймеры (защита от дублирования)
@@ -195,7 +199,7 @@ export class CharacterAI {
 
     // Запускаем ticker для движения
     this.movementTickerFn = () => this.updateMovement();
-    this.scene.app.ticker.add(this.movementTickerFn);
+    this.getTicker().add(this.movementTickerFn);
 
     // Обновляем время суток и модификаторы
     this.updateTimeOfDay();
@@ -213,7 +217,7 @@ export class CharacterAI {
       this.updateInterval = null;
     }
     if (this.movementTickerFn) {
-      this.scene.app.ticker.remove(this.movementTickerFn);
+      this.getTicker().remove(this.movementTickerFn);
       this.movementTickerFn = null;
     }
     // Сохраняем состояние при остановке

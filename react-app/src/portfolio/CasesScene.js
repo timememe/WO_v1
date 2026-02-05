@@ -975,12 +975,16 @@ export class CasesScene {
 
   startCamera() {
     this.cameraTickerFn = () => this.updateCamera();
-    this.app.ticker.add(this.cameraTickerFn);
+    this.getTicker().add(this.cameraTickerFn);
+  }
+
+  getTicker() {
+    return this.app?.gameTicker ?? this.app?.ticker;
   }
 
   updateCamera() {
     // Обновить персонажа
-    const dt = this.app.ticker.deltaMS / 1000;
+    const dt = this.getTicker().deltaMS / 1000;
     this.updateCharacter(dt);
 
     // В режиме персонажа — камера следует за ним
@@ -1065,7 +1069,7 @@ export class CasesScene {
       this.container.parent.removeChild(this.container);
     }
     if (this.cameraTickerFn) {
-      this.app.ticker.remove(this.cameraTickerFn);
+      this.getTicker().remove(this.cameraTickerFn);
     }
   }
 
@@ -1077,7 +1081,7 @@ export class CasesScene {
     }
     this.container.visible = true;
     if (this.cameraTickerFn) {
-      this.app.ticker.add(this.cameraTickerFn);
+      this.getTicker().add(this.cameraTickerFn);
     }
     this.bindKeyboard();
   }
@@ -1085,7 +1089,7 @@ export class CasesScene {
   destroy() {
     this.unbindKeyboard();
     if (this.cameraTickerFn) {
-      this.app.ticker.remove(this.cameraTickerFn);
+      this.getTicker().remove(this.cameraTickerFn);
       this.cameraTickerFn = null;
     }
     if (this.resizeHandler) {

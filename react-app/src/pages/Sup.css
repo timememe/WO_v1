@@ -316,6 +316,158 @@
   width: 100%;
 }
 
+.sup-crt-controls {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0.9rem 1rem;
+  background: linear-gradient(180deg, rgba(18, 24, 44, 0.95) 0%, rgba(7, 12, 24, 0.95) 100%);
+  border: 2px solid #243150;
+  border-radius: 10px;
+  box-shadow: 0 4px 0 #05070f, 0 10px 20px rgba(0, 0, 0, 0.35);
+  font-family: "VMV Sega", "Sonic Genesis", "Cascadia Mono", "Fira Code", "Consolas", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.sup-crt-title {
+  font-size: 0.75rem;
+  color: #4de3ff;
+  text-shadow: 0 0 10px rgba(77, 227, 255, 0.35);
+}
+
+.sup-crt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.sup-crt-divider {
+  height: 1px;
+  background: linear-gradient(90deg, rgba(77, 227, 255, 0) 0%, rgba(77, 227, 255, 0.45) 50%, rgba(77, 227, 255, 0) 100%);
+  opacity: 0.8;
+}
+
+.sup-crt-transition {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.sup-crt-transition-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.sup-crt-transition-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.sup-crt-toggle-inline {
+  display: inline-flex;
+}
+
+.sup-crt-button {
+  padding: 0.35rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid rgba(77, 227, 255, 0.6);
+  background: rgba(11, 17, 34, 0.9);
+  color: #b7f1ff;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(77, 227, 255, 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.sup-crt-button:hover {
+  border-color: #4de3ff;
+  transform: translateY(-1px);
+}
+
+.sup-crt-group {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid rgba(77, 227, 255, 0.15);
+  border-radius: 8px;
+  background: rgba(9, 13, 26, 0.7);
+}
+
+.sup-crt-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.sup-crt-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.6rem;
+  color: #e6f7ff;
+}
+
+.sup-crt-check {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 2px solid #4de3ff;
+  background: #0b1122;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.sup-crt-check:checked {
+  background: #4de3ff;
+  box-shadow: 0 0 10px rgba(77, 227, 255, 0.45);
+}
+
+.sup-crt-check:checked::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: #0b1122;
+}
+
+.sup-crt-value {
+  font-size: 0.6rem;
+  color: #b7f1ff;
+}
+
+.sup-crt-slider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.55rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.sup-crt-label {
+  opacity: 0.75;
+}
+
+.sup-crt-slider {
+  width: 100%;
+  accent-color: #4de3ff;
+}
+
+.sup-crt-slider:disabled {
+  opacity: 0.4;
+}
+
 /* Toggle rows */
 .sup-toggle-row {
   display: flex;
@@ -659,6 +811,14 @@
     padding-bottom: calc(1rem + 10vh + env(safe-area-inset-bottom, 0px));
   }
 
+  .sup-crt-controls {
+    padding: 0.75rem;
+  }
+
+  .sup-crt-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .sup-menu {
     grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem;
@@ -744,6 +904,14 @@
   .sup-control-panel {
     padding: 0.75rem;
     padding-bottom: calc(0.75rem + 10vh + env(safe-area-inset-bottom, 0px));
+  }
+
+  .sup-crt-controls {
+    padding: 0.65rem;
+  }
+
+  .sup-crt-grid {
+    grid-template-columns: 1fr;
   }
 
   .sup-menu {

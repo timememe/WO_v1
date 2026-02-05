@@ -676,7 +676,11 @@ export class AboutScene {
 
   startCamera() {
     this.cameraTickerFn = () => this.updateCamera();
-    this.app.ticker.add(this.cameraTickerFn);
+    this.getTicker().add(this.cameraTickerFn);
+  }
+
+  getTicker() {
+    return this.app?.gameTicker ?? this.app?.ticker;
   }
 
   updateCamera() {
@@ -1120,7 +1124,7 @@ export class AboutScene {
       this.container.parent.removeChild(this.container);
     }
     if (this.cameraTickerFn) {
-      this.app.ticker.remove(this.cameraTickerFn);
+      this.getTicker().remove(this.cameraTickerFn);
     }
   }
 
@@ -1132,13 +1136,13 @@ export class AboutScene {
     }
     this.container.visible = true;
     if (this.cameraTickerFn) {
-      this.app.ticker.add(this.cameraTickerFn);
+      this.getTicker().add(this.cameraTickerFn);
     }
   }
 
   destroy() {
     if (this.cameraTickerFn) {
-      this.app.ticker.remove(this.cameraTickerFn);
+      this.getTicker().remove(this.cameraTickerFn);
       this.cameraTickerFn = null;
     }
     if (this.resizeHandler) {

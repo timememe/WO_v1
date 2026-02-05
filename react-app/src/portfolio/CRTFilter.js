@@ -37,9 +37,12 @@ uniform float uTime;
 uniform float uCurvature;
 uniform float uScanlineIntensity;
 uniform float uScanlineCount;
+uniform float uScanlineSpeed;
 uniform float uVignetteIntensity;
 uniform float uBrightness;
 uniform float uChromaOffset;
+uniform float uFlickerSpeed;
+uniform float uFlickerIntensity;
 uniform vec2 uResolution;
 
 // Искривление экрана (barrel distortion)
@@ -71,7 +74,7 @@ void main(void) {
     vec3 color = vec3(r, g, b);
 
     // Scanlines (горизонтальные линии)
-    float scanline = sin(uv.y * uScanlineCount + uTime * 0.5) * 0.5 + 0.5;
+    float scanline = sin(uv.y * uScanlineCount + uTime * uScanlineSpeed) * 0.5 + 0.5;
     scanline = pow(scanline, 1.5);
     color *= 1.0 - (scanline * uScanlineIntensity);
 
@@ -80,7 +83,7 @@ void main(void) {
     color *= 0.95 + vertLine * 0.05;
 
     // Виньетирование (затемнение по краям)
-    vec2 vigUV = uv * (1.0 - uv.xy);
+    vec2 vigUV = vTextureCoord * (1.0 - vTextureCoord.xy);
     float vig = vigUV.x * vigUV.y * 15.0;
     vig = pow(vig, uVignetteIntensity);
     color *= vig;
@@ -89,7 +92,7 @@ void main(void) {
     color *= uBrightness;
 
     // Небольшое мерцание
-    float flicker = 1.0 - (sin(uTime * 8.0) * 0.02);
+    float flicker = 1.0 - (sin(uTime * uFlickerSpeed) * uFlickerIntensity);
     color *= flicker;
 
     finalColor = vec4(color, a);
@@ -112,9 +115,12 @@ export class CRTFilter extends Filter {
           uCurvature: { value: options.curvature ?? 6.0, type: 'f32' },
           uScanlineIntensity: { value: options.scanlineIntensity ?? 0.15, type: 'f32' },
           uScanlineCount: { value: options.scanlineCount ?? 800.0, type: 'f32' },
+          uScanlineSpeed: { value: options.scanlineSpeed ?? 0.5, type: 'f32' },
           uVignetteIntensity: { value: options.vignetteIntensity ?? 0.3, type: 'f32' },
           uBrightness: { value: options.brightness ?? 1.2, type: 'f32' },
           uChromaOffset: { value: options.chromaOffset ?? 1.0, type: 'f32' },
+          uFlickerSpeed: { value: options.flickerSpeed ?? 8.0, type: 'f32' },
+          uFlickerIntensity: { value: options.flickerIntensity ?? 0.02, type: 'f32' },
           uResolution: { value: [800, 600], type: 'vec2<f32>' },
         },
       },
@@ -138,6 +144,9 @@ export class CRTFilter extends Filter {
   get scanlineCount() { return this.resources.crtUniforms.uniforms.uScanlineCount; }
   set scanlineCount(value) { this.resources.crtUniforms.uniforms.uScanlineCount = value; }
 
+  get scanlineSpeed() { return this.resources.crtUniforms.uniforms.uScanlineSpeed; }
+  set scanlineSpeed(value) { this.resources.crtUniforms.uniforms.uScanlineSpeed = value; }
+
   get vignetteIntensity() { return this.resources.crtUniforms.uniforms.uVignetteIntensity; }
   set vignetteIntensity(value) { this.resources.crtUniforms.uniforms.uVignetteIntensity = value; }
 
@@ -146,6 +155,12 @@ export class CRTFilter extends Filter {
 
   get chromaOffset() { return this.resources.crtUniforms.uniforms.uChromaOffset; }
   set chromaOffset(value) { this.resources.crtUniforms.uniforms.uChromaOffset = value; }
+
+  get flickerSpeed() { return this.resources.crtUniforms.uniforms.uFlickerSpeed; }
+  set flickerSpeed(value) { this.resources.crtUniforms.uniforms.uFlickerSpeed = value; }
+
+  get flickerIntensity() { return this.resources.crtUniforms.uniforms.uFlickerIntensity; }
+  set flickerIntensity(value) { this.resources.crtUniforms.uniforms.uFlickerIntensity = value; }
 
   setResolution(width, height) {
     this.resources.crtUniforms.uniforms.uResolution = [width, height];
