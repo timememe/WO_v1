@@ -7,6 +7,7 @@ export class IsometricScene {
     this.app = app;
     this.rootContainer = rootContainer || this.app.stage;
     this.assetManager = assetManager;
+    this.lang = null;
 
     // ═══════════════════════════════════════════════════════════════
     // СИСТЕМНЫЕ КОНТЕЙНЕРЫ
@@ -140,6 +141,10 @@ export class IsometricScene {
     this.activityBubble = null;
     this.activityAnimations = {};
     this.ufoTexture = null;
+
+    // Night overlay
+    this.nightOverlay = null;
+    this.nightOverlayAlpha = 0;
 
     // Speech bubble (система диалогов)
     this.speechBubble = null;
@@ -495,6 +500,12 @@ export class IsometricScene {
       // Debug: отрисовка пути AI
       this.drawPathDebug();
 
+      // Время над баблом стейта
+      this.updateActivityTimeText();
+
+      // Ночной оверлей
+      this.updateNightOverlay();
+
       // Обновляем данные FPS (без PixiJS UI)
       this.updateFPSData();
     };
@@ -706,6 +717,70 @@ export class IsometricScene {
     };
   }
 
+  // Обновить текст времени над баблом стейта
+  updateActivityTimeText() {
+    if (!this.activityTimeText || !this.characterAI) return;
+    if (!this.activityBubble?.visible) return;
+
+    this.activityTimeText.text = this.characterAI.getFormattedTime();
+  }
+
+  // Обновить ночной оверлей на основе игрового времени
+  updateNightOverlay() {
+    if (!this.nightOverlay || !this.characterAI) return;
+
+    const hour = this.characterAI.gameHour;
+    const minute = this.characterAI.gameMinute;
+    const t = hour + minute / 60; // дробный час
+
+    let targetAlpha = 0;
+    let tintColor = 0x0a0a2e; // тёмно-синий (ночь)
+
+    if (t >= 6 && t < 20) {
+      // День: полностью светло
+      targetAlpha = 0;
+    } else if (t >= 20 && t < 21) {
+      // Закат: плавный переход 0 → 0.4
+      targetAlpha = (t - 20) * 0.4;
+      tintColor = 0x2a1a0a; // тёплый золотистый
+    } else if (t >= 21 && t < 22) {
+      // Поздний закат: переход от тёплого к холодному
+      const blend = t - 21; // 0→1
+      targetAlpha = 0.4;
+      // Микс между тёплым (0x2a1a0a) и холодным (0x0a0a2e)
+      const r = Math.round(0x2a + (0x0a - 0x2a) * blend);
+      const g = Math.round(0x1a + (0x0a - 0x1a) * blend);
+      const b = Math.round(0x0a + (0x2e - 0x0a) * blend);
+      tintColor = (r << 16) | (g << 8) | b;
+    } else if ((t >= 22 && t <= 24) || (t >= 0 && t < 5)) {
+      // Ночь: темно
+      targetAlpha = 0.4;
+      tintColor = 0x0a0a2e;
+    } else if (t >= 5 && t < 6) {
+      // Рассвет: плавный переход 0.4 → 0
+      targetAlpha = (6 - t) * 0.4;
+      tintColor = 0x2a1a0a; // тёплый рассветный
+    }
+
+    // Плавная интерполяция альфы
+    this.nightOverlayAlpha += (targetAlpha - this.nightOverlayAlpha) * 0.05;
+
+    // Перерисовываем только если альфа значимая
+    if (this.nightOverlayAlpha > 0.005) {
+      this.nightOverlay.clear();
+      // Рисуем большой прямоугольник, покрывающий всю сцену
+      // Используем достаточно большие размеры чтобы покрыть всё при любом скролле
+      const size = (this.gridSize + this.backgroundPadding * 2) * this.tileWidth;
+      const center = this.isoToScreen(this.gridSize / 2, this.gridSize / 2);
+      this.nightOverlay.rect(center.x - size, center.y - size, size * 2, size * 2);
+      this.nightOverlay.fill({ color: tintColor, alpha: 1 });
+      this.nightOverlay.alpha = this.nightOverlayAlpha;
+      this.nightOverlay.visible = true;
+    } else {
+      this.nightOverlay.visible = false;
+    }
+  }
+
   // Получить данные для отображения в HTML UI
   getDebugInfo() {
     const aiStatus = this.characterAI ? this.characterAI.getStatus() : null;
@@ -837,7 +912,7 @@ export class IsometricScene {
   }
 
   // Показать баббл с анимацией над локацией
-  showActivityBubble(locationType, location) {
+  showActivityBubble(locationType, location, statusText = '') {
     // Защита от вызова на уничтоженной сцене
     if (this.isDestroyed || !this.activityAnimations) return;
 
@@ -927,10 +1002,62 @@ export class IsometricScene {
     );
     frame.stroke({ width: this.bubbleFrameWidth, color: this.bubbleFrameColor, alpha: 1 });
 
+    // ── Плашка статуса + время под баблом ──
+    const statusBarY = gifHeight / 2 + this.bubbleFramePadding + 6;
+    const statusPadH = 5;
+    const statusPadW = 8;
+    const statusGap = 2; // промежуток между строками
+
+    // Текст статуса
+    const statusLabel = new Text({
+      text: statusText || '',
+      style: {
+        fontFamily: 'VMV Sega, Sonic Genesis, monospace',
+        fontSize: 11,
+        fill: 0xFFFFFF,
+        align: 'center',
+      }
+    });
+    statusLabel.anchor.set(0.5, 0);
+
+    // Текст времени
+    const timeText = new Text({
+      text: '',
+      style: {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: 12,
+        fill: 0x4de3ff,
+        align: 'center',
+      }
+    });
+    timeText.anchor.set(0.5, 0);
+    this.activityTimeText = timeText;
+
+    // Размещаем тексты внутри плашки
+    const statusH = statusLabel.height;
+    const timeH = timeText.height || 14;
+    const totalTextH = statusH + statusGap + timeH;
+    const barW = Math.max(statusLabel.width, 60) + statusPadW * 2;
+    const barH = totalTextH + statusPadH * 2;
+
+    statusLabel.x = 0;
+    statusLabel.y = statusBarY + statusPadH;
+    timeText.x = 0;
+    timeText.y = statusLabel.y + statusH + statusGap;
+
+    // Фон плашки (такой же стиль как основной бабл)
+    const statusBg = new Graphics();
+    statusBg.roundRect(-barW / 2, statusBarY, barW, barH, 6);
+    statusBg.fill({ color: this.bubbleBackgroundColor, alpha: this.bubbleBackgroundAlpha });
+    statusBg.stroke({ width: this.bubbleFrameWidth, color: this.bubbleFrameColor, alpha: 1 });
+
     // Добавляем элементы в правильном порядке
     this.activityBubble.addChild(background);
     this.activityBubble.addChild(gif);
     this.activityBubble.addChild(frame);
+    this.activityBubble.addChild(statusBg);
+    this.activityBubble.addChild(statusLabel);
+    this.activityBubble.addChild(timeText);
 
     const locationCenter = this.getLocationCenter(location);
     if (locationCenter) {
@@ -963,6 +1090,7 @@ export class IsometricScene {
         }
       });
     }
+    this.activityTimeText = null;
     this.setCameraTarget(null);
 
     // Показываем персонажа и все его спрайты
@@ -1025,20 +1153,21 @@ export class IsometricScene {
       fill: 0x333333,
       wordWrap: true,
       wordWrapWidth: maxWidth - padding * 2,
-      align: 'left',
+      align: 'center',
       lineHeight: lineHeight,
     };
 
     this.speechText = new Text({ text: '', style: textStyle });
-    this.speechText.anchor.set(0, 0);
+    this.speechText.anchor.set(0.5, 0);
 
     // Вычисляем размеры для полного текста (для фона)
+    // Ширина бабла = maxWidth всегда, чтобы при посимвольной печати
+    // незавершённые слова не вылезали за границы
     const tempText = new Text({ text: text, style: textStyle });
-    const textWidth = Math.min(tempText.width, maxWidth - padding * 2);
     const textHeight = tempText.height;
     tempText.destroy();
 
-    const bubbleWidth = textWidth + padding * 2;
+    const bubbleWidth = maxWidth;
     const bubbleHeight = textHeight + padding * 2;
 
     // Создаём фон баббла (белый с чёрной обводкой)
@@ -1067,8 +1196,8 @@ export class IsometricScene {
     background.lineTo(7, -tailHeight - 1);
     background.stroke({ width: 3, color: 0xFFFFFF });
 
-    // Позиционируем текст
-    this.speechText.x = -bubbleWidth / 2 + padding;
+    // Позиционируем текст (anchor 0.5 по X — центр бабла)
+    this.speechText.x = 0;
     this.speechText.y = -bubbleHeight - tailHeight + padding;
 
     // Добавляем элементы
@@ -1602,6 +1731,12 @@ export class IsometricScene {
     // Добавляем контейнер для сортируемых объектов поверх тайлов
     this.container.addChild(this.sortableContainer);
 
+    // Создаём ночной оверлей (поверх всего в контейнере)
+    this.nightOverlay = new Graphics();
+    this.nightOverlay.zIndex = 9990; // Выше объектов, но ниже баблов (9999)
+    this.nightOverlay.alpha = 0;
+    this.sortableContainer.addChild(this.nightOverlay);
+
     // Добавляем здания в сортируемый контейнер
     Object.values(this.buildingLocations).forEach((location) => {
       this.sortableContainer.addChild(this.objectFactory.createDecoration(location.x, location.y, location.type));
@@ -1625,7 +1760,7 @@ export class IsometricScene {
 
     // Запускаем AI если контроллер режим выключен
     if (!this.controllerMode) {
-      this.characterAI = new CharacterAI(this);
+      this.characterAI = new CharacterAI(this, this.lang);
       this.characterAI.start();
     }
 
@@ -1756,6 +1891,12 @@ export class IsometricScene {
       this.speechBubble = null;
     }
 
+    // Очищаем ночной оверлей
+    if (this.nightOverlay) {
+      this.nightOverlay.destroy();
+      this.nightOverlay = null;
+    }
+
     // Очищаем карту занятых тайлов
     if (this.occupiedTiles) {
       this.occupiedTiles.clear();
@@ -1872,7 +2013,7 @@ export class IsometricScene {
 
       // Запускаем AI
       if (!this.characterAI) {
-        this.characterAI = new CharacterAI(this);
+        this.characterAI = new CharacterAI(this, this.lang);
       }
       this.characterAI.start();
     }
@@ -1890,5 +2031,13 @@ export class IsometricScene {
     this.keysPressed.down = keys.down || false;
     this.keysPressed.left = keys.left || false;
     this.keysPressed.right = keys.right || false;
+  }
+
+  // Смена языка — прокидываем в CharacterAI
+  setLanguage(lang) {
+    this.lang = lang;
+    if (this.characterAI?.setLanguage) {
+      this.characterAI.setLanguage(lang);
+    }
   }
 }

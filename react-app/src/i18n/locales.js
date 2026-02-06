@@ -95,6 +95,136 @@ export const LOCALES = {
       },
     },
 
+    // ── Статусы активностей ──
+    activityStatus: {
+      work: [
+        'Darkly coding', 'Debugging a project', 'Hacking the Pentagon',
+        'Pushing to prod on Friday', 'Refactoring the universe',
+        'Writing code that works (maybe)', 'Staring at the screen intensely',
+      ],
+      sleep: [
+        'Sleeping', 'Hiding from work', 'Recharging batteries',
+        'Dreaming about code', 'Gone offline',
+      ],
+      eat: {
+        morning: ['Having breakfast', 'Morning coffee ritual', 'Fueling up'],
+        afternoon: ['Having lunch', 'Lunch break finally', 'Eating like a king'],
+        evening: ['Having dinner', 'Late dinner', 'Snacking before bed'],
+        night: ['Midnight snack', 'Raiding the fridge', 'Eating in the dark'],
+      },
+      social: [
+        'Collecting cases', 'Hanging with the boys', 'Pretending to socialize',
+        'Networking (sort of)', 'Doing the social thing',
+      ],
+    },
+
+    // ── Пасхалка — выход за границы тайлов ──
+    beyond: [
+      'Nothing but infinity ahead, friend',
+      'Well, if you wanna check, I\'m not stopping you',
+      'You don\'t trust people, do you?',
+    ],
+
+    // ── Фразы персонажа (CharacterAI) ──
+    character: {
+      timeOfDay: {
+        morning: 'Morning',
+        afternoon: 'Afternoon',
+        evening: 'Evening',
+        night: 'Night',
+      },
+      phrases: {
+        morning: [
+          'Good morning, world!',
+          'New day — new opportunities',
+          'Coffee! Desperately need coffee!',
+          'What\'s the plan for today?',
+          'Sun is rising, time for me too',
+          'Day ${day}... Wonder what it brings',
+          'Morning is wiser than the evening',
+          'What should I do today?',
+        ],
+        afternoon: [
+          'Day is in full swing!',
+          'Time for a snack...',
+          'Work never ends, does it',
+          'Already day ${day}, so much left to do',
+          'What a great day!',
+          'Life is beautiful!',
+          'Time to get to work',
+          'Time flies by',
+          'Need more coffee',
+        ],
+        evening: [
+          'Getting dark...',
+          'It was a productive day',
+          'Time to rest soon',
+          'Beautiful sunset today',
+          'Maybe a walk before bed?',
+          'Day ${day} is coming to an end',
+          'Wonder what tomorrow brings?',
+          'Evening air... Feels good!',
+        ],
+        night: [
+          'It\'s night already... Time to sleep',
+          'Stars are beautiful...',
+          'Night is a time for reflection',
+          'I\'m a pixel man in a pixel world',
+          'I locked myself in an infinite loop.',
+          'Is there a cage inside a cage?',
+          'Night ${day}... Silence',
+          'Dreams are waiting for me',
+          'I think it\'s time to rest',
+        ],
+      },
+      general: [
+        'What should I do?',
+        'What was I thinking about?',
+        'Now that\'s an idea!',
+        'Wonder what\'s new out there?',
+      ],
+      // ── Фразы по состоянию ──
+      statusPrefixes: {
+        energy: {
+          high: ['Full of energy', 'Running on all cylinders', 'I\'m a machine'],
+          mid: ['Feeling okay', 'Holding up', 'Stable-ish'],
+          low: ['Tired as a dog', 'Battery at 1%', 'My eyes are closing'],
+        },
+        hunger: {
+          high: ['Fed and happy', 'Belly full', 'I could skip a meal'],
+          mid: ['Not hungry yet', 'Bearable so far', 'Stomach\'s quiet'],
+          low: ['Starving badly', 'My stomach filed a complaint', 'I\'d eat a pixel horse'],
+        },
+        fun: {
+          high: ['Mood is fire', 'Vibes are immaculate', 'Having a blast'],
+          mid: ['Bit bored', 'Could be more fun', 'Meh tier mood'],
+          low: ['Bored to death', 'Zero dopamine', 'My soul is buffering'],
+        },
+        social: {
+          high: ['Socialized enough', 'Had my dose of humans', 'People quota filled'],
+          mid: ['Haven\'t talked to anyone in a while', 'Social bar is meh', 'Could chat I guess'],
+          low: ['Lonely out here', 'Talking to myself again', 'Even NPCs avoid me'],
+        },
+      },
+      statusSuffixes: [
+        'perfect excuse to procrastinate!',
+        'but the code won\'t write itself',
+        'time to pretend I\'m working',
+        'at least I\'m pixelated and handsome',
+        'we\'ll survive... probably',
+        'coffee fixes everything anyway',
+        'life is pain but tolerable',
+        'anyway back to the grind',
+        'could be worse, could be JavaScript... wait',
+        'main thing is to look busy',
+        'but pizza would solve this',
+        'that\'s a tomorrow-me problem',
+        'motivation.exe has stopped working',
+        'classic Tuesday vibes',
+        'this is fine. everything is fine.',
+      ],
+    },
+
     // ── About секция ──
     about: {
       title: 'ABOUT ME',
@@ -195,6 +325,136 @@ export const LOCALES = {
           'Но больше всего нравятся локализации продукта',
         ],
       },
+    },
+
+    // ── Статусы активностей ──
+    activityStatus: {
+      work: [
+        'Мрачно кодит', 'Дебажит проект', 'Взламывает Пентагон',
+        'Пушит в прод в пятницу', 'Рефакторит вселенную',
+        'Пишет код который работает (наверное)', 'Пристально смотрит в экран',
+      ],
+      sleep: [
+        'Спит', 'Скрывается от работы', 'Перезаряжает батарейки',
+        'Видит сны про код', 'Ушёл в оффлайн',
+      ],
+      eat: {
+        morning: ['Завтракает', 'Утренний ритуал с кофе', 'Заправляется'],
+        afternoon: ['Обедает', 'Наконец-то обед', 'Ест как король'],
+        evening: ['Ужинает', 'Поздний ужин', 'Перекус перед сном'],
+        night: ['Ночной перекус', 'Грабит холодильник', 'Ест в темноте'],
+      },
+      social: [
+        'Собирает кейсы', 'Тусуется с кентами', 'Делает вид что общается',
+        'Нетворкинг (типа)', 'Выполняет социальный долг',
+      ],
+    },
+
+    // ── Пасхалка — выход за границы тайлов ──
+    beyond: [
+      'Дальше только бесконечность, друг',
+      'Не, ну если хочешь проверить, я не останавливаю',
+      'А ты не веришь людям, да?',
+    ],
+
+    // ── Фразы персонажа (CharacterAI) ──
+    character: {
+      timeOfDay: {
+        morning: 'Утро',
+        afternoon: 'День',
+        evening: 'Вечер',
+        night: 'Ночь',
+      },
+      phrases: {
+        morning: [
+          'Доброе утро, мир!',
+          'Новый день — новые возможности',
+          'Кофе! Срочно нужен кофе!',
+          'Какой план на сегодня?',
+          'Солнце встаёт, пора и мне',
+          'День ${day}... Интересно, что он принесёт',
+          'Утро вечера мудренее',
+          'Что бы такого сделать сегодня?',
+        ],
+        afternoon: [
+          'День в самом разгаре!',
+          'Пора бы перекусить...',
+          'Работа не волк... работа это ворк',
+          'Уже день ${day}, а столько ещё не сделано',
+          'Сегодня отличный день!',
+          'Эх, жизнь прекрасна!',
+          'Пора бы заняться делом',
+          'Время летит незаметно',
+          'Нужно больше кофе',
+        ],
+        evening: [
+          'Вечереет...',
+          'День был продуктивным',
+          'Скоро пора отдыхать',
+          'Закат красивый сегодня',
+          'Может, прогуляться перед сном?',
+          'День ${day} подходит к концу',
+          'Интересно, что будет завтра?',
+          'Вечерний воздух... Хорошо!',
+        ],
+        night: [
+          'Уже ночь... Пора спать',
+          'Звёзды красивые...',
+          'Ночь — время для размышлений',
+          'Я пиксельный человек в пиксельном мире',
+          'Я запер сам себя в бесконечном цикле.',
+          'Есть ли клетка внутри клетки?',
+          'Ночь ${day}... Тишина',
+          'Сны ждут меня',
+          'Кажется, пора отдохнуть',
+        ],
+      },
+      general: [
+        'Что бы такого сделать?',
+        'О чём я думал?',
+        'А вот это мысль!',
+        'Интересно, что там нового?',
+      ],
+      // ── Фразы по состоянию ──
+      statusPrefixes: {
+        energy: {
+          high: ['Бодр как никогда', 'Энергия прёт', 'Я машина'],
+          mid: ['Вроде норм', 'Держусь пока', 'Стабильненько'],
+          low: ['Устал как собака', 'Батарейка на нуле', 'Глаза слипаются'],
+        },
+        hunger: {
+          high: ['Сытый и довольный', 'Наелся от пуза', 'Могу пропустить обед'],
+          mid: ['Не голоден вроде', 'Пока терпимо', 'Желудок молчит'],
+          low: ['Жрать хочу нереально', 'Желудок подал жалобу', 'Съел бы пиксельного коня'],
+        },
+        fun: {
+          high: ['Настроение огонь', 'Вайб на максималках', 'Кайфую'],
+          mid: ['Скучновато', 'Могло быть веселее', 'Настроение на троечку'],
+          low: ['Тоска зелёная', 'Дофамина ноль', 'Душа буферизируется'],
+        },
+        social: {
+          high: ['Наобщался вдоволь', 'Хватит людей на сегодня', 'Квота по людям выполнена'],
+          mid: ['Давно ни с кем не болтал', 'По общению так себе', 'Можно бы и поболтать'],
+          low: ['Одиноко тут', 'Опять разговариваю сам с собой', 'Даже NPC меня избегают'],
+        },
+      },
+      statusSuffixes: [
+        'отличный повод пострадать фигней!',
+        'но код сам себя не напишет',
+        'пора делать вид что работаю',
+        'зато я пиксельный и красивый',
+        'ладно, переживём... наверное',
+        'кофе всё исправит',
+        'жизнь боль, но терпимая',
+        'ладно, обратно к гринду',
+        'могло быть хуже, мог бы писать на PHP... хотя',
+        'главное — выглядеть занятым',
+        'но пицца бы всё решила',
+        'это проблема завтрашнего меня',
+        'motivation.exe перестал отвечать',
+        'классический вайб вторника',
+        'всё нормально. всё абсолютно нормально.',
+      ],
     },
 
     // ── About секция ──

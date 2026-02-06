@@ -4,12 +4,16 @@
  * Адаптирован под свободное движение (free movement controller)
  */
 
+import { getLocale } from '../i18n';
+
 // Ключ для localStorage
 const STORAGE_KEY = 'tamagotchi_state';
 
 export class CharacterAI {
-  constructor(scene) {
+  constructor(scene, lang) {
     this.scene = scene; // Ссылка на IsometricScene
+    this.lang = lang;
+    this.locale = getLocale(lang); // DEFAULT_LANG если lang не передан
 
     // ═══════════════════════════════════════════════════════════════
     // СИСТЕМА ВРЕМЕНИ
@@ -37,13 +41,13 @@ export class CharacterAI {
       social: 100,      // Социализация (уменьшается со временем, восстанавливается общением)
     };
 
-    // Базовая скорость уменьшения потребностей (единиц в секунду)
-    // Модифицируется временем суток
+    // Базовая скорость уменьшения потребностей (единиц за игровую минуту)
+    // 10/60 ≈ 0.167 → 10 за игровой час → 1 бар/час
     this.baseNeedsDecayRate = {
-      energy: 0.5,
-      hunger: 0.3,
-      fun: 0.4,
-      social: 0.2,
+      energy: 10 / 60,
+      hunger: 10 / 60,
+      fun: 8 / 60,
+      social: 5 / 60,
     };
 
     // Активная скорость (модифицируется временем суток)
@@ -70,59 +74,15 @@ export class CharacterAI {
     this.isTyping = false;            // Флаг: идёт ли анимация печати
     this.pauseAfterTyping = 2000;     // Пауза после завершения печати (мс)
 
-    // Фразы для случайных высказываний (зависят от времени суток)
-    this.phrasesByTimeOfDay = {
-      morning: [
-        "Доброе утро, мир!",
-        "Новый день — новые возможности",
-        "Кофе! Срочно нужен кофе!",
-        "Какой план на сегодня?",
-        "Солнце встаёт, пора и мне",
-        "День ${day}... Интересно, что он принесёт",
-        "Утро вечера мудренее",
-        "Что бы такого сделать сегодня?",
-      ],
-      afternoon: [
-        "День в самом разгаре!",
-        "Пора бы перекусить...",
-        "Работа не волк... работа это ворк",
-        "Уже день ${day}, а столько ещё не сделано",
-        "Сегодня отличный день!",
-        "Эх, жизнь прекрасна!",
-        "Пора бы заняться делом",
-        "Время летит незаметно",
-        "Нужно больше кофе",
-      ],
-      evening: [
-        "Вечереет...",
-        "День был продуктивным",
-        "Скоро пора отдыхать",
-        "Закат красивый сегодня",
-        "Может, прогуляться перед сном?",
-        "День ${day} подходит к концу",
-        "Интересно, что будет завтра?",
-        "Вечерний воздух... Хорошо!",
-      ],
-      night: [
-        "Уже ночь... Пора спать",
-        "Звёзды красивые...",
-        "Ночь — время для размышлений",
-        "Я пиксельный человек в пиксельном мире",
-        "Я запер сам себя в бесконечном цикле.",
-        "Есть ли клетка внутри клетки?",
-        "Ночь ${day}... Тишина",
-        "Сны ждут меня",
-        "Кажется, пора отдохнуть",
-      ],
-    };
+    // Счётчик последовательных высказываний (макс 5 подряд)
+    this.consecutiveSpeechCount = 0;
+    this.maxConsecutiveSpeech = 5;
 
-    // Общие фразы (для любого времени)
-    this.generalPhrases = [
-      "Что бы такого сделать?",
-      "О чём я думал?",
-      "А вот это мысль!",
-      "Интересно, что там нового?",
-    ];
+    // Максимальная реальная длительность любого стейта (секунды)
+    this.maxRealActionSeconds = 5;
+
+    // Фразы загружаются из локализации
+    this.loadPhrases();
 
     // Целевая позиция для движения (float координаты)
     this.targetX = null;
@@ -138,21 +98,22 @@ export class CharacterAI {
     // Позиция где произошла коллизия (для спавна после действия)
     this.collisionPosition = null;
 
-    // Таймер для действий
-    this.actionTimer = 0;
-    this.actionDuration = 0;
+    // Таймер для действий (в игровых минутах)
+    this.actionRemainingMinutes = 0;
+    this.actionTimeScale = 1;
 
     // Локации для различных активностей берём из сцены
     // Координаты указывают на начальный тайл объекта (левый верхний в grid)
     this.locations = this.scene.buildingLocations || {};
 
-    // Расписание активностей (приоритеты)
+    // Расписание активностей (длительность в игровых минутах)
+    // timeScale рассчитывается динамически: gameMinutes / maxRealActionSeconds
     this.schedule = [
-      { activity: 'work', priority: 70, duration: 5000 },
-      { activity: 'rest', priority: 50, duration: 3000 },
-      { activity: 'eat', priority: 60, duration: 2000 },
-      { activity: 'play', priority: 40, duration: 4000 },
-      { activity: 'socialize', priority: 30, duration: 3000 },
+      { activity: 'work',      priority: 70, gameMinutes: 150 },  // 2.5ч
+      { activity: 'rest',      priority: 50, gameMinutes: 420 },  // 7ч
+      { activity: 'eat',       priority: 60, gameMinutes: 45 },   // 0.75ч
+      { activity: 'play',      priority: 40, gameMinutes: 90 },   // 1.5ч
+      { activity: 'socialize', priority: 30, gameMinutes: 90 },   // 1.5ч
     ];
 
     // Таймеры
@@ -184,21 +145,22 @@ export class CharacterAI {
     this.lastSpeakCheck = Date.now(); // Даём время до первой проверки речи
     this.lastUpdateTime = Date.now(); // Для deltaTime
 
-    // Обновляем потребности и время каждую секунду
+    // Автосохранение каждые 10 секунд (только сохранение, не время)
     this.updateInterval = setInterval(() => {
-      this.updateNeeds();
-      this.updateActionTimer();
-      this.updateGameTime(1000); // Передаём 1000 мс
-      // Автосохранение каждые 10 секунд (не каждую секунду)
-      this.saveCounter = (this.saveCounter || 0) + 1;
-      if (this.saveCounter >= 10) {
-        this.saveCounter = 0;
-        this.saveState();
-      }
-    }, 1000);
+      this.saveState();
+    }, 10000);
 
-    // Запускаем ticker для движения
-    this.movementTickerFn = () => this.updateMovement();
+    // Запускаем ticker для движения И времени (плавное обновление каждый кадр)
+    this.lastTickTime = performance.now();
+    this.movementTickerFn = () => {
+      // Обновляем время каждый кадр для плавного хода секунд при ускорении
+      const now = performance.now();
+      const deltaMs = Math.min(now - this.lastTickTime, 200); // cap 200ms для защиты от зависаний
+      this.lastTickTime = now;
+      this.updateGameTime(deltaMs);
+
+      this.updateMovement();
+    };
     this.getTicker().add(this.movementTickerFn);
 
     // Обновляем время суток и модификаторы
@@ -243,6 +205,10 @@ export class CharacterAI {
   advanceGameMinute() {
     this.gameMinute++;
     this.totalGameMinutes++;
+
+    // Потребности и таймер действий тикают каждую игровую минуту
+    this.updateNeeds();
+    this.updateActionTimer();
 
     if (this.gameMinute >= 60) {
       this.gameMinute = 0;
@@ -332,11 +298,15 @@ export class CharacterAI {
 
   // Получить случайную фразу для текущего времени суток
   getRandomPhrase() {
-    // 70% шанс фразы по времени суток, 30% общая фраза
-    const useTimePhrase = Math.random() < 0.7;
+    const roll = Math.random();
+
+    // 40% — фраза по состоянию, 40% — по времени суток, 20% — общая
+    if (roll < 0.4 && this.statusPrefixes && this.statusSuffixes?.length) {
+      return this.getStatusPhrase();
+    }
 
     let phrases;
-    if (useTimePhrase && this.phrasesByTimeOfDay[this.timeOfDay]) {
+    if (roll < 0.8 && this.phrasesByTimeOfDay[this.timeOfDay]) {
       phrases = this.phrasesByTimeOfDay[this.timeOfDay];
     } else {
       phrases = this.generalPhrases;
@@ -351,6 +321,32 @@ export class CharacterAI {
     return phrase;
   }
 
+  // Генерация фразы по текущему состоянию потребностей
+  getStatusPhrase() {
+    // Находим самую критичную потребность
+    let worstNeed = 'energy';
+    let worstValue = this.needs.energy;
+    for (const need in this.needs) {
+      if (this.needs[need] < worstValue) {
+        worstValue = this.needs[need];
+        worstNeed = need;
+      }
+    }
+
+    // Определяем уровень: high (>70), mid (40-70), low (<40)
+    const level = worstValue > 70 ? 'high' : worstValue >= 40 ? 'mid' : 'low';
+
+    const prefixes = this.statusPrefixes[worstNeed]?.[level];
+    const suffixes = this.statusSuffixes;
+
+    if (!prefixes?.length || !suffixes?.length) return this.generalPhrases[0] || '...';
+
+    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+    const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+
+    return `${prefix}... ${suffix}`;
+  }
+
   // Форматировать текущее время для отображения
   getFormattedTime() {
     const hour = this.gameHour.toString().padStart(2, '0');
@@ -358,15 +354,52 @@ export class CharacterAI {
     return `${hour}:${minute}`;
   }
 
-  // Получить название времени суток на русском
+  // Получить название времени суток (из локализации)
   getTimeOfDayName() {
-    const names = {
-      morning: 'Утро',
-      afternoon: 'День',
-      evening: 'Вечер',
-      night: 'Ночь',
-    };
+    const names = this.locale?.character?.timeOfDay || {};
     return names[this.timeOfDay] || this.timeOfDay;
+  }
+
+  // Загрузить фразы из текущей локали
+  loadPhrases() {
+    const char = this.locale?.character || {};
+    this.phrasesByTimeOfDay = char.phrases || { morning: [], afternoon: [], evening: [], night: [] };
+    this.generalPhrases = char.general || [];
+    this.statusPrefixes = char.statusPrefixes || {};
+    this.statusSuffixes = char.statusSuffixes || [];
+  }
+
+  // Получить случайный текстовый статус для текущей активности
+  getActivityStatusText(locationType) {
+    const statuses = this.locale?.activityStatus;
+    if (!statuses) return '';
+
+    let pool;
+    switch (locationType) {
+      case 'home':
+        pool = statuses.sleep;
+        break;
+      case 'cafe':
+        // Еда зависит от времени суток
+        pool = statuses.eat?.[this.timeOfDay] || statuses.eat?.afternoon;
+        break;
+      case 'projects':
+        pool = statuses.work;
+        break;
+      case 'cases':
+        pool = statuses.social;
+        break;
+    }
+
+    if (!pool || pool.length === 0) return '';
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  // Смена языка
+  setLanguage(lang) {
+    this.lang = lang;
+    this.locale = getLocale(lang);
+    this.loadPhrases();
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -477,18 +510,21 @@ export class CharacterAI {
     console.log('State reset to defaults');
   }
 
-  // Обновление потребностей
+  // Обновление потребностей (вызывается каждую игровую минуту)
   updateNeeds() {
+    const isSleeping = this.currentState === 'performing_action' && this.currentActivity === 'rest';
     for (const need in this.needs) {
+      // Во сне энергия не тратится (восстанавливается при completeAction)
+      if (isSleeping && need === 'energy') continue;
       this.needs[need] = Math.max(0, this.needs[need] - this.needsDecayRate[need]);
     }
   }
 
-  // Обновление таймера действия
+  // Обновление таймера действия (вызывается каждую игровую минуту)
   updateActionTimer() {
-    if (this.currentState === 'performing_action' && this.actionTimer > 0) {
-      this.actionTimer -= 1000;
-      if (this.actionTimer <= 0) {
+    if (this.currentState === 'performing_action' && this.actionRemainingMinutes > 0) {
+      this.actionRemainingMinutes--;
+      if (this.actionRemainingMinutes <= 0) {
         this.completeAction();
       }
     }
@@ -529,6 +565,12 @@ export class CharacterAI {
 
   // Проверка на случайную речь
   checkForRandomSpeech() {
+    // Не говорим во время действия
+    if (this.currentState === 'performing_action') return;
+
+    // Не больше maxConsecutiveSpeech подряд
+    if (this.consecutiveSpeechCount >= this.maxConsecutiveSpeech) return;
+
     const now = Date.now();
 
     // Проверяем не чаще чем раз в speakCheckInterval
@@ -653,33 +695,38 @@ export class CharacterAI {
 
   // Решение о следующем действии
   decideNextAction() {
-    // Находим самую низкую потребность
-    let lowestNeed = null;
-    let lowestValue = 100;
+    // Сбрасываем счётчик речи при начале нового действия
+    this.consecutiveSpeechCount = 0;
 
-    for (const need in this.needs) {
-      if (this.needs[need] < lowestValue) {
-        lowestValue = this.needs[need];
-        lowestNeed = need;
+    // Маппинг потребность → активность
+    const needToActivity = {
+      energy: 'rest',
+      hunger: 'eat',
+      fun: 'play',
+      social: 'socialize',
+    };
+
+    // Сортируем потребности от самой низкой к самой высокой
+    const sortedNeeds = Object.entries(this.needs)
+      .sort((a, b) => a[1] - b[1]);
+
+    const isDaytime = this.gameHour >= 6 && this.gameHour < 22;
+
+    // Перебираем потребности: выбираем первую подходящую
+    for (const [need, value] of sortedNeeds) {
+      const activity = needToActivity[need];
+
+      // Не идём спать днём если энергия > 20
+      if (activity === 'rest' && isDaytime && value > 20) {
+        continue;
       }
+
+      this.startActivity(activity);
+      return;
     }
 
-    // Выбираем действие в зависимости от потребности
-    let selectedActivity = null;
-
-    if (lowestNeed === 'energy') {
-      selectedActivity = 'rest';
-    } else if (lowestNeed === 'hunger') {
-      selectedActivity = 'eat';
-    } else if (lowestNeed === 'fun') {
-      selectedActivity = 'play';
-    } else if (lowestNeed === 'social') {
-      selectedActivity = 'socialize';
-    } else {
-      selectedActivity = 'work';
-    }
-
-    this.startActivity(selectedActivity);
+    // Если все потребности высокие — работаем
+    this.startActivity('work');
   }
 
   // Начать активность (выбрать цель и начать движение)
@@ -749,9 +796,24 @@ export class CharacterAI {
       return;
     }
 
-    // Находим длительность активности из расписания
+    // Находим параметры активности из расписания
     const scheduleItem = this.schedule.find(item => item.activity === activity);
-    this.actionDuration = scheduleItem ? scheduleItem.duration : 3000;
+    this.pendingGameMinutes = scheduleItem ? scheduleItem.gameMinutes : 90;
+
+    // Сон: рассчитываем до 6 утра
+    if (activity === 'rest') {
+      let minutesUntilMorning;
+      if (this.gameHour >= 22) {
+        minutesUntilMorning = (24 - this.gameHour + 6) * 60 - this.gameMinute;
+      } else if (this.gameHour < 6) {
+        minutesUntilMorning = (6 - this.gameHour) * 60 - this.gameMinute;
+      } else {
+        minutesUntilMorning = null; // Дневной отдых — дефолт из расписания
+      }
+      if (minutesUntilMorning && minutesUntilMorning > 60) {
+        this.pendingGameMinutes = minutesUntilMorning;
+      }
+    }
   }
 
   // Начать действие (когда произошла коллизия с объектом)
@@ -759,31 +821,49 @@ export class CharacterAI {
     // Защита от вызова на уничтоженной сцене
     if (!this.scene || this.scene.isDestroyed) return;
 
-    this.actionTimer = this.actionDuration;
+    this.actionRemainingMinutes = this.pendingGameMinutes || 90;
+    // Рассчитываем timeScale чтобы стейт длился не больше maxRealActionSeconds
+    // При timeScale=T, 1 реальная секунда = T игровых минут
+    // Значит realSeconds = gameMinutes / timeScale → timeScale = gameMinutes / maxRealSeconds
+    this.actionTimeScale = Math.ceil(this.actionRemainingMinutes / this.maxRealActionSeconds);
+    this.timeScale = this.actionTimeScale;
+
     this.currentState = 'performing_action';
     this.scene.isMoving = false;
 
-    // Показываем баббл с анимацией активности
+    // Показываем баббл с анимацией активности и статусом
     if (this.currentGoal && this.currentGoal.type) {
-      this.scene.showActivityBubble(this.currentGoal.type, this.currentGoal);
+      const statusText = this.getActivityStatusText(this.currentGoal.type);
+      this.scene.showActivityBubble(this.currentGoal.type, this.currentGoal, statusText);
     }
   }
 
   // Завершить действие
   completeAction() {
-    // Восстанавливаем потребности в зависимости от локации
+    // Сбрасываем ускорение времени
+    this.timeScale = 1;
+
+    // Восстанавливаем потребности пропорционально длительности
+    const scheduleItem = this.schedule.find(item => item.activity === this.currentActivity);
+    const totalMinutes = scheduleItem ? scheduleItem.gameMinutes : 90;
+    const durationHours = totalMinutes / 60;
+
     switch (this.currentGoal.type) {
       case 'home':
-        this.needs.energy = Math.min(100, this.needs.energy + 40);
+        // Сон: ~12.5 энергии/час → 100 за 8ч
+        this.needs.energy = Math.min(100, this.needs.energy + durationHours * 12.5);
         break;
       case 'cafe':
-        this.needs.hunger = Math.min(100, this.needs.hunger + 40);
+        // Еда: ~50/час → 37.5 за 0.75ч
+        this.needs.hunger = Math.min(100, this.needs.hunger + durationHours * 50);
         break;
       case 'projects':
-        this.needs.fun = Math.min(100, this.needs.fun + 35);
+        // Развлечение: ~22/час
+        this.needs.fun = Math.min(100, this.needs.fun + durationHours * 22);
         break;
       case 'cases':
-        this.needs.social = Math.min(100, this.needs.social + 35);
+        // Общение: ~22/час
+        this.needs.social = Math.min(100, this.needs.social + durationHours * 22);
         break;
     }
 
@@ -802,7 +882,8 @@ export class CharacterAI {
     this.currentPath = [];
     this.currentPathIndex = 0;
     this.entryTile = null;
-    this.actionTimer = 0;
+    this.actionRemainingMinutes = 0;
+    this.actionTimeScale = 1;
     this.collisionPosition = null;
   }
 
@@ -814,6 +895,9 @@ export class CharacterAI {
   startSpeaking(phrase = null) {
     // Защита от вызова на уничтоженной сцене
     if (!this.scene || this.scene.isDestroyed) return;
+
+    // Инкрементируем счётчик последовательных речей
+    this.consecutiveSpeechCount++;
 
     // Выбираем случайную фразу если не передана конкретная
     this.currentPhrase = phrase || this.getRandomPhrase();
@@ -945,6 +1029,9 @@ export class CharacterAI {
 
   // Принудительный выход из текущего действия (для переключения режима)
   forceExitAction() {
+    // Всегда сбрасываем ускорение времени
+    this.timeScale = 1;
+
     // Обрабатываем выход из speaking состояния
     if (this.currentState === 'speaking') {
       this.scene.hideSpeechBubble();
@@ -974,7 +1061,8 @@ export class CharacterAI {
     this.currentPath = [];
     this.currentPathIndex = 0;
     this.entryTile = null;
-    this.actionTimer = 0;
+    this.actionRemainingMinutes = 0;
+    this.actionTimeScale = 1;
     this.collisionPosition = null;
   }
 
@@ -1184,7 +1272,7 @@ export class CharacterAI {
         social: Math.round(this.needs.social),
       },
       goal: this.currentGoal ? this.currentGoal.type : null,
-      actionTimer: Math.round(this.actionTimer / 1000),
+      actionTimer: this.actionRemainingMinutes,
       // Информация о времени
       time: {
         hour: this.gameHour,
@@ -1200,7 +1288,7 @@ export class CharacterAI {
 
   // Установить скорость времени (для отладки или ускорения)
   setTimeScale(scale) {
-    this.timeScale = Math.max(0.1, Math.min(10, scale));
+    this.timeScale = Math.max(0.1, scale);
     console.log(`Time scale set to ${this.timeScale}x`);
   }
 

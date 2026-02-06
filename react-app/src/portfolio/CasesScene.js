@@ -119,6 +119,10 @@ export class CasesScene {
     this.keydownHandler = null;
     this.keyupHandler = null;
 
+    // ── Пасхалка: выход за границы тайлов ──
+    this.beyondZone = 0;       // 0 = в пределах, 1/2/3 = уровень ухода
+    this.beyondMessages = this.locale.beyond || [];
+
     this.init();
   }
 
@@ -236,6 +240,7 @@ export class CasesScene {
   setLanguage(lang) {
     this.lang = lang;
     this.locale = getLocale(lang);
+    this.beyondMessages = this.locale.beyond || [];
     this.buildCasesData();
     this.updateDialogForCase(this.activeIndex);
   }
@@ -389,7 +394,7 @@ export class CasesScene {
         fontWeight: 'bold',
       },
     });
-    categoryLabel.anchor.set(1, 1);
+    categoryLabel.anchor.set(0.5, 1);
 
     // ── Title под category ──
     const title = new Text({
@@ -400,7 +405,7 @@ export class CasesScene {
         fontFamily: this.font,
       },
     });
-    title.anchor.set(1, 1);
+    title.anchor.set(0.5, 1);
 
     this.dialogContainer.addChild(dialogBg);
     this.dialogContainer.addChild(categoryLabel);
@@ -419,22 +424,37 @@ export class CasesScene {
     if (!this.dialogBg || !this.dialogCategory || !this.dialogTitle) return;
 
     const padding = 12;
-    const catW = this.dialogCategory.width;
     const catH = this.dialogCategory.height;
-    const titleW = this.dialogTitle.width;
     const titleH = this.dialogTitle.height;
-    const totalW = Math.max(catW, titleW) + padding * 2;
+
+    // Ширина рамки = ширина контент-бокса + framePadding (как у голограммы)
+    const box = this.getContentBox();
+    const framePadding = 10;
+    const totalW = box.width + framePadding * 2;
     const totalH = catH + titleH + 8 + padding * 2;
 
+    // Сбрасываем scale, замеряем реальную ширину, масштабируем если не влезает
+    const maxTextW = totalW - padding * 2;
+    this.dialogCategory.scale.x = 1;
+    const catNatW = this.dialogCategory.width;
+    if (catNatW > maxTextW) {
+      this.dialogCategory.scale.x = maxTextW / catNatW;
+    }
+    this.dialogTitle.scale.x = 1;
+    const titleNatW = this.dialogTitle.width;
+    if (titleNatW > maxTextW) {
+      this.dialogTitle.scale.x = maxTextW / titleNatW;
+    }
+
     this.dialogBg.clear();
-    this.dialogBg.roundRect(-totalW, -totalH, totalW, totalH, 8);
+    this.dialogBg.roundRect(-totalW / 2, -totalH, totalW, totalH, 8);
     this.dialogBg.fill({ color: 0x000000, alpha: 0.7 });
     this.dialogBg.stroke({ width: 2, color: 0x4de3ff, alpha: 0.8 });
 
-    // Позиционируем тексты внутри фона
-    this.dialogCategory.x = -padding;
+    // Позиционируем тексты по центру внутри фона
+    this.dialogCategory.x = 0;
     this.dialogCategory.y = -titleH - 8 - padding;
-    this.dialogTitle.x = -padding;
+    this.dialogTitle.x = 0;
     this.dialogTitle.y = -padding;
   }
 
@@ -578,6 +598,9 @@ export class CasesScene {
     const blocks = caseData.textBlocks || [];
     const active = caseData.activeTextIndex ?? 0;
     const block = blocks[active] || '';
+
+    // Восстанавливаем видимость диалога (мог быть скрыт beyond-пасхалкой)
+    if (this.dialogContainer) this.dialogContainer.visible = true;
 
     // Обновляем category и title
     if (this.dialogCategory) this.dialogCategory.text = category;
@@ -939,6 +962,12 @@ export class CasesScene {
     this.inputKeys.clear();
   }
 
+  // Виртуальный джойстик — приём направлений от React touch overlay
+  setKeysPressed(keys) {
+    if (keys.left) this.inputKeys.add('left'); else this.inputKeys.delete('left');
+    if (keys.right) this.inputKeys.add('right'); else this.inputKeys.delete('right');
+  }
+
   updateActiveIndexFromCharacter() {
     if (!this.tiles || this.tiles.length === 0) return;
     let closestIndex = 0;
@@ -954,6 +983,52 @@ export class CasesScene {
       this.activeIndex = closestIndex;
       this.updateDialogForCase(this.activeIndex);
     }
+  }
+
+  checkBeyondBounds() {
+    if (!this.tiles || this.tiles.length === 0) return;
+
+    const firstTileX = this.tiles[0].x;
+    const lastTileX = this.tiles[this.tiles.length - 1].x;
+    const halfTile = this.tileWidth / 2;
+    const leftEdge = firstTileX - halfTile;
+    const rightEdge = lastTileX + halfTile;
+    const zoneStep = this.tileWidth * 0.5; // каждая зона — пол-тайла за краем
+
+    let overflow = 0;
+    if (this.charX < leftEdge) {
+      overflow = leftEdge - this.charX;
+    } else if (this.charX > rightEdge) {
+      overflow = this.charX - rightEdge;
+    }
+
+    // Определяем уровень ухода (0 = в пределах, 1-3 = зоны)
+    let newZone = 0;
+    if (overflow > 0) {
+      newZone = Math.min(this.beyondMessages.length, Math.floor(overflow / zoneStep) + 1);
+    }
+
+    if (newZone !== this.beyondZone) {
+      this.beyondZone = newZone;
+      if (newZone > 0 && this.beyondMessages[newZone - 1]) {
+        // Показываем пасхальную фразу в бабле
+        this.showBeyondMessage(this.beyondMessages[newZone - 1]);
+      } else if (newZone === 0) {
+        // Вернулся — восстанавливаем текст кейса
+        this.updateDialogForCase(this.activeIndex);
+      }
+    }
+  }
+
+  showBeyondMessage(text) {
+    if (this.bubbleBody) this.bubbleBody.text = text;
+    if (this.bubbleLeft) this.bubbleLeft.visible = false;
+    if (this.bubbleRight) this.bubbleRight.visible = false;
+    if (this.navBg) this.navBg.visible = false;
+    if (this.bubblePage) this.bubblePage.visible = false;
+    // Скрываем диалог title/category
+    if (this.dialogContainer) this.dialogContainer.visible = false;
+    this.updateBubbleBackground();
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -991,6 +1066,7 @@ export class CasesScene {
     if (this.characterMode) {
       this.cameraTargetX = this.app.screen.width / 2 - this.charX;
       this.updateActiveIndexFromCharacter();
+      this.checkBeyondBounds();
     }
 
     const prevX = this.container.x;
@@ -1012,13 +1088,14 @@ export class CasesScene {
       layer.tilePosition.x += dx * (1 - factor);
     }
 
-    // Диалог (category + title) в правом нижнем углу активного тайла
+    // Диалог (category + title) по центру над рамкой контента
     const activeTile = this.tiles?.[this.activeIndex];
     if (this.dialogContainer && activeTile) {
-      const tileRight = activeTile.x + this.tileWidth / 2 - 20;
-      const tileBottom = activeTile.y + this.tileHeight / 2 - 20;
-      this.dialogContainer.x = tileRight;
-      this.dialogContainer.y = tileBottom;
+      const box = this.getContentBox();
+      const framePadding = 10;
+      const frameTop = activeTile.y - box.height / 2 - framePadding;
+      this.dialogContainer.x = activeTile.x;
+      this.dialogContainer.y = frameTop - 2;
     }
 
     // Speech bubble над персонажем

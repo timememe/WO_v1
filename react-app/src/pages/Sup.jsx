@@ -251,6 +251,7 @@ export default function Sup() {
 
       // Создаем изометрическую сцену с предзагруженными ассетами
       mainSceneRef.current = new IsometricScene(app, sceneRootRef.current, assetManager);
+      mainSceneRef.current.setLanguage(lang);
       sceneRef.current = mainSceneRef.current;
       sceneTypeRef.current = 'main';
 
@@ -487,6 +488,7 @@ export default function Sup() {
             sceneRootRef.current,
             assetManager
           );
+          mainSceneRef.current.setLanguage(lang);
 
           // Синхронизируем режим управления с React state (только при создании)
           if (mainSceneRef.current.getControllerMode() !== controllerMode) {
@@ -545,6 +547,9 @@ export default function Sup() {
     if (casesSceneRef.current?.setLanguage) {
       casesSceneRef.current.setLanguage(lang);
     }
+    if (mainSceneRef.current?.setLanguage) {
+      mainSceneRef.current.setLanguage(lang);
+    }
     // TODO: добавить setLanguage для AboutScene когда будет реализовано
   }, [lang]);
 
@@ -560,9 +565,14 @@ export default function Sup() {
   // Обработчики виртуального джойстика (floating - появляется в месте касания)
   const joystickSize = 120;
   const joystickCenterRef = useRef({ x: 0, y: 0 });
+  const touchStartRef = useRef(null); // Для определения тап vs свайп в cases
 
   const handleTouchStart = (e) => {
-    if (!controllerMode || sceneTypeRef.current !== 'main') return;
+    // В main сцене — только в ручном режиме, в cases — всегда
+    const isMain = sceneTypeRef.current === 'main';
+    const isCases = sceneTypeRef.current === 'cases';
+    if (isMain && !controllerMode) return;
+    if (!isMain && !isCases) return;
 
     const touch = e.touches[0];
     const x = touch.clientX;
@@ -571,17 +581,38 @@ export default function Sup() {
     // Сохраняем центр джойстика
     joystickCenterRef.current = { x, y };
 
-    // Позиционируем джойстик в месте касания
-    setJoystickPos({ x: x - joystickSize / 2, y: y - joystickSize / 2 });
-    setJoystickActive(true);
+    if (isCases) {
+      // Cases: не активируем джойстик сразу — ждём свайп, чтобы тапы проходили в Pixi
+      touchStartRef.current = { x, y, moved: false };
+    } else {
+      // Main: сразу активируем джойстик
+      setJoystickPos({ x: x - joystickSize / 2, y: y - joystickSize / 2 });
+      setJoystickActive(true);
+    }
   };
 
-  const handleTouchMove = (e) => {
-    if (!joystickActive || !mainSceneRef.current) return;
+  const TOUCH_DRAG_THRESHOLD = 12; // px — порог для отличия тапа от свайпа
 
+  const handleTouchMove = (e) => {
     const touch = e.touches[0];
     const centerX = joystickCenterRef.current.x;
     const centerY = joystickCenterRef.current.y;
+
+    // Cases: определяем, свайп это или тап
+    if (touchStartRef.current && !touchStartRef.current.moved) {
+      const moveDist = Math.sqrt(
+        (touch.clientX - touchStartRef.current.x) ** 2 +
+        (touch.clientY - touchStartRef.current.y) ** 2
+      );
+      if (moveDist < TOUCH_DRAG_THRESHOLD) return; // Ещё не свайп
+      // Порог пройден — активируем джойстик
+      touchStartRef.current.moved = true;
+      setJoystickPos({ x: centerX - joystickSize / 2, y: centerY - joystickSize / 2 });
+      setJoystickActive(true);
+    }
+
+    if (!joystickActive && !(touchStartRef.current?.moved)) return;
+
     const maxRadius = joystickSize / 2 - 20;
 
     let dx = touch.clientX - centerX;
@@ -612,20 +643,51 @@ export default function Sup() {
       right: normalizedX > deadzone,
     };
 
-    mainSceneRef.current.setKeysPressed?.(keys);
+    // Отправляем в активную сцену
+    if (sceneTypeRef.current === 'cases') {
+      casesSceneRef.current?.setKeysPressed?.(keys);
+    } else {
+      mainSceneRef.current?.setKeysPressed?.(keys);
+    }
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e) => {
+    // Cases: если палец подняли без свайпа — это тап, пробрасываем в canvas (Pixi)
+    if (touchStartRef.current && !touchStartRef.current.moved) {
+      const { x, y } = touchStartRef.current;
+      touchStartRef.current = null;
+      // Форвардим тап в canvas для Pixi-кнопок (навигация слайдов)
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const pointerDown = new PointerEvent('pointerdown', {
+          clientX: x, clientY: y,
+          pointerId: 1, pointerType: 'touch',
+          bubbles: true, cancelable: true,
+          screenX: x, screenY: y,
+        });
+        const pointerUp = new PointerEvent('pointerup', {
+          clientX: x, clientY: y,
+          pointerId: 1, pointerType: 'touch',
+          bubbles: true, cancelable: true,
+          screenX: x, screenY: y,
+        });
+        canvas.dispatchEvent(pointerDown);
+        canvas.dispatchEvent(pointerUp);
+      }
+      return;
+    }
+
+    touchStartRef.current = null;
     setJoystickActive(false);
     if (joystickThumbRef.current) {
       joystickThumbRef.current.style.transform = 'translate(0, 0)';
     }
-    mainSceneRef.current?.setKeysPressed?.({
-      up: false,
-      down: false,
-      left: false,
-      right: false,
-    });
+    const resetKeys = { up: false, down: false, left: false, right: false };
+    if (sceneTypeRef.current === 'cases') {
+      casesSceneRef.current?.setKeysPressed?.(resetKeys);
+    } else {
+      mainSceneRef.current?.setKeysPressed?.(resetKeys);
+    }
   };
 
   return (
@@ -635,23 +697,14 @@ export default function Sup() {
           <div className={`sup-viewport-inner ${activeSection === 'cases' ? 'is-cases' : ''}`}>
             <canvas ref={canvasRef} className="sup-canvas"></canvas>
 
-            {/* DEBUG OVERLAY - FPS & TIME */}
-            {debugInfo && assetsLoaded && (
+            {/* DEBUG OVERLAY - FPS (only in debug mode) */}
+            {showCrtControls && debugInfo && assetsLoaded && (
               <div className="sup-debug-overlay">
                 <div className="sup-debug-fps" style={{
                   color: debugInfo.fps?.avg >= 55 ? '#0f0' : debugInfo.fps?.avg >= 30 ? '#ff0' : '#f00'
                 }}>
                   FPS: {debugInfo.fps?.current} | AVG: {debugInfo.fps?.avg} | MIN: {debugInfo.fps?.min} | MAX: {debugInfo.fps?.max}
                 </div>
-                {debugInfo.time && (
-                  <div className="sup-debug-time" style={{
-                    color: debugInfo.time.timeOfDay === 'morning' ? '#ffd700' :
-                           debugInfo.time.timeOfDay === 'afternoon' ? '#fff' :
-                           debugInfo.time.timeOfDay === 'evening' ? '#ffa500' : '#87ceeb'
-                  }}>
-                    Day {debugInfo.time.day} | {debugInfo.time.formatted} | {debugInfo.time.timeOfDayName}
-                  </div>
-                )}
               </div>
             )}
 
@@ -698,11 +751,32 @@ export default function Sup() {
                     </div>
                   </div>
                 ))}
+
+                {/* SEGA-STYLE DAY TIMER */}
+                {debugInfo?.time && (
+                  <div className="sup-sega-timer">
+                    <div className="sup-sega-timer-row">
+                      <span className="sup-sega-timer-label">DAY</span>
+                      <span className="sup-sega-timer-value">{String(debugInfo.time.day).padStart(2, '0')}</span>
+                    </div>
+                    <div className="sup-sega-timer-row">
+                      <span className="sup-sega-timer-label">TIME</span>
+                      <span className="sup-sega-timer-value">
+                        {String(debugInfo.time.hour).padStart(2, '0')}
+                        <span style={{ fontFamily: 'Arial, sans-serif' }}>:</span>
+                        {String(debugInfo.time.minute).padStart(2, '0')}
+                      </span>
+                    </div>
+                    <div className={`sup-sega-timer-period is-${debugInfo.time.timeOfDay}`}>
+                      {debugInfo.time.timeOfDayName}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
             {/* Touch area for floating joystick */}
-            {isTouchDevice && controllerMode && sceneTypeRef.current === 'main' && (
+            {isTouchDevice && ((controllerMode && sceneTypeRef.current === 'main') || sceneTypeRef.current === 'cases') && (
               <div
                 className="sup-touch-area"
                 onTouchStart={handleTouchStart}
