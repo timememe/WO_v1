@@ -263,6 +263,44 @@ export const LOCALES = {
       name: 'Roma T',
       role: 'Creative Developer',
       bio: 'I create interactive experiences, games, and AI-powered solutions.',
+      stories: {
+        story1: {
+          slides: [
+            'Born and raised in Almaty, Kazakhstan.',
+            'Got my first computer at 12 and never looked back.',
+          ],
+        },
+        story2: {
+          slides: [
+            'Started with web development, then discovered game dev.',
+            'Traveled through different stacks and technologies.',
+          ],
+        },
+        story3: {
+          slides: [
+            'Hackathons, tight deadlines, impossible tasks.',
+            'Every challenge made me stronger as a developer.',
+          ],
+        },
+        story4: {
+          slides: [
+            'Met amazing people along the way.',
+            'Collaboration is the key to great projects.',
+          ],
+        },
+        story5: {
+          slides: [
+            'Hidden passions: music production, pixel art, AI experiments.',
+            'Some things you can only discover by exploring.',
+          ],
+        },
+        story6: {
+          slides: [
+            'Building the future one project at a time.',
+            'The best is yet to come.',
+          ],
+        },
+      },
     },
   },
 
@@ -526,6 +564,44 @@ export const LOCALES = {
       name: 'Рома Т',
       role: 'Креативный разработчик',
       bio: 'Создаю интерактивные проекты, игры и решения на базе ИИ.',
+      stories: {
+        story1: {
+          slides: [
+            'Родился и вырос в Алматы, Казахстан.',
+            'Получил первый компьютер в 12 лет и больше не отпускал.',
+          ],
+        },
+        story2: {
+          slides: [
+            'Начал с веб-разработки, потом открыл для себя геймдев.',
+            'Прошёл через разные стеки и технологии.',
+          ],
+        },
+        story3: {
+          slides: [
+            'Хакатоны, жёсткие дедлайны, невозможные задачи.',
+            'Каждый вызов делал меня сильнее как разработчика.',
+          ],
+        },
+        story4: {
+          slides: [
+            'По пути встретил потрясающих людей.',
+            'Коллаборация — ключ к отличным проектам.',
+          ],
+        },
+        story5: {
+          slides: [
+            'Скрытые страсти: музыка, пиксель-арт, эксперименты с ИИ.',
+            'Некоторые вещи можно узнать только исследуя.',
+          ],
+        },
+        story6: {
+          slides: [
+            'Строю будущее по одному проекту за раз.',
+            'Лучшее ещё впереди.',
+          ],
+        },
+      },
     },
   },
 };

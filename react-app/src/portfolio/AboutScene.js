@@ -1,4 +1,5 @@
 import { Container, Sprite, Graphics, Text } from 'pixi.js';
+import { getLocale, GAME_FONT } from '../i18n';
 
 // ═══════════════════════════════════════════════════════════════
 // ДАННЫЕ КАРТОЧКИ ПЕРСОНАЖА - РЕДАКТИРУЙ ЗДЕСЬ
@@ -31,9 +32,9 @@ const SKILLS = [
 // Секретные флайты (6 кнопок)
 const SECRET_FLIGHTS = [
   { id: 'story1', label: 'ORIGINS', icon: '◆' },
-  { id: 'story2', label: 'JOURNEY', icon: '◇' },
-  { id: 'story3', label: 'BATTLES', icon: '◈' },
-  { id: 'story4', label: 'ALLIES', icon: '◉' },
+  { id: 'story2', label: 'LITERATURE', icon: '◇' },
+  { id: 'story3', label: 'SCIENCE', icon: '◈' },
+  { id: 'story4', label: 'AWARDS', icon: '◉' },
   { id: 'story5', label: 'SECRETS', icon: '◎' },
   { id: 'story6', label: 'FUTURE', icon: '●' },
 ];
@@ -48,6 +49,13 @@ export class AboutScene {
     this.sceneId = 'about';
 
     this.backgroundColor = options.backgroundColor ?? 0x000000;
+
+    // Локализация
+    this.lang = options.lang || 'en';
+    this.locale = getLocale(this.lang);
+
+    // Состояние историй (6 штук, по imageIndex и textIndex)
+    this.storyState = Array.from({ length: 6 }, () => ({ imageIndex: 0, textIndex: 0 }));
 
     // Параметры системы флайтов (адаптивные)
     this.flightGap = options.flightGap ?? 60;
@@ -98,6 +106,15 @@ export class AboutScene {
     this.init();
   }
 
+  setLanguage(lang) {
+    this.lang = lang;
+    this.locale = getLocale(lang);
+    // Пересобрать story flights с новыми текстами
+    for (let i = 0; i < 6; i++) {
+      this.rebuildStoryFlight(i);
+    }
+  }
+
   async init() {
     this.calculateFlightSize();
     this.createBackground();
@@ -116,10 +133,10 @@ export class AboutScene {
     const maxWidth = screenW - 40;
     const maxHeight = screenH - this.navHeight - this.bottomPadding - 20;
 
-    // Базовые размеры
-    const baseWidth = 520;
-    const baseHeight = 680;
-    const aspectRatio = baseWidth / baseHeight;
+    // Базовые размеры (9:16)
+    const baseWidth = 360;
+    const baseHeight = 640;
+    const aspectRatio = 9 / 16;
 
     // Вычисляем размер, который влезет в экран
     let width = Math.min(baseWidth, maxWidth);
@@ -549,70 +566,252 @@ export class AboutScene {
     const s = this.scaleFactor;
 
     const story = SECRET_FLIGHTS[storyIndex] || { label: 'UNKNOWN', icon: '?' };
+    const state = this.storyState[storyIndex];
+    const images = this.assetManager?.getAboutStoryImages?.(storyIndex) || [];
+    const storyKey = `story${storyIndex + 1}`;
+    const slides = this.locale.about?.stories?.[storyKey]?.slides || [];
 
-    // Основная панель
+    // Основная панель-рамка
     const cardPanel = this.createPanel(cardX, cardY, cardWidth, cardHeight);
     container.addChild(cardPanel);
 
-    const padding = Math.round(20 * s);
-    const innerX = cardX + padding;
-    const innerWidth = cardWidth - padding * 2;
+    const padding = Math.round(8 * s);
 
-    // Центрированный контент
-    const centerY = cardY + cardHeight / 2;
+    // === ИЗОБРАЖЕНИЕ — заполняет весь кард ===
+    const imgIndex = state.imageIndex;
+    const texture = images[imgIndex];
+    if (texture) {
+      const sprite = new Sprite(texture);
+      sprite.anchor.set(0.5, 0.5);
+      // Cover: заполнить весь кард, обрезая лишнее
+      const scaleImg = Math.max(
+        (cardWidth - padding * 2) / (texture.width || 1),
+        (cardHeight - padding * 2) / (texture.height || 1)
+      );
+      sprite.scale.set(scaleImg);
+      sprite.x = 0;
+      sprite.y = 0;
 
-    // Большая иконка
-    const iconText = new Text({
-      text: story.icon,
+      // Маска для обрезки по рамке карда
+      const mask = new Graphics();
+      mask.roundRect(cardX + padding, cardY + padding, cardWidth - padding * 2, cardHeight - padding * 2, 2);
+      mask.fill({ color: 0xffffff });
+      container.addChild(mask);
+      sprite.mask = mask;
+
+      container.addChild(sprite);
+    }
+
+    // === OVERLAY: Заголовок поверх изображения (верх) ===
+    const titlePadding = Math.round(14 * s);
+    const titleBg = new Graphics();
+    titleBg.roundRect(cardX + titlePadding, cardY + titlePadding, cardWidth - titlePadding * 2, Math.round(44 * s), 6);
+    titleBg.fill({ color: 0x000000, alpha: 0.7 });
+    container.addChild(titleBg);
+
+    const titleText = new Text({
+      text: `${story.icon} ${story.label}`,
       style: {
         fill: this.colors.accent,
-        fontSize: this.fontSize(72),
-        fontFamily: 'Sonic Genesis, monospace',
-      },
-    });
-    iconText.anchor.set(0.5);
-    iconText.x = 0;
-    iconText.y = centerY - Math.round(60 * s);
-    container.addChild(iconText);
-
-    // Название
-    const titleText = new Text({
-      text: story.label,
-      style: {
-        fill: this.colors.textPrimary,
-        fontSize: this.fontSize(36),
-        fontFamily: 'Sonic Genesis, monospace',
+        fontSize: this.fontSize(24),
+        fontFamily: GAME_FONT,
         fontWeight: 'bold',
-        letterSpacing: 3,
-      },
-    });
-    titleText.anchor.set(0.5);
-    titleText.x = 0;
-    titleText.y = centerY + Math.round(20 * s);
-    container.addChild(titleText);
-
-    // Placeholder текст
-    const placeholderText = new Text({
-      text: 'STORY COMING SOON...',
-      style: {
-        fill: this.colors.textSecondary,
-        fontSize: this.fontSize(14),
-        fontFamily: 'Sonic Genesis, monospace',
         letterSpacing: 2,
       },
     });
-    placeholderText.anchor.set(0.5);
-    placeholderText.x = 0;
-    placeholderText.y = centerY + Math.round(70 * s);
-    container.addChild(placeholderText);
+    titleText.anchor.set(0.5, 0.5);
+    titleText.x = 0;
+    titleText.y = cardY + titlePadding + Math.round(22 * s);
+    container.addChild(titleText);
 
-    // Кнопка назад
-    const backButton = this.createBackButton(innerX, cardY + cardHeight - padding - Math.round(40 * s), innerWidth);
+    // === Счётчик изображений (верхний правый угол) ===
+    if (images.length > 1) {
+      const counterBg = new Graphics();
+      counterBg.roundRect(cardX + cardWidth - titlePadding - Math.round(56 * s), cardY + titlePadding + Math.round(48 * s), Math.round(56 * s), Math.round(24 * s), 4);
+      counterBg.fill({ color: 0x000000, alpha: 0.6 });
+      container.addChild(counterBg);
+
+      const imgCounter = new Text({
+        text: `${imgIndex + 1}/${images.length}`,
+        style: {
+          fill: 0xffffff,
+          fontSize: this.fontSize(12),
+          fontFamily: GAME_FONT,
+        },
+      });
+      imgCounter.anchor.set(0.5, 0.5);
+      imgCounter.x = cardX + cardWidth - titlePadding - Math.round(28 * s);
+      imgCounter.y = cardY + titlePadding + Math.round(60 * s);
+      container.addChild(imgCounter);
+
+      // Стрелки навигации по изображениям (по бокам карда)
+      const arrowY = 0; // Центр карда
+      const arrowPad = Math.round(12 * s);
+
+      const leftImg = new Graphics();
+      leftImg.moveTo(0, 12);
+      leftImg.lineTo(14, 0);
+      leftImg.lineTo(14, 24);
+      leftImg.closePath();
+      leftImg.fill({ color: 0xffffff, alpha: 0.8 });
+      leftImg.x = cardX + arrowPad;
+      leftImg.y = arrowY - 12;
+      leftImg.eventMode = 'static';
+      leftImg.cursor = 'pointer';
+      leftImg.on('pointertap', () => this.nextStoryImage(storyIndex, -1));
+      container.addChild(leftImg);
+
+      const rightImg = new Graphics();
+      rightImg.moveTo(14, 12);
+      rightImg.lineTo(0, 0);
+      rightImg.lineTo(0, 24);
+      rightImg.closePath();
+      rightImg.fill({ color: 0xffffff, alpha: 0.8 });
+      rightImg.x = cardX + cardWidth - arrowPad - 14;
+      rightImg.y = arrowY - 12;
+      rightImg.eventMode = 'static';
+      rightImg.cursor = 'pointer';
+      rightImg.on('pointertap', () => this.nextStoryImage(storyIndex, 1));
+      container.addChild(rightImg);
+    }
+
+    // === OVERLAY: Speech Bubble поверх изображения (низ) ===
+    if (slides.length > 0) {
+      const bubblePadding = Math.round(14 * s);
+      const bubbleMargin = Math.round(16 * s);
+      const bubbleWidth = cardWidth - bubbleMargin * 2;
+      const textIndex = state.textIndex;
+      const fullText = slides[textIndex] || '';
+
+      // Фон бабла
+      const bubbleBg = new Graphics();
+      const bubbleBody = new Text({
+        text: fullText,
+        style: {
+          fill: 0xffffff,
+          fontSize: this.fontSize(13),
+          fontFamily: GAME_FONT,
+          wordWrap: true,
+          wordWrapWidth: bubbleWidth - bubblePadding * 2,
+          lineHeight: Math.round(this.fontSize(13) * 1.4),
+          align: 'left',
+        },
+      });
+
+      const bubbleH = Math.max(Math.round(50 * s), bubbleBody.height + bubblePadding * 2);
+      const backBtnHeight = Math.round(40 * s);
+      const bubbleY = cardY + cardHeight - bubbleMargin - backBtnHeight - Math.round(12 * s) - bubbleH;
+
+      bubbleBg.roundRect(cardX + bubbleMargin, bubbleY, bubbleWidth, bubbleH, 8);
+      bubbleBg.fill({ color: 0x000000, alpha: 0.75 });
+      bubbleBg.stroke({ width: 2, color: this.colors.accent, alpha: 0.6 });
+
+      bubbleBody.x = cardX + bubbleMargin + bubblePadding;
+      bubbleBody.y = bubbleY + bubblePadding;
+
+      // Тап по баблу — следующий слайд
+      bubbleBg.eventMode = 'static';
+      bubbleBg.cursor = 'pointer';
+      bubbleBg.on('pointertap', () => this.nextStoryText(storyIndex, 1));
+      bubbleBody.eventMode = 'static';
+      bubbleBody.cursor = 'pointer';
+      bubbleBody.on('pointertap', () => this.nextStoryText(storyIndex, 1));
+
+      container.addChild(bubbleBg);
+      container.addChild(bubbleBody);
+
+      // Счётчик слайдов
+      if (slides.length > 1) {
+        const pageBg = new Graphics();
+        pageBg.roundRect(cardX + bubbleMargin + bubbleWidth - Math.round(48 * s), bubbleY - Math.round(22 * s), Math.round(48 * s), Math.round(20 * s), 4);
+        pageBg.fill({ color: 0x000000, alpha: 0.6 });
+        container.addChild(pageBg);
+
+        const pageText = new Text({
+          text: `${textIndex + 1}/${slides.length}`,
+          style: {
+            fill: this.colors.accent,
+            fontSize: this.fontSize(11),
+            fontFamily: GAME_FONT,
+          },
+        });
+        pageText.anchor.set(0.5, 0.5);
+        pageText.x = cardX + bubbleMargin + bubbleWidth - Math.round(24 * s);
+        pageText.y = bubbleY - Math.round(12 * s);
+        container.addChild(pageText);
+      }
+
+      // Typewriter-анимация: печатаем посимвольно только если этот флайт активен
+      const flightIndex = storyIndex + 2;
+      if (this.activeIndex === flightIndex) {
+        bubbleBody.text = '';
+        this._runTypewriter(bubbleBody, fullText, storyIndex, textIndex);
+      }
+    }
+
+    // === Кнопка назад (поверх, внизу) ===
+    const backBtnY = cardY + cardHeight - Math.round(16 * s) - Math.round(40 * s);
+    const backButton = this.createBackButton(cardX + Math.round(16 * s), backBtnY, cardWidth - Math.round(32 * s));
     container.addChild(backButton);
+  }
 
-    // === SCANLINES OVERLAY ===
-    const scanlines = this.createScanlines(cardX, cardY, cardWidth, cardHeight);
-    container.addChild(scanlines);
+  _runTypewriter(textObj, fullText, storyIndex, textIndex) {
+    // Отменяем предыдущую анимацию если есть
+    if (this._typewriterTimer) {
+      clearInterval(this._typewriterTimer);
+      this._typewriterTimer = null;
+    }
+
+    let charIndex = 0;
+    const speed = 30; // мс на символ
+
+    this._typewriterTimer = setInterval(() => {
+      // Если сцена или текст изменились — останавливаем
+      const state = this.storyState[storyIndex];
+      if (!state || state.textIndex !== textIndex || !textObj.parent) {
+        clearInterval(this._typewriterTimer);
+        this._typewriterTimer = null;
+        return;
+      }
+
+      charIndex++;
+      textObj.text = fullText.slice(0, charIndex);
+
+      if (charIndex >= fullText.length) {
+        clearInterval(this._typewriterTimer);
+        this._typewriterTimer = null;
+      }
+    }, speed);
+  }
+
+  nextStoryImage(storyIndex, dir) {
+    const state = this.storyState[storyIndex];
+    const images = this.assetManager?.getAboutStoryImages?.(storyIndex) || [];
+    if (images.length === 0) return;
+    state.imageIndex = (state.imageIndex + dir + images.length) % images.length;
+    this.rebuildStoryFlight(storyIndex);
+  }
+
+  nextStoryText(storyIndex, dir) {
+    const state = this.storyState[storyIndex];
+    const storyKey = `story${storyIndex + 1}`;
+    const slides = this.locale.about?.stories?.[storyKey]?.slides || [];
+    if (slides.length === 0) return;
+    state.textIndex = (state.textIndex + dir + slides.length) % slides.length;
+    // Синхронизируем картинку с текстовым слайдом
+    const images = this.assetManager?.getAboutStoryImages?.(storyIndex) || [];
+    if (images.length > 0) {
+      state.imageIndex = state.textIndex % images.length;
+    }
+    this.rebuildStoryFlight(storyIndex);
+  }
+
+  rebuildStoryFlight(storyIndex) {
+    const flightIndex = storyIndex + 2; // 0=profile, 1=skills, 2+=stories
+    const flightContainer = this.flights?.[flightIndex];
+    if (flightContainer) {
+      this.renderFlightContent(flightIndex, flightContainer);
+    }
   }
 
   createBackButton(x, y, maxWidth) {
@@ -717,6 +916,11 @@ export class AboutScene {
   setActiveFlight(index) {
     this.centerOnIndex(index, false);
     this.updateNavigation();
+    // Если это story flight (index >= 2), пересобираем чтобы запустить typewriter
+    if (index >= 2) {
+      const storyIndex = index - 2;
+      this.rebuildStoryFlight(storyIndex);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -1119,6 +1323,10 @@ export class AboutScene {
   pause() {
     if (this.isPaused) return;
     this.isPaused = true;
+    if (this._typewriterTimer) {
+      clearInterval(this._typewriterTimer);
+      this._typewriterTimer = null;
+    }
     this.container.visible = false;
     if (this.container.parent) {
       this.container.parent.removeChild(this.container);
@@ -1141,6 +1349,10 @@ export class AboutScene {
   }
 
   destroy() {
+    if (this._typewriterTimer) {
+      clearInterval(this._typewriterTimer);
+      this._typewriterTimer = null;
+    }
     if (this.cameraTickerFn) {
       this.getTicker().remove(this.cameraTickerFn);
       this.cameraTickerFn = null;

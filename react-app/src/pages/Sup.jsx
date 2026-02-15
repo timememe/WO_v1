@@ -467,12 +467,12 @@ export default function Sup() {
         if (!aboutSceneRef.current) {
           aboutSceneRef.current = new AboutScene(
             appRef.current,
-            { backgroundColor: 0x000000 },
+            { backgroundColor: 0x000000, lang: lang },
             sceneRootRef.current,
             assetManager
           );
         } else {
-          // Сцена уже есть - просто возобновляем
+          aboutSceneRef.current.setLanguage(lang);
           aboutSceneRef.current.resume();
         }
 
@@ -584,7 +584,9 @@ export default function Sup() {
     if (mainSceneRef.current?.setLanguage) {
       mainSceneRef.current.setLanguage(lang);
     }
-    // TODO: добавить setLanguage для AboutScene когда будет реализовано
+    if (aboutSceneRef.current) {
+      aboutSceneRef.current.setLanguage(lang);
+    }
   }, [lang]);
 
   // Переключение режима управления

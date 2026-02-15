@@ -76,6 +76,18 @@ const BUNDLE_CONFIG = {
     name: 'about',
     assets: [
       { alias: 'aboutPhoto', src: '/assets/about_assets/me.png' },
+      { alias: 'aboutImg1', src: '/assets/about_assets/1.png' },
+      { alias: 'aboutImg2', src: '/assets/about_assets/2.png' },
+      { alias: 'aboutImg3', src: '/assets/about_assets/3.png' },
+      { alias: 'aboutImg4', src: '/assets/about_assets/4.png' },
+      { alias: 'aboutImg5', src: '/assets/about_assets/5.png' },
+      { alias: 'aboutImg6', src: '/assets/about_assets/6.png' },
+      { alias: 'aboutImg7', src: '/assets/about_assets/7.png' },
+      { alias: 'aboutImg8', src: '/assets/about_assets/8.png' },
+      { alias: 'aboutImg9', src: '/assets/about_assets/9.png' },
+      { alias: 'aboutImg10', src: '/assets/about_assets/10.png' },
+      { alias: 'aboutImg11', src: '/assets/about_assets/11.png' },
+      { alias: 'aboutImg12', src: '/assets/about_assets/12.png' },
     ]
   }
 };
@@ -307,8 +319,17 @@ export class AssetManager {
    * Парсинг бандла сцены "Обо мне"
    */
   parseAboutBundle(raw) {
+    // 12 изображений → 6 историй по 2 картинки
+    const storyImages = [];
+    for (let i = 0; i < 6; i++) {
+      storyImages.push([
+        raw[`aboutImg${i * 2 + 1}`],
+        raw[`aboutImg${i * 2 + 2}`],
+      ]);
+    }
     return {
       photo: raw.aboutPhoto,
+      storyImages,
     };
   }
 
@@ -598,6 +619,10 @@ export class AssetManager {
 
   getAboutPhoto() {
     return this.bundles.about.data?.photo || null;
+  }
+
+  getAboutStoryImages(storyIndex) {
+    return this.bundles.about.data?.storyImages?.[storyIndex] || [];
   }
 
   // ═══════════════════════════════════════════════════════════════
