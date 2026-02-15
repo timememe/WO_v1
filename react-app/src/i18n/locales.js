@@ -95,6 +95,37 @@ export const LOCALES = {
       },
     },
 
+    // ── Проекты ──
+    projects: {
+      deulogue: {
+        title: 'DEULOGUE',
+        category: 'Card Game',
+        slides: [
+          'A card game about debates — argue, persuade, win.',
+          'Players pick topics and defend positions using rhetoric cards.',
+          'Designed for parties, education, and sharpening your argumentation skills.',
+        ],
+      },
+      agentCommander: {
+        title: 'AGENT COMMANDER',
+        category: 'AI Tools',
+        slides: [
+          'A desktop app for managing AI agents and automation.',
+          'Control multiple agents, set up tasks, and monitor execution in real-time.',
+          'Built with Python and a modern GUI for seamless workflow.',
+        ],
+      },
+      kdw: {
+        title: 'KAZAKH DINO WARS',
+        category: 'Game & TikTok',
+        slides: [
+          'A game and TikTok universe about Kazakh-Dinosaur wars.',
+          'Developing the game, lore, and growing the community around it.',
+          'A world where ancient warriors clash with prehistoric beasts.',
+        ],
+      },
+    },
+
     // ── Статусы активностей ──
     activityStatus: {
       work: [
@@ -323,6 +354,37 @@ export const LOCALES = {
           'Многие ролики органично хайпанули.',
           'Людям нравятся идеи, которые не повторяют тренды, например Дынный реп',
           'Но больше всего нравятся локализации продукта',
+        ],
+      },
+    },
+
+    // ── Проекты ──
+    projects: {
+      deulogue: {
+        title: 'DEULOGUE',
+        category: 'Карточная игра',
+        slides: [
+          'Карточная игра о дебатах — спорь, убеждай, побеждай.',
+          'Игроки выбирают темы и защищают позиции с помощью карт риторики.',
+          'Для вечеринок, обучения и прокачки навыков аргументации.',
+        ],
+      },
+      agentCommander: {
+        title: 'AGENT COMMANDER',
+        category: 'ИИ инструменты',
+        slides: [
+          'Десктоп-приложение для управления ИИ-агентами и автоматизацией.',
+          'Контролируй агентов, ставь задачи и следи за выполнением в реальном времени.',
+          'Построено на Python с современным GUI для удобного воркфлоу.',
+        ],
+      },
+      kdw: {
+        title: 'KAZAKH DINO WARS',
+        category: 'Игра и ТикТок',
+        slides: [
+          'Игра и ТикТок-вселенная казахо-динозаврских войн.',
+          'Разрабатываю игру, лор и развиваю комьюнити вокруг.',
+          'Мир, где древние воины сражаются с доисторическими зверями.',
         ],
       },
     },

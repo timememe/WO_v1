@@ -57,6 +57,20 @@ const BUNDLE_CONFIG = {
       { alias: 'sideRoad', src: '/assets/side_road.png' },
     ]
   },
+  // Сцена проектов
+  projects: {
+    name: 'projects',
+    assets: [
+      { alias: 'prBg', src: '/assets/pr_bg.jpg' },
+      { alias: 'prMidBg', src: '/assets/pr_mid_bg.png' },
+      { alias: 'prGround', src: '/assets/pr_ground.png' },
+      { alias: 'charSideIdle', src: '/assets/char_side_idle.png' },
+      { alias: 'charSideWalk', src: '/assets/char_side_walk.png' },
+      { alias: 'projDuelogue0', src: '/assets/projects_assets/duelogue_0.png' },
+      { alias: 'projAC0', src: '/assets/projects_assets/AC_0.png' },
+      { alias: 'projKdw0', src: '/assets/projects_assets/kdw_0.jpg' },
+    ]
+  },
   // Сцена "Обо мне"
   about: {
     name: 'about',
@@ -76,6 +90,7 @@ export class AssetManager {
     this.bundles = {
       main: { loaded: false, data: {} },
       cases: { loaded: false, data: {} },
+      projects: { loaded: false, data: {} },
       about: { loaded: false, data: {} }
     };
 
@@ -200,6 +215,8 @@ export class AssetManager {
         return this.parseMainBundle(rawTextures);
       case 'cases':
         return this.parseCasesBundle(rawTextures);
+      case 'projects':
+        return this.parseProjectsBundle(rawTextures);
       case 'about':
         return this.parseAboutBundle(rawTextures);
       default:
@@ -265,6 +282,24 @@ export class AssetManager {
       sideBack: raw.sideBack,
       sideExt: raw.sideExt,
       sideRoad: raw.sideRoad,
+    };
+  }
+
+  /**
+   * Парсинг бандла сцены проектов
+   */
+  parseProjectsBundle(raw) {
+    return {
+      prBg: raw.prBg,
+      prMidBg: raw.prMidBg,
+      prGround: raw.prGround,
+      charSideIdle: this.parse2x2Atlas(raw.charSideIdle),
+      charSideWalk: this.parse2x2Atlas(raw.charSideWalk),
+      projectScreens: {
+        duelogue_0: raw.projDuelogue0,
+        AC_0: raw.projAC0,
+        kdw_0: raw.projKdw0,
+      },
     };
   }
 
@@ -527,6 +562,34 @@ export class AssetManager {
 
   getSideRoad() {
     return this.bundles.cases.data?.sideRoad || null;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ГЕТТЕРЫ ДЛЯ СЦЕНЫ ПРОЕКТОВ (projects bundle)
+  // ═══════════════════════════════════════════════════════════════
+
+  getProjectsBg() {
+    return this.bundles.projects.data?.prBg || null;
+  }
+
+  getProjectsMidBg() {
+    return this.bundles.projects.data?.prMidBg || null;
+  }
+
+  getProjectsGround() {
+    return this.bundles.projects.data?.prGround || null;
+  }
+
+  getProjectScreenMedia(key) {
+    return this.bundles.projects.data?.projectScreens?.[key] || null;
+  }
+
+  getProjectsCharSideIdle() {
+    return this.bundles.projects.data?.charSideIdle || [];
+  }
+
+  getProjectsCharSideWalk() {
+    return this.bundles.projects.data?.charSideWalk || [];
   }
 
   // ═══════════════════════════════════════════════════════════════

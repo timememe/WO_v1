@@ -3,6 +3,7 @@ import { Application, Container, Rectangle, Ticker } from 'pixi.js';
 import { IsometricScene } from '../portfolio/IsometricScene';
 import { CasesScene } from '../portfolio/CasesScene';
 import { AboutScene } from '../portfolio/AboutScene';
+import { ProjectsScene } from '../portfolio/ProjectsScene';
 import { CRTFilter } from '../portfolio/CRTFilter';
 import { getAssetManager } from '../portfolio/AssetManager';
 import { useI18n } from '../i18n';
@@ -26,6 +27,7 @@ export default function Sup() {
   const mainSceneRef = useRef(null);
   const casesSceneRef = useRef(null);
   const aboutSceneRef = useRef(null);
+  const projectsSceneRef = useRef(null);
   const sceneTypeRef = useRef('main');
   const crtFilterRef = useRef(null);
   const crtTickerRef = useRef(null);
@@ -421,6 +423,9 @@ export default function Sup() {
       if (keepScene !== 'about' && aboutSceneRef.current) {
         aboutSceneRef.current.pause();
       }
+      if (keepScene !== 'projects' && projectsSceneRef.current) {
+        projectsSceneRef.current.pause();
+      }
     };
 
     if (activeSection === 'cases') {
@@ -474,6 +479,35 @@ export default function Sup() {
         sceneRef.current = aboutSceneRef.current;
         sceneTypeRef.current = 'about';
         setAiStatus(null);
+        ensureCrt();
+        triggerTransitionPulse();
+      }
+    } else if (activeSection === 'projects') {
+      if (sceneTypeRef.current !== 'projects') {
+        pauseOtherScenes('projects');
+
+        if (!projectsSceneRef.current) {
+          projectsSceneRef.current = new ProjectsScene(
+            appRef.current,
+            {
+              tileGap: 0,
+              tileOverlap: 20,
+              backgroundColor: 0x000000,
+              debugMode: false,
+              lang: lang,
+            },
+            sceneRootRef.current,
+            assetManager
+          );
+        } else {
+          projectsSceneRef.current.setLanguage(lang);
+          projectsSceneRef.current.resume();
+        }
+
+        sceneRef.current = projectsSceneRef.current;
+        sceneTypeRef.current = 'projects';
+        setAiStatus(null);
+        setActiveCaseIndex(0);
         ensureCrt();
         triggerTransitionPulse();
       }
@@ -571,8 +605,9 @@ export default function Sup() {
     // В main сцене — только в ручном режиме, в cases — всегда
     const isMain = sceneTypeRef.current === 'main';
     const isCases = sceneTypeRef.current === 'cases';
+    const isProjects = sceneTypeRef.current === 'projects';
     if (isMain && !controllerMode) return;
-    if (!isMain && !isCases) return;
+    if (!isMain && !isCases && !isProjects) return;
 
     const touch = e.touches[0];
     const x = touch.clientX;
@@ -581,8 +616,8 @@ export default function Sup() {
     // Сохраняем центр джойстика
     joystickCenterRef.current = { x, y };
 
-    if (isCases) {
-      // Cases: не активируем джойстик сразу — ждём свайп, чтобы тапы проходили в Pixi
+    if (isCases || isProjects) {
+      // Cases/Projects: не активируем джойстик сразу — ждём свайп, чтобы тапы проходили в Pixi
       touchStartRef.current = { x, y, moved: false };
     } else {
       // Main: сразу активируем джойстик
@@ -646,6 +681,8 @@ export default function Sup() {
     // Отправляем в активную сцену
     if (sceneTypeRef.current === 'cases') {
       casesSceneRef.current?.setKeysPressed?.(keys);
+    } else if (sceneTypeRef.current === 'projects') {
+      projectsSceneRef.current?.setKeysPressed?.(keys);
     } else {
       mainSceneRef.current?.setKeysPressed?.(keys);
     }
@@ -685,6 +722,8 @@ export default function Sup() {
     const resetKeys = { up: false, down: false, left: false, right: false };
     if (sceneTypeRef.current === 'cases') {
       casesSceneRef.current?.setKeysPressed?.(resetKeys);
+    } else if (sceneTypeRef.current === 'projects') {
+      projectsSceneRef.current?.setKeysPressed?.(resetKeys);
     } else {
       mainSceneRef.current?.setKeysPressed?.(resetKeys);
     }
@@ -694,7 +733,7 @@ export default function Sup() {
     <div className="sup-game-container">
         {/* ВЕРХНЯЯ ЧАСТЬ - GAME VIEWPORT (16:9) */}
         <div className="sup-viewport">
-          <div className={`sup-viewport-inner ${activeSection === 'cases' ? 'is-cases' : ''}`}>
+          <div className={`sup-viewport-inner ${activeSection === 'cases' || activeSection === 'projects' ? 'is-cases' : ''}`}>
             <canvas ref={canvasRef} className="sup-canvas"></canvas>
 
             {/* DEBUG OVERLAY - FPS (only in debug mode) */}
@@ -776,7 +815,7 @@ export default function Sup() {
             )}
 
             {/* Touch area for floating joystick */}
-            {isTouchDevice && ((controllerMode && sceneTypeRef.current === 'main') || sceneTypeRef.current === 'cases') && (
+            {isTouchDevice && ((controllerMode && sceneTypeRef.current === 'main') || sceneTypeRef.current === 'cases' || sceneTypeRef.current === 'projects') && (
               <div
                 className="sup-touch-area"
                 onTouchStart={handleTouchStart}
@@ -836,6 +875,40 @@ export default function Sup() {
                 </button>
               </div>
 
+            </div>
+          ) : activeSection === 'projects' ? (
+            <div className="sup-cases-panel">
+              <div className="sup-cases-controls">
+                <div className="sup-cases-nav">
+                  <button
+                    className="sup-cases-button"
+                    onClick={() => {
+                      const nextIndex = Math.max(0, activeCaseIndex - 1);
+                      setActiveCaseIndex(nextIndex);
+                      projectsSceneRef.current?.setActiveTile?.(nextIndex);
+                    }}
+                  >
+                    ←
+                  </button>
+                  <button
+                    className="sup-cases-button"
+                    onClick={() => {
+                      const total = projectsSceneRef.current?.tileCount ?? 1;
+                      const nextIndex = Math.min(total - 1, activeCaseIndex + 1);
+                      setActiveCaseIndex(nextIndex);
+                      projectsSceneRef.current?.setActiveTile?.(nextIndex);
+                    }}
+                  >
+                    →
+                  </button>
+                </div>
+                <button
+                  className="sup-cases-button is-back"
+                  onClick={() => setActiveSection(null)}
+                >
+                  {t.controls.backToScene}
+                </button>
+              </div>
             </div>
           ) : activeSection === 'about' ? (
             <div className="sup-about-panel">

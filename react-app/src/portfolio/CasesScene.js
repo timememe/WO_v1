@@ -283,14 +283,21 @@ export class CasesScene {
     // tileHeight/2 потому что anchor тайлов в центре
     this.tilesY = this.tileHeight / 2;
 
+    // Задний и средний слои занимают верхние 2/3 экрана (отступ снизу на треть)
+    const bgHeight = Math.round(screenH * 2 / 3);
+
     for (const layerDef of layerDefs) {
       if (!layerDef.texture) continue;
+      const layerH = layerDef.isFloor ? screenH : bgHeight;
+      const texH_layer = layerDef.texture.height || 336;
+      const layerScale = layerH / texH_layer;
+
       const layer = new TilingSprite({
         texture: layerDef.texture,
         width: screenW,
-        height: screenH,
+        height: layerH,
       });
-      layer.tileScale.set(scale, scale);
+      layer.tileScale.set(layerScale, layerScale);
       layer.parallaxFactor = layerDef.speed;
 
       const target = layerDef.isFloor ? this.parallaxFloorContainer : this.parallaxBgContainer;
@@ -535,6 +542,14 @@ export class CasesScene {
 
     // Placeholder bubble background (будет перерисовываться при обновлении текста)
     const bubbleBg = new Graphics();
+    bubbleBg.eventMode = 'static';
+    bubbleBg.cursor = 'pointer';
+    bubbleBg.on('pointertap', () => this.nextText(1));
+
+    // Текст тоже кликабелен (чтобы тап по тексту не проваливался)
+    bubbleBody.eventMode = 'static';
+    bubbleBody.cursor = 'pointer';
+    bubbleBody.on('pointertap', () => this.nextText(1));
 
     this.speechBubbleContainer.addChild(navContainer);
     this.speechBubbleContainer.addChild(bubbleBg);
