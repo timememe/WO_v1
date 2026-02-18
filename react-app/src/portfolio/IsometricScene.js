@@ -1002,8 +1002,7 @@ export class IsometricScene {
     );
     frame.stroke({ width: this.bubbleFrameWidth, color: this.bubbleFrameColor, alpha: 1 });
 
-    // ── Плашка статуса + время под баблом ──
-    const statusBarY = gifHeight / 2 + this.bubbleFramePadding + 6;
+    // ── Плашка статуса + время над баблом ──
     const statusPadH = 5;
     const statusPadW = 8;
     const statusGap = 2; // промежуток между строками
@@ -1033,12 +1032,14 @@ export class IsometricScene {
     timeText.anchor.set(0.5, 0);
     this.activityTimeText = timeText;
 
-    // Размещаем тексты внутри плашки
+    // Размещаем тексты внутри плашки (над баблом)
     const statusH = statusLabel.height;
     const timeH = timeText.height || 14;
     const totalTextH = statusH + statusGap + timeH;
     const barW = Math.max(statusLabel.width, 60) + statusPadW * 2;
     const barH = totalTextH + statusPadH * 2;
+
+    const statusBarY = -gifHeight / 2 - this.bubbleFramePadding - barH - 6;
 
     statusLabel.x = 0;
     statusLabel.y = statusBarY + statusPadH;

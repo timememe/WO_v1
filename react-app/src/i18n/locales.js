@@ -266,38 +266,38 @@ export const LOCALES = {
       stories: {
         story1: {
           slides: [
-            'Born and raised in Almaty, Kazakhstan.',
-            'Got my first computer at 12 and never looked back.',
+            'I was born in New York just as the USSR suddenly collapsed.',
+            'But I grew up in Nakhodka, where I fell in love with the internet and computers.',
           ],
         },
         story2: {
           slides: [
-            'Started with web development, then discovered game dev.',
-            'Traveled through different stacks and technologies.',
+            'By education, I’m literally a writer from the Gorky Institute of Literature.',
+            'In college, we started a magazine where I used to create literary memes.',
           ],
         },
         story3: {
           slides: [
-            'Hackathons, tight deadlines, impossible tasks.',
-            'Every challenge made me stronger as a developer.',
+            'Those literary memes led me to creating the first memes for Aviasales.',
+            'At my first job, we launched a science journal—and a science meme page to go with it.',
           ],
         },
         story4: {
           slides: [
-            'Met amazing people along the way.',
-            'Collaboration is the key to great projects.',
+            'My first major case was the world first marketing Telegram bot.',
+            'And I built my first AI case back in 2015 for Coca-Cola, long before ChatGPT.',
           ],
         },
         story5: {
           slides: [
-            'Hidden passions: music production, pixel art, AI experiments.',
-            'Some things you can only discover by exploring.',
+            'After that, a secret fintech project took me to Africa; I traveled across its entire southern region.',
+            'That same project also led me through Peru and Bolivia.',
           ],
         },
         story6: {
           slides: [
-            'Building the future one project at a time.',
-            'The best is yet to come.',
+            'Later, I got hooked on AR technologies and became a programmer.',
+            'Since then, I’ve been combining marketing, creativity, and tech to build cool stuff.',
           ],
         },
       },
@@ -567,38 +567,38 @@ export const LOCALES = {
       stories: {
         story1: {
           slides: [
-            'Родился и вырос в Алматы, Казахстан.',
-            'Получил первый компьютер в 12 лет и больше не отпускал.',
+            'Я родился в Нью-Йорке, когда внезапно не стало СССР',
+            'А вырос в Находке, где полюбил интернет и компы.',
           ],
         },
         story2: {
           slides: [
-            'Начал с веб-разработки, потом открыл для себя геймдев.',
-            'Прошёл через разные стеки и технологии.',
+            'По образованию я буквально писатель из ЛИ им. Горького.',
+            'А в институте мы создали журнал, где я делал литературные мемы',
           ],
         },
         story3: {
           slides: [
-            'Хакатоны, жёсткие дедлайны, невозможные задачи.',
-            'Каждый вызов делал меня сильнее как разработчика.',
+            'Литературные мемы привели меня к созданию первых мемов для Aviasales.',
+            'На моей первой работе мы запускали научный журнал, а для него — научный мем-паблик',
           ],
         },
         story4: {
           slides: [
-            'По пути встретил потрясающих людей.',
-            'Коллаборация — ключ к отличным проектам.',
+            'Моим первым кейсом стал первый в мире маркетинговый телеграм-бот',
+            'А первый ИИ-кейс я сделал еще в 2015 для Coca-Cola и без ЧатГПТ',
           ],
         },
         story5: {
           slides: [
-            'Скрытые страсти: музыка, пиксель-арт, эксперименты с ИИ.',
-            'Некоторые вещи можно узнать только исследуя.',
+            'После этого секретный финтех-проект привел меня в Африку, я проехал весь ее юг',
+            'Также этот проект привел меня в Перу и Боливию.',
           ],
         },
         story6: {
           slides: [
-            'Строю будущее по одному проекту за раз.',
-            'Лучшее ещё впереди.',
+            'А после я проникса AR-технологиями и стал программистом',
+            'С тех пор я комбинирую маркетинг, творчество и технологии, чтобы делать классные штуки',
           ],
         },
       },

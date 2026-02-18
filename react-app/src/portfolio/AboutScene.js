@@ -599,6 +599,11 @@ export class AboutScene {
       container.addChild(mask);
       sprite.mask = mask;
 
+      // Тап по картинке — следующий текстовый слайд
+      sprite.eventMode = 'static';
+      sprite.cursor = 'pointer';
+      sprite.on('pointertap', () => this.nextStoryText(storyIndex, 1));
+
       container.addChild(sprite);
     }
 

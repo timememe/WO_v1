@@ -741,6 +741,15 @@ export class CasesScene {
     contentNode.x = 0;
     contentNode.y = 0;
     container.addChild(contentNode);
+
+    // Тап по картинке — следующий текстовый слайд
+    const hitArea = new Graphics();
+    hitArea.rect(-box.width / 2, -box.height / 2, box.width, box.height);
+    hitArea.fill({ color: 0xffffff, alpha: 0.001 });
+    hitArea.eventMode = 'static';
+    hitArea.cursor = 'pointer';
+    hitArea.on('pointertap', () => this.nextText(1));
+    container.addChild(hitArea);
   }
 
   getContentBox() {

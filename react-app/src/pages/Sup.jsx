@@ -604,12 +604,11 @@ export default function Sup() {
   const touchStartRef = useRef(null); // Для определения тап vs свайп в cases
 
   const handleTouchStart = (e) => {
-    // В main сцене — только в ручном режиме, в cases — всегда
     const isMain = sceneTypeRef.current === 'main';
     const isCases = sceneTypeRef.current === 'cases';
     const isProjects = sceneTypeRef.current === 'projects';
-    if (isMain && !controllerMode) return;
-    if (!isMain && !isCases && !isProjects) return;
+    const isAbout = sceneTypeRef.current === 'about';
+    if (!isMain && !isCases && !isProjects && !isAbout) return;
 
     const touch = e.touches[0];
     const x = touch.clientX;
@@ -618,11 +617,16 @@ export default function Sup() {
     // Сохраняем центр джойстика
     joystickCenterRef.current = { x, y };
 
-    if (isCases || isProjects) {
-      // Cases/Projects: не активируем джойстик сразу — ждём свайп, чтобы тапы проходили в Pixi
+    if (isCases || isProjects || isAbout) {
+      // Cases/Projects/About: не активируем джойстик сразу — ждём свайп, чтобы тапы проходили в Pixi
       touchStartRef.current = { x, y, moved: false };
     } else {
-      // Main: сразу активируем джойстик
+      // Main: автопереключение в ручной режим при касании (выводит из стейта если нужно)
+      if (!controllerMode) {
+        setControllerMode(true);
+        mainSceneRef.current?.setControllerMode?.(true);
+      }
+      // Сразу активируем джойстик
       setJoystickPos({ x: x - joystickSize / 2, y: y - joystickSize / 2 });
       setJoystickActive(true);
     }
@@ -634,19 +638,26 @@ export default function Sup() {
     const touch = e.touches[0];
     const centerX = joystickCenterRef.current.x;
     const centerY = joystickCenterRef.current.y;
+    const isAbout = sceneTypeRef.current === 'about';
 
-    // Cases: определяем, свайп это или тап
+    // Cases/About: определяем, свайп это или тап
     if (touchStartRef.current && !touchStartRef.current.moved) {
       const moveDist = Math.sqrt(
         (touch.clientX - touchStartRef.current.x) ** 2 +
         (touch.clientY - touchStartRef.current.y) ** 2
       );
       if (moveDist < TOUCH_DRAG_THRESHOLD) return; // Ещё не свайп
-      // Порог пройден — активируем джойстик
+      // Порог пройден
       touchStartRef.current.moved = true;
-      setJoystickPos({ x: centerX - joystickSize / 2, y: centerY - joystickSize / 2 });
-      setJoystickActive(true);
+      if (!isAbout) {
+        // Cases/Projects: активируем джойстик
+        setJoystickPos({ x: centerX - joystickSize / 2, y: centerY - joystickSize / 2 });
+        setJoystickActive(true);
+      }
     }
+
+    // About: не нужен джойстик, только отслеживаем движение
+    if (isAbout) return;
 
     if (!joystickActive && !(touchStartRef.current?.moved)) return;
 
@@ -690,8 +701,10 @@ export default function Sup() {
     }
   };
 
+  const SWIPE_THRESHOLD = 50; // px — минимальная дистанция для свайпа в About
+
   const handleTouchEnd = (e) => {
-    // Cases: если палец подняли без свайпа — это тап, пробрасываем в canvas (Pixi)
+    // Если палец подняли без свайпа — это тап, пробрасываем в canvas (Pixi)
     if (touchStartRef.current && !touchStartRef.current.moved) {
       const { x, y } = touchStartRef.current;
       touchStartRef.current = null;
@@ -716,6 +729,23 @@ export default function Sup() {
       return;
     }
 
+    // About: свайп переключает флайты
+    if (sceneTypeRef.current === 'about' && touchStartRef.current?.moved) {
+      const touch = e.changedTouches?.[0];
+      if (touch && touchStartRef.current) {
+        const dx = touch.clientX - touchStartRef.current.x;
+        if (Math.abs(dx) > SWIPE_THRESHOLD) {
+          if (dx < 0) {
+            aboutSceneRef.current?.nextFlight?.();
+          } else {
+            aboutSceneRef.current?.prevFlight?.();
+          }
+        }
+      }
+      touchStartRef.current = null;
+      return;
+    }
+
     touchStartRef.current = null;
     setJoystickActive(false);
     if (joystickThumbRef.current) {
@@ -728,6 +758,11 @@ export default function Sup() {
       projectsSceneRef.current?.setKeysPressed?.(resetKeys);
     } else {
       mainSceneRef.current?.setKeysPressed?.(resetKeys);
+      // Main: возвращаем AI управление после отпускания пальца
+      if (sceneTypeRef.current === 'main' && controllerMode) {
+        setControllerMode(false);
+        mainSceneRef.current?.setControllerMode?.(false);
+      }
     }
   };
 
@@ -817,7 +852,7 @@ export default function Sup() {
             )}
 
             {/* Touch area for floating joystick */}
-            {isTouchDevice && ((controllerMode && sceneTypeRef.current === 'main') || sceneTypeRef.current === 'cases' || sceneTypeRef.current === 'projects') && (
+            {isTouchDevice && (sceneTypeRef.current === 'main' || sceneTypeRef.current === 'cases' || sceneTypeRef.current === 'projects' || sceneTypeRef.current === 'about') && (
               <div
                 className="sup-touch-area"
                 onTouchStart={handleTouchStart}
@@ -843,7 +878,7 @@ export default function Sup() {
 
         {/* НИЖНЯЯ ЧАСТЬ - GAME UI / CONTROL PANEL */}
         <div className="sup-control-panel">
-          {activeSection === 'cases' ? (
+          {!assetsLoaded ? null : activeSection === 'cases' ? (
             <div className="sup-cases-panel">
               <div className="sup-cases-controls">
                 <div className="sup-cases-nav">
