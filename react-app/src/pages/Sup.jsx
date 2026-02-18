@@ -1383,7 +1383,7 @@ export default function Sup() {
 
                 <button
                   className={`sup-menu-item ${activeSection === 'old-portfolio' ? 'active' : ''}`}
-                  onClick={() => setActiveSection('old-portfolio')}
+                  onClick={() => window.open('https://readymag.com/omudake/romafolio/', '_blank')}
                 >
                   <div className="sup-menu-content">
                     <h3>{t.menu.old}</h3>
