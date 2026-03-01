@@ -279,9 +279,13 @@ export class CasesScene {
     this.contentBoxWidth = Math.min(targetContentWidth, maxContentWidth);
     this.contentBoxHeight = Math.round(this.tileHeight * this.contentBoxScale);
 
-    // Позиция тайлов по вертикали — верх тайлов привязан к верху экрана
-    // tileHeight/2 потому что anchor тайлов в центре
-    this.tilesY = this.tileHeight / 2;
+    // Позиция тайлов по вертикали: резервируем место для шапки (category + title)
+    // выбираем максимум между гарантированным отступом и 38% высоты экрана
+    const headerReserve = 100;
+    this.tilesY = Math.max(
+      Math.round(this.contentBoxHeight / 2) + headerReserve,
+      Math.round(screenH * 0.38),
+    );
 
     // Задний и средний слои занимают верхние 2/3 экрана (отступ снизу на треть)
     const bgHeight = Math.round(screenH * 2 / 3);
@@ -439,6 +443,7 @@ export class CasesScene {
     const framePadding = 10;
     const totalW = box.width + framePadding * 2;
     const totalH = catH + titleH + 8 + padding * 2;
+    this._dialogTotalH = totalH;
 
     // Сбрасываем scale, замеряем реальную ширину, масштабируем если не влезает
     const maxTextW = totalW - padding * 2;
@@ -1118,8 +1123,9 @@ export class CasesScene {
       const box = this.getContentBox();
       const framePadding = 10;
       const frameTop = activeTile.y - box.height / 2 - framePadding;
+      const safeMinY = (this._dialogTotalH || 80) + 8;
       this.dialogContainer.x = activeTile.x;
-      this.dialogContainer.y = frameTop - 2;
+      this.dialogContainer.y = Math.max(safeMinY, frameTop - 2);
     }
 
     // Speech bubble над персонажем

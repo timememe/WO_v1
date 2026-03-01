@@ -59,7 +59,7 @@ export class AboutScene {
 
     // Параметры системы флайтов (адаптивные)
     this.flightGap = options.flightGap ?? 60;
-    this.flightCount = 8; // 1-profile, 2-skills, 3-8 secret stories
+    this.flightCount = 7; // 0=profile, 1-6=secret stories
     this.navHeight = 60; // Высота навигационной панели
     this.bottomPadding = 160; // Отступ для внешнего меню навигации
 
@@ -209,11 +209,8 @@ export class AboutScene {
       case 0:
         this.renderProfileFlight(container);
         break;
-      case 1:
-        this.renderSkillsFlight(container);
-        break;
       default:
-        this.renderSecretFlight(container, index - 2);
+        this.renderSecretFlight(container, index - 1);
         break;
     }
   }
@@ -283,7 +280,7 @@ export class AboutScene {
       text: PROFILE.title,
       style: {
         fill: this.colors.accent,
-        fontSize: this.fontSize(17),
+        fontSize: this.fontSize(21),
         fontFamily: 'Sonic Genesis, monospace',
         letterSpacing: 1,
       },
@@ -296,7 +293,7 @@ export class AboutScene {
       text: PROFILE.level,
       style: {
         fill: this.colors.accentAlt,
-        fontSize: this.fontSize(21),
+        fontSize: this.fontSize(26),
         fontFamily: 'Sonic Genesis, monospace',
         fontWeight: 'bold',
       },
@@ -309,7 +306,7 @@ export class AboutScene {
       text: PROFILE.location,
       style: {
         fill: this.colors.textSecondary,
-        fontSize: this.fontSize(15),
+        fontSize: this.fontSize(18),
         fontFamily: 'Sonic Genesis, monospace',
       },
     });
@@ -333,7 +330,7 @@ export class AboutScene {
       text: 'STATS',
       style: {
         fill: this.colors.textSecondary,
-        fontSize: this.fontSize(15),
+        fontSize: this.fontSize(18),
         fontFamily: 'Sonic Genesis, monospace',
         letterSpacing: 3,
       },
@@ -369,7 +366,7 @@ export class AboutScene {
       text: 'MY STORY',
       style: {
         fill: this.colors.textSecondary,
-        fontSize: this.fontSize(15),
+        fontSize: this.fontSize(18),
         fontFamily: 'Sonic Genesis, monospace',
         letterSpacing: 3,
       },
@@ -474,8 +471,8 @@ export class AboutScene {
     });
 
     container.on('pointertap', () => {
-      // Переход к секретному флайту (index + 2, т.к. 0=profile, 1=skills)
-      this.setActiveFlight(index + 2);
+      // Переход к секретному флайту (index + 1, т.к. 0=profile, 1+=stories)
+      this.setActiveFlight(index + 1);
     });
 
     return container;
@@ -812,7 +809,7 @@ export class AboutScene {
   }
 
   rebuildStoryFlight(storyIndex) {
-    const flightIndex = storyIndex + 2; // 0=profile, 1=skills, 2+=stories
+    const flightIndex = storyIndex + 1; // 0=profile, 1+=stories
     const flightContainer = this.flights?.[flightIndex];
     if (flightContainer) {
       this.renderFlightContent(flightIndex, flightContainer);
@@ -1185,7 +1182,7 @@ export class AboutScene {
       text: stat.name,
       style: {
         fill: this.colors.textPrimary,
-        fontSize: this.fontSize(15),
+        fontSize: this.fontSize(17),
         fontFamily: 'Sonic Genesis, monospace',
         letterSpacing: 1,
       },
@@ -1199,7 +1196,7 @@ export class AboutScene {
       text: `${stat.value}`,
       style: {
         fill: stat.color,
-        fontSize: this.fontSize(18),
+        fontSize: this.fontSize(21),
         fontFamily: 'Sonic Genesis, monospace',
         fontWeight: 'bold',
       },
@@ -1209,43 +1206,59 @@ export class AboutScene {
     valueText.y = y - Math.round(2 * s);
     container.addChild(valueText);
 
-    // Полоса прогресса
+    // === Sega-style сегментированный бар (10 клеток) ===
     const barY = y + Math.round(20 * s);
-    const barHeight = height - Math.round(20 * s);
-    const barWidth = width;
+    const barH = height - Math.round(20 * s);
+    const barW = width;
 
-    // Фон полосы
-    const barBg = new Graphics();
-    barBg.rect(x, barY, barWidth, barHeight);
-    barBg.fill({ color: this.colors.barBg, alpha: 1 });
-    barBg.stroke({ width: 1, color: this.colors.barBorder, alpha: 1 });
-    container.addChild(barBg);
+    const numCells = 10;
+    const filledCount = Math.round(stat.value / 10);
+    const borderW = 2;
+    const shadowOffset = Math.round(2 * s);
+    const innerPad = Math.round(2 * s);
+    const cellGap = Math.round(2 * s);
 
-    // Заполнение полосы
-    const fillWidth = (barWidth - 4) * (stat.value / 100);
-    const barFill = new Graphics();
-    barFill.rect(x + 2, barY + 2, fillWidth, barHeight - 4);
-    barFill.fill({ color: stat.color, alpha: 1 });
-    container.addChild(barFill);
+    // Тень (смещение вправо-вниз)
+    const shadow = new Graphics();
+    shadow.rect(x + shadowOffset, barY + shadowOffset, barW, barH);
+    shadow.fill({ color: 0x000000, alpha: 1 });
+    container.addChild(shadow);
 
-    // Блики на полосе (сегменты)
-    const segmentCount = 10;
-    const segmentWidth = (barWidth - 4) / segmentCount;
-    for (let i = 0; i < segmentCount; i++) {
-      const segX = x + 2 + i * segmentWidth;
-      if (segX < x + 2 + fillWidth - 2) {
-        const highlight = new Graphics();
-        highlight.rect(segX, barY + 2, 2, (barHeight - 4) / 2);
-        highlight.fill({ color: 0xffffff, alpha: 0.2 });
-        container.addChild(highlight);
+    // Рамка + чёрный фон
+    const border = new Graphics();
+    border.rect(x, barY, barW, barH);
+    border.fill({ color: 0x000000, alpha: 1 });
+    border.stroke({ width: borderW, color: 0xffffff, alpha: 1 });
+    container.addChild(border);
+
+    // Клетки
+    const availW = barW - borderW * 2 - innerPad * 2 - cellGap * (numCells - 1);
+    const cellW = Math.floor(availW / numCells);
+    const cellH = barH - borderW * 2 - innerPad * 2;
+    const startX = x + borderW + innerPad;
+    const startY = barY + borderW + innerPad;
+    const hlH = Math.max(1, Math.round(2 * s));
+
+    for (let i = 0; i < numCells; i++) {
+      const cx = startX + i * (cellW + cellGap);
+      const cell = new Graphics();
+
+      if (i < filledCount) {
+        cell.rect(cx, startY, cellW, cellH);
+        cell.fill({ color: stat.color, alpha: 1 });
+        // Блик сверху
+        cell.rect(cx, startY, cellW, hlH);
+        cell.fill({ color: 0xffffff, alpha: 0.3 });
+        // Тень снизу
+        cell.rect(cx, startY + cellH - hlH, cellW, hlH);
+        cell.fill({ color: 0x000000, alpha: 0.3 });
+      } else {
+        cell.rect(cx, startY, cellW, cellH);
+        cell.fill({ color: 0x1a1a2e, alpha: 1 });
       }
-    }
 
-    // Градиентный блик сверху
-    const topHighlight = new Graphics();
-    topHighlight.rect(x + 2, barY + 2, Math.min(fillWidth, barWidth - 4), 2);
-    topHighlight.fill({ color: 0xffffff, alpha: 0.3 });
-    container.addChild(topHighlight);
+      container.addChild(cell);
+    }
 
     return container;
   }

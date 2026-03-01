@@ -248,7 +248,11 @@ export class ProjectsScene {
     this.contentBoxWidth = Math.min(targetContentWidth, maxContentWidth);
     this.contentBoxHeight = Math.round(this.tileHeight * this.contentBoxScale);
 
-    this.tilesY = this.tileHeight / 2;
+    const headerReserve = 100;
+    this.tilesY = Math.max(
+      Math.round(this.contentBoxHeight / 2) + headerReserve,
+      Math.round(screenH * 0.38),
+    );
 
     // Задний и средний слои занимают верхние 2/3 экрана (отступ снизу на треть)
     const bgHeight = Math.round(screenH * 2 / 3);
@@ -397,6 +401,7 @@ export class ProjectsScene {
     const framePadding = 10;
     const totalW = box.width + framePadding * 2;
     const totalH = catH + titleH + 8 + padding * 2;
+    this._dialogTotalH = totalH;
 
     const maxTextW = totalW - padding * 2;
     this.dialogCategory.scale.x = 1;
@@ -1039,8 +1044,9 @@ export class ProjectsScene {
       const box = this.getContentBox();
       const framePadding = 10;
       const frameTop = activeTile.y - box.height / 2 - framePadding;
+      const safeMinY = (this._dialogTotalH || 80) + 8;
       this.dialogContainer.x = activeTile.x;
-      this.dialogContainer.y = frameTop - 2;
+      this.dialogContainer.y = Math.max(safeMinY, frameTop - 2);
     }
 
     if (this.speechBubbleContainer && this.charSprite) {
