@@ -17,7 +17,7 @@ export default function Home() {
         <header>
           <div className="logo-container">
             <img
-              src="/shared/assets/images/logo.png"
+              src="/assets/logo.png"
               alt="yeah, a world order logo"
               id="logo"
               loading="eager"
