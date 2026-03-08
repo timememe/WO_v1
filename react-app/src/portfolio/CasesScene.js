@@ -1,12 +1,13 @@
 import { Container, Sprite, Graphics, TilingSprite, Text } from 'pixi.js';
 import { getLocale, GAME_FONT } from '../i18n';
+import { PixelPetalsEffect, TVGlitchEffect } from './SceneEffects';
 
 // ═══════════════════════════════════════════════════════════════
 // ГЛОБАЛЬНЫЕ НАСТРОЙКИ СЦЕНЫ
 // ═══════════════════════════════════════════════════════════════
 const CHAR_GROUND_OFFSET = 0.34;   // Вертикальная позиция персонажа (0 = центр, 0.5 = низ)
 const FLOOR_SCALE_FACTOR = 1.5;     // Делитель масштаба пола (1 = оригинал, 2 = в два раза плотнее)
-const FLOOR_Y_OFFSET = 0.3;         // Оффсет пола по Y как доля экрана (0 = верх, 0.5 = середина)
+const FLOOR_Y_OFFSET = 0.325;         // Оффсет пола по Y как доля экрана (0 = верх, 0.5 = середина)
 const BG_HEIGHT_RATIO = 0.8;       // Высота заднего/среднего фона (доля экрана, 0.67 = 2/3, 0.8 = 80%)
 
 // ═══════════════════════════════════════════════════════════════
@@ -142,10 +143,24 @@ export class CasesScene {
     this.createTiles();
     this.createCharacter();
     this.createDialog();
+    this.createPetals();
     this.centerOnIndex(0, true);
     this.startCamera();
     this.bindKeyboard();
     this.bindResize();
+  }
+
+  createPetals() {
+    this.glitchEffect = new TVGlitchEffect(this.getTicker());
+    const sceneW = this.tileCount * this.tileWidth + (this.tileCount - 1) * (this.tileGap - this.tileOverlap);
+    this.petalsEffect = new PixelPetalsEffect(this.app, {}, sceneW);
+    // Индексы ПОСЛЕ вставки каждого предыдущего слоя (каждая вставка сдвигает +1)
+    // bg=1, +far=2, tiles=3, +mid=4, floor=5, +near=6
+    this.petalsEffect.attachToScene(this.container, {
+      far: 2,   // после parallaxBgContainer
+      mid: 4,   // после tilesContainer
+      near: 6,  // после parallaxFloorContainer
+    });
   }
 
   createBackground() {
@@ -175,6 +190,9 @@ export class CasesScene {
         this.bubbleBody.style.wordWrapWidth = this.bubbleWidth - this.bubblePadding * 2;
       }
       this.updateBubbleBackground();
+      if (this.petalsEffect) {
+        this.petalsEffect.resize(this.app.screen.width, this.app.screen.height);
+      }
     };
     this.app.renderer.on('resize', this.resizeHandler);
   }
@@ -845,6 +863,11 @@ export class CasesScene {
     const contentContainer = tileGroup?.children?.find((child) => child.label === 'content');
     if (contentContainer) {
       this.renderTileContent(tileIndex, contentContainer);
+      // TV глитч при смене контента
+      if (this.glitchEffect) {
+        const box = this.getContentBox();
+        this.glitchEffect.play(contentContainer, box.width, box.height);
+      }
     }
   }
 
@@ -1109,6 +1132,12 @@ export class CasesScene {
       this.speechBubbleContainer.x = this.charSprite.x;
       this.speechBubbleContainer.y = this.charSprite.y - this.charHeight + this.bubbleOffsetY;
     }
+
+    // Лепестки
+    if (this.petalsEffect) {
+      this.petalsEffect.update(dt);
+      this.petalsEffect.updateCamera(this.container.x);
+    }
   }
 
   centerOnIndex(index, immediate = false) {
@@ -1178,6 +1207,15 @@ export class CasesScene {
     if (this.resizeHandler) {
       this.app.renderer.off('resize', this.resizeHandler);
       this.resizeHandler = null;
+    }
+
+    if (this.petalsEffect) {
+      this.petalsEffect.destroy();
+      this.petalsEffect = null;
+    }
+    if (this.glitchEffect) {
+      this.glitchEffect.destroy();
+      this.glitchEffect = null;
     }
 
     this.tiles = [];
