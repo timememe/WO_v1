@@ -2,6 +2,14 @@ import { Container, Sprite, Graphics, TilingSprite, Text } from 'pixi.js';
 import { getLocale, GAME_FONT } from '../i18n';
 
 // ═══════════════════════════════════════════════════════════════
+// ГЛОБАЛЬНЫЕ НАСТРОЙКИ СЦЕНЫ
+// ═══════════════════════════════════════════════════════════════
+const CHAR_GROUND_OFFSET = 0.34;   // Вертикальная позиция персонажа (0 = центр, 0.5 = низ)
+const FLOOR_SCALE_FACTOR = 2;     // Делитель масштаба пола (1 = оригинал, 2 = в два раза плотнее)
+const FLOOR_Y_OFFSET = 0.4;         // Оффсет пола по Y как доля экрана (0 = верх, 0.5 = середина)
+const BG_HEIGHT_RATIO = 0.8;       // Высота заднего/среднего фона (доля экрана, 0.67 = 2/3, 0.8 = 80%)
+
+// ═══════════════════════════════════════════════════════════════
 // КОНТЕНТНЫЕ ДАННЫЕ ПРОЕКТОВ (только ключи и медиа)
 // ═══════════════════════════════════════════════════════════════
 const PROJECTS_DATA = [
@@ -59,7 +67,7 @@ export class ProjectsScene {
     this.dialogRightGutter = 80;
 
     // ── Персонаж: позиция и размер ──
-    this.charGroundOffset = options.charGroundOffset ?? 0.3;
+    this.charGroundOffset = options.charGroundOffset ?? CHAR_GROUND_OFFSET;
     this.charHeight = options.charHeight ?? 160;
 
     // ── Speech Bubble ──
@@ -248,14 +256,30 @@ export class ProjectsScene {
     this.contentBoxWidth = Math.min(targetContentWidth, maxContentWidth);
     this.contentBoxHeight = Math.round(this.tileHeight * this.contentBoxScale);
 
+    // ── Адаптивная высота контент-бокса для мобильных ──
+    const bubbleTailY = this.groundY - this.charHeight + (this.bubbleOffsetY || 20);
+    const bubbleReserve = 110;
+    const headerMin = 60;
+    const framePad = 10;
+    const availableForContent = bubbleTailY - bubbleReserve - headerMin - framePad * 2;
+    if (this.contentBoxHeight > availableForContent && availableForContent > 80) {
+      this.contentBoxHeight = Math.round(availableForContent);
+    }
+
     const headerReserve = 100;
     this.tilesY = Math.max(
       Math.round(this.contentBoxHeight / 2) + headerReserve,
       Math.round(screenH * 0.38),
     );
 
+    // Ограничиваем tilesY чтобы нижний край тайла не заходил в зону бабла
+    const maxTilesY = bubbleTailY - bubbleReserve - this.contentBoxHeight / 2 - framePad;
+    if (this.tilesY > maxTilesY) {
+      this.tilesY = Math.round(Math.max(this.contentBoxHeight / 2 + headerMin, maxTilesY));
+    }
+
     // Задний и средний слои занимают верхние 2/3 экрана (отступ снизу на треть)
-    const bgHeight = Math.round(screenH * 2 / 3);
+    const bgHeight = Math.round(screenH * BG_HEIGHT_RATIO);
 
     for (const layerDef of layerDefs) {
       if (!layerDef.texture) continue;
@@ -263,12 +287,14 @@ export class ProjectsScene {
       const texH_layer = layerDef.texture.height || 336;
       const layerScale = layerH / texH_layer;
 
+      const finalScale = layerDef.isFloor ? layerScale / FLOOR_SCALE_FACTOR : layerScale;
       const layer = new TilingSprite({
         texture: layerDef.texture,
         width: screenW,
-        height: layerH,
+        height: layerDef.isFloor ? screenH : layerH,
       });
-      layer.tileScale.set(layerScale, layerScale);
+      layer.tileScale.set(finalScale, finalScale);
+      layer.baseY = layerDef.isFloor ? Math.round(screenH * FLOOR_Y_OFFSET) : 0;
       layer.parallaxFactor = layerDef.speed;
 
       const target = layerDef.isFloor ? this.parallaxFloorContainer : this.parallaxBgContainer;
@@ -634,52 +660,6 @@ export class ProjectsScene {
     if (!contentNode) return;
 
     const box = this.getContentBox();
-    const framePadding = 10;
-    const frameX = -box.width / 2 - framePadding;
-    const frameY = -box.height / 2 - framePadding;
-    const frameW = box.width + framePadding * 2;
-    const frameH = box.height + framePadding * 2;
-    const radius = 4;
-
-    const holoColor = 0x4fc3f7;
-    const holoColorDark = 0x0288d1;
-
-    const frame = new Graphics();
-
-    frame.roundRect(frameX - 4, frameY - 4, frameW + 8, frameH + 8, radius + 2);
-    frame.stroke({ width: 6, color: holoColor, alpha: 0.15 });
-    frame.roundRect(frameX - 2, frameY - 2, frameW + 4, frameH + 4, radius + 1);
-    frame.stroke({ width: 3, color: holoColor, alpha: 0.25 });
-
-    frame.roundRect(frameX, frameY, frameW, frameH, radius);
-    frame.fill({ color: holoColor, alpha: 0.15 });
-    frame.stroke({ width: 2, color: holoColor, alpha: 0.9 });
-
-    const cornerSize = 16;
-    const corners = [
-      [frameX, frameY],
-      [frameX + frameW - cornerSize, frameY],
-      [frameX, frameY + frameH - cornerSize],
-      [frameX + frameW - cornerSize, frameY + frameH - cornerSize],
-    ];
-
-    corners.forEach(([cx, cy], i) => {
-      frame.moveTo(cx + (i % 2 === 0 ? 0 : cornerSize), cy);
-      frame.lineTo(cx + (i % 2 === 0 ? cornerSize : 0), cy);
-      frame.moveTo(cx + (i % 2 === 0 ? 0 : cornerSize), cy);
-      frame.lineTo(cx + (i % 2 === 0 ? 0 : cornerSize), cy + (i < 2 ? cornerSize : -cornerSize + cornerSize));
-      frame.stroke({ width: 3, color: holoColor, alpha: 1 });
-    });
-
-    const scanlines = new Graphics();
-    for (let y = frameY; y < frameY + frameH; y += 4) {
-      scanlines.moveTo(frameX, y);
-      scanlines.lineTo(frameX + frameW, y);
-    }
-    scanlines.stroke({ width: 1, color: holoColorDark, alpha: 0.12 });
-
-    container.addChild(frame);
-    container.addChild(scanlines);
 
     contentNode.anchor?.set?.(0.5, 0.5);
     this.fitDisplayObject(contentNode, box.width, box.height);
@@ -1035,7 +1015,7 @@ export class ProjectsScene {
     for (const layer of this.parallaxLayers) {
       const factor = layer.parallaxFactor ?? this.parallaxFactor;
       layer.x = -this.container.x;
-      layer.y = 0;
+      layer.y = layer.baseY ?? 0;
       layer.tilePosition.x += dx * (1 - factor);
     }
 
