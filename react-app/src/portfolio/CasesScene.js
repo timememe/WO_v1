@@ -1,6 +1,6 @@
 import { Container, Sprite, Graphics, TilingSprite, Text } from 'pixi.js';
 import { getLocale, GAME_FONT } from '../i18n';
-import { PixelPetalsEffect, TVGlitchEffect } from './SceneEffects';
+import { PixelPetalsEffect, TVGlitchEffect, LightBeamEffect } from './SceneEffects';
 
 // ═══════════════════════════════════════════════════════════════
 // ГЛОБАЛЬНЫЕ НАСТРОЙКИ СЦЕНЫ
@@ -16,23 +16,23 @@ const BG_HEIGHT_RATIO = 0.8;       // Высота заднего/среднег
 const CASES_DATA = [
   {
     localeKey: 'oreo',
-    mediaKey: 'oreo_pacman2',
+    mediaKeys: ['case1', 'oreo_1', 'oreo_2', 'oreo_3', 'oreo_4', 'oreo_5', 'oreo_6'],
   },
   {
     localeKey: 'sevendays',
-    mediaKeys: ['7days_0', '7days_1', '7days_2', '7days_3'],
+    mediaKeys: ['case2', '7days_0', '7days_1', '7days_2', '7days_3'],
   },
   {
     localeKey: 'dreame',
-    mediaKeys: ['dreame_0', 'dreame_1', 'dreame_2', 'dreame_3', 'dreame_4'],
+    mediaKeys: ['case3', 'dreame_0', 'dreame_1', 'dreame_2', 'dreame_3', 'dreame_4'],
   },
   {
     localeKey: 'loreal',
-    mediaKeys: ['loreal_0', 'loreal_1', 'loreal_2', 'loreal_3'],
+    mediaKeys: ['case4', 'loreal_0', 'loreal_1', 'loreal_2', 'loreal_3'],
   },
   {
     localeKey: 'dirol',
-    mediaKeys: ['dirol_0', 'dirol_1', 'dirol_2', 'dirol_3', 'dirol_4'],
+    mediaKeys: ['case5', 'dirol_0', 'dirol_1', 'dirol_2', 'dirol_3', 'dirol_4'],
   },
 ];
 
@@ -144,6 +144,7 @@ export class CasesScene {
     this.createCharacter();
     this.createDialog();
     this.createPetals();
+    this.createBeams();
     this.centerOnIndex(0, true);
     this.startCamera();
     this.bindKeyboard();
@@ -161,6 +162,22 @@ export class CasesScene {
       mid: 4,   // после tilesContainer
       near: 6,  // после parallaxFloorContainer
     });
+  }
+
+  createBeams() {
+    const screenH = this.app.screen.height;
+    const box = this.getContentBox();
+    const framePadding = 10;
+    // frameTopY = верхний край рамки заголовка (тайл Y - половина контента - паддинг - высота заголовка)
+    const dialogH = this._dialogTotalH || 80;
+    const tileY = this.tilesY ?? screenH / 2;
+    const frameTopY = tileY - box.height / 2 - framePadding - dialogH;
+
+    this.beamEffect = new LightBeamEffect(this.app);
+    this.beamEffect.setup(this.tiles, box.width, screenH, Math.max(0, frameTopY));
+    // Вставляем между petals_far (index 2) и tilesContainer (index 3)
+    // После петалей: bg=0, parallaxBg=1, petals_far=2, tiles=3, petals_mid=4, floor=5, petals_near=6, ...
+    this.beamEffect.attachToScene(this.container, 3);
   }
 
   createBackground() {
@@ -225,12 +242,16 @@ export class CasesScene {
       return media;
     };
 
+    const coverHint = this.locale.coverHint || 'Tap to learn about the case, yo.';
+
     this.casesData = CASES_DATA.map((item) => {
       // Получаем локализованные тексты по ключу
       const localized = this.locale.cases?.[item.localeKey] || {};
       const title = localized.title || item.localeKey.toUpperCase();
       const category = localized.category || '';
-      const textBlocks = localized.slides || [];
+      const slides = localized.slides || [];
+      // Титульное изображение (первый mediaKey) = нулевой слайд с подсказкой
+      const textBlocks = [coverHint, ...slides];
 
       let contents = [];
 
@@ -1064,6 +1085,10 @@ export class CasesScene {
   // ═══════════════════════════════════════════════════════════════
 
   clearTiles() {
+    if (this.beamEffect) {
+      this.beamEffect.destroy();
+      this.beamEffect = null;
+    }
     this.tilesContainer.removeChildren().forEach((child) => {
       child.destroy({ children: true, texture: false, baseTexture: false });
     });
@@ -1073,6 +1098,7 @@ export class CasesScene {
   rebuildTiles() {
     this.clearTiles();
     this.createTiles();
+    this.createBeams();
     this.centerOnIndex(this.activeIndex, true);
   }
 
@@ -1137,6 +1163,11 @@ export class CasesScene {
     if (this.petalsEffect) {
       this.petalsEffect.update(dt);
       this.petalsEffect.updateCamera(this.container.x);
+    }
+
+    // Лучи света
+    if (this.beamEffect) {
+      this.beamEffect.update(dt);
     }
   }
 
@@ -1216,6 +1247,10 @@ export class CasesScene {
     if (this.glitchEffect) {
       this.glitchEffect.destroy();
       this.glitchEffect = null;
+    }
+    if (this.beamEffect) {
+      this.beamEffect.destroy();
+      this.beamEffect = null;
     }
 
     this.tiles = [];

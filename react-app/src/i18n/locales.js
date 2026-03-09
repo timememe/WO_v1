@@ -41,19 +41,23 @@ export const LOCALES = {
     },
 
     // ── Кейсы ──
+    coverHint: 'Tap to learn about the case, yo.',
     cases: {
       oreo: {
         title: 'OREO X PACMAN',
         category: 'Game Development',
         slides: [
-          'Campaign for Oreo and Bandai Namco — developed an Oreo version of Pacman!',
-          'Fully rebuilt the original Pacman game following Bandai Namco guidelines.',
-          'Also made an offline version for malls and battles between people and bloggers.',
+          'Developed an original Pacman game for Oreo.',
+          'Besides the web game, created an offline challenge in malls.',
+          'All for the final showdown between finalists and bloggers.',
+          'No photos survived, but it looked something like this.',
+          'Did a lot of stuff for Oreo actually, like a TikTok mask.',
+          'And 6 more games for another campaign of theirs. That\'s how it goes.',
         ],
       },
       sevendays: {
         title: '7DAYS',
-        category: 'NPC Campaign Development',
+        category: 'NCP Campaign Development',
         slides: [
           'Developed a Telegram bot for the 7DAYS campaign with a set of activities.',
           'With bot access to offline vending machines.',
@@ -342,19 +346,23 @@ export const LOCALES = {
     },
 
     // ── Кейсы ──
+    coverHint: 'Тапай, чтобы узнать о кейсе, йо.',
     cases: {
       oreo: {
         title: 'OREO X PACMAN',
         category: 'Разработка игр',
         slides: [
-          'Кампания Oreo и Bandai Namco, разработал Oreo версию Pacman!',
-          'Полностью переработал оригинальную игру Pacman по гайдлайнам Bandai Namco',
-          'Также сделал офлайн версию игры для торговых центров и битвы людей с блогерами.',
+          'Для Oreo разработал оригинальную версию Pacman',
+          'Помимо игры на сайте, делал офлайн-челлендж в ТЦ',
+          'Все для финальной битвы финалистов с блогерами',
+          'Фоток не осталось, но выглядело как-то так',
+          'Вообще много чего для Oreo делал, например ТикТок маску',
+          'И для другой их кампании еще 6 игр. Такие дела.',
         ],
       },
       sevendays: {
         title: '7DAYS',
-        category: 'Разработка NPC кампаний',
+        category: 'Разработка NCP кампаний',
         slides: [
           'Разработал телеграм бота для кампании 7DAYS с набором активностей.',
           'С доступом через бота к оффлайн автоматам.',

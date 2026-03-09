@@ -422,6 +422,218 @@ export class TVGlitchEffect {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// LIGHT BEAM EFFECT
+// ═══════════════════════════════════════════════════════════════
+
+const BEAM_CONFIG = {
+  color: 0x4de3ff,          // Цвет луча (как рамка заголовка)
+  bottomWidth: 0.15,        // Ширина основания (снизу экрана), доля от contentWidth
+  topWidth: 1.2,            // Ширина рассеивания у рамки заголовка, доля от contentWidth
+  strips: 30,               // Кол-во полос для имитации градиента
+  maxAlpha: 0.95,           // Макс. прозрачность (основание внизу экрана)
+  minAlpha: 0.15,              // Мин. прозрачность (верх, у рамки)
+  pulseSpeed: 5,          // Скорость пульсации (cycles/sec)
+  pulseAmount: 0.05,        // Амплитуда пульсации (0-1)
+  particleCount: 36,        // Пылинки в луче
+  particleSpeed: [0.2, 0.6],// Скорость подъёма пылинок
+  particleSize: [1, 6],     // Размер пылинок
+};
+
+/**
+ * LightBeamEffect — лучи света от низа экрана до рамки заголовка.
+ *
+ * Создаётся один экземпляр на сцену. Внутри — отдельный контейнер-слой,
+ * который вставляется между средним фоном и тайлами (позади тайлов и пола).
+ *
+ * Использование:
+ *   const beams = new LightBeamEffect(app, config);
+ *   beams.setup(tiles, contentWidth, screenH, frameTopY);
+ *   beams.attachToScene(sceneContainer, layerIndex);
+ *   // В тикере: beams.update(dt);
+ *   // При камере: beams.updateCamera(cameraX);
+ */
+export class LightBeamEffect {
+  constructor(app, config = {}) {
+    this.app = app;
+    this.config = { ...BEAM_CONFIG, ...config };
+    this.container = new Container();
+    this.container.label = 'light_beams';
+    this.beams = [];     // { gfx, particlesContainer, particles[], x }
+    this.time = 0;
+    this.attached = false;
+  }
+
+  /**
+   * Создаёт лучи для каждого тайла.
+   * @param {Array<{x: number}>} tiles — массив тайлов (нужен только .x)
+   * @param {number} contentW — ширина контент-бокса
+   * @param {number} screenH — высота экрана
+   * @param {number} frameTopY — Y верхней границы рамки заголовка (в координатах сцены)
+   */
+  setup(tiles, contentW, screenH, frameTopY) {
+    // Очищаем старые
+    this.container.removeChildren().forEach(c => c.destroy({ children: true }));
+    this.beams = [];
+
+    const cfg = this.config;
+
+    for (const tile of tiles) {
+      const beamH = screenH - frameTopY; // от frameTopY до screenH
+      const bottomHalfW = (contentW * cfg.bottomWidth) / 2;
+      const topHalfW = (contentW * cfg.topWidth) / 2;
+
+      const group = new Container();
+      group.x = tile.x;
+      group.label = 'beam_single';
+
+      // Рисуем трапецию с мягкими краями:
+      // Каждая вертикальная полоса разбивается на горизонтальные сегменты,
+      // альфа убывает от центра к краям (мягкие края луча)
+      const gfx = new Graphics();
+      const edgeSegments = 5; // кол-во сегментов для размытия на каждый край
+      for (let i = 0; i < cfg.strips; i++) {
+        const t0 = i / cfg.strips;
+        const t1 = (i + 1) / cfg.strips;
+
+        const y0 = screenH - t0 * beamH;
+        const y1 = screenH - t1 * beamH;
+        const hw0 = bottomHalfW + (topHalfW - bottomHalfW) * t0;
+        const hw1 = bottomHalfW + (topHalfW - bottomHalfW) * t1;
+
+        // Вертикальное затухание
+        const fade = 1 - t0;
+        const baseAlpha = cfg.minAlpha + (cfg.maxAlpha - cfg.minAlpha) * fade * fade;
+
+        // Центральная часть (яркая, 60% ширины)
+        const coreRatio = 0.6;
+        const coreHW0 = hw0 * coreRatio;
+        const coreHW1 = hw1 * coreRatio;
+        gfx.moveTo(-coreHW0, y0);
+        gfx.lineTo(coreHW0, y0);
+        gfx.lineTo(coreHW1, y1);
+        gfx.lineTo(-coreHW1, y1);
+        gfx.closePath();
+        gfx.fill({ color: cfg.color, alpha: baseAlpha });
+
+        // Мягкие края — сегменты с убывающей альфой от ядра к краю
+        for (let s = 0; s < edgeSegments; s++) {
+          const s0 = s / edgeSegments;
+          const s1 = (s + 1) / edgeSegments;
+          // Позиция: от coreHW до hw (правый край)
+          const innerHW0 = coreHW0 + (hw0 - coreHW0) * s0;
+          const outerHW0 = coreHW0 + (hw0 - coreHW0) * s1;
+          const innerHW1 = coreHW1 + (hw1 - coreHW1) * s0;
+          const outerHW1 = coreHW1 + (hw1 - coreHW1) * s1;
+          // Альфа плавно убывает к краю (квадратичное затухание)
+          const edgeFade = 1 - s1;
+          const edgeAlpha = baseAlpha * edgeFade * edgeFade;
+
+          // Правый край
+          gfx.moveTo(innerHW0, y0);
+          gfx.lineTo(outerHW0, y0);
+          gfx.lineTo(outerHW1, y1);
+          gfx.lineTo(innerHW1, y1);
+          gfx.closePath();
+          gfx.fill({ color: cfg.color, alpha: edgeAlpha });
+
+          // Левый край (зеркально)
+          gfx.moveTo(-innerHW0, y0);
+          gfx.lineTo(-outerHW0, y0);
+          gfx.lineTo(-outerHW1, y1);
+          gfx.lineTo(-innerHW1, y1);
+          gfx.closePath();
+          gfx.fill({ color: cfg.color, alpha: edgeAlpha });
+        }
+      }
+      group.addChild(gfx);
+
+      // Пылинки
+      const particlesContainer = new Container();
+      const particles = [];
+      for (let i = 0; i < cfg.particleCount; i++) {
+        const p = {
+          t: rand(0, 1),
+          speed: rand(cfg.particleSpeed[0], cfg.particleSpeed[1]),
+          size: rand(cfg.particleSize[0], cfg.particleSize[1]),
+          xOffset: rand(-0.8, 0.8),
+          alpha: rand(0.4, 0.9),
+        };
+        const dot = new Graphics();
+        dot.circle(0, 0, p.size);
+        dot.fill({ color: cfg.color, alpha: p.alpha });
+        particlesContainer.addChild(dot);
+        p.gfx = dot;
+        particles.push(p);
+      }
+      group.addChild(particlesContainer);
+
+      this.container.addChild(group);
+      this.beams.push({
+        group, gfx, particlesContainer, particles,
+        x: tile.x, beamH, bottomHalfW, topHalfW, screenH, frameTopY,
+      });
+    }
+  }
+
+  /**
+   * Вставляет контейнер лучей в сцену на нужный z-index.
+   * @param {Container} sceneContainer
+   * @param {number} index — позиция (между средним фоном и тайлами)
+   */
+  attachToScene(sceneContainer, index) {
+    if (this.attached) return;
+    const safeIndex = Math.min(index, sceneContainer.children.length);
+    sceneContainer.addChildAt(this.container, safeIndex);
+    this.attached = true;
+  }
+
+  /**
+   * Камера — лучи фиксированы к координатам тайлов, не параллакс.
+   * Контейнер уже часть sceneContainer (двигается с камерой).
+   */
+  updateCamera(cameraX) {
+    // Лучи привязаны к координатам тайлов — ничего не двигаем,
+    // но вертикально контейнер должен компенсировать container.y если есть
+  }
+
+  update(dt) {
+    const cfg = this.config;
+    this.time += dt;
+
+    const pulse = 1 - cfg.pulseAmount * 0.5 +
+      Math.sin(this.time * cfg.pulseSpeed * Math.PI * 2) * cfg.pulseAmount * 0.5;
+
+    for (const beam of this.beams) {
+      beam.gfx.alpha = pulse;
+
+      for (const p of beam.particles) {
+        p.t += p.speed * dt * 0.15;
+        if (p.t > 1) {
+          p.t -= 1;
+          p.xOffset = rand(-0.8, 0.8);
+        }
+
+        const hw = beam.bottomHalfW + (beam.topHalfW - beam.bottomHalfW) * p.t;
+        p.gfx.x = p.xOffset * hw;
+        p.gfx.y = beam.screenH - p.t * beam.beamH;
+        p.gfx.alpha = p.alpha * (1 - p.t * 0.7) * pulse;
+      }
+    }
+  }
+
+  resize(tiles, contentW, screenH, frameTopY) {
+    this.setup(tiles, contentW, screenH, frameTopY);
+  }
+
+  destroy() {
+    if (this.container.parent) this.container.parent.removeChild(this.container);
+    this.container.destroy({ children: true });
+    this.beams = [];
+    this.attached = false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // УТИЛИТЫ
 // ═══════════════════════════════════════════════════════════════
 

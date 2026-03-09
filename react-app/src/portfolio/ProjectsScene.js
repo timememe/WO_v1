@@ -1,6 +1,6 @@
 import { Container, Sprite, Graphics, TilingSprite, Text } from 'pixi.js';
 import { getLocale, GAME_FONT } from '../i18n';
-import { PixelPetalsEffect, TVGlitchEffect } from './SceneEffects';
+import { PixelPetalsEffect, TVGlitchEffect, LightBeamEffect } from './SceneEffects';
 
 // ═══════════════════════════════════════════════════════════════
 // ГЛОБАЛЬНЫЕ НАСТРОЙКИ СЦЕНЫ
@@ -133,6 +133,7 @@ export class ProjectsScene {
     this.createCharacter();
     this.createDialog();
     this.createPetals();
+    this.createBeams();
     this.centerOnIndex(0, true);
     this.startCamera();
     this.bindKeyboard();
@@ -148,6 +149,20 @@ export class ProjectsScene {
       mid: 4,
       near: 6,
     });
+  }
+
+  createBeams() {
+    const screenH = this.app.screen.height;
+    const box = this.getContentBox();
+    const framePadding = 10;
+    const dialogH = this._dialogTotalH || 80;
+    const tileY = this.tilesY ?? screenH / 2;
+    const frameTopY = tileY - box.height / 2 - framePadding - dialogH;
+
+    this.beamEffect = new LightBeamEffect(this.app);
+    this.beamEffect.setup(this.tiles, box.width, screenH, Math.max(0, frameTopY));
+    // После петалей: bg=0, parallaxBg=1, petals_far=2, tiles=3, ...
+    this.beamEffect.attachToScene(this.container, 3);
   }
 
   createBackground() {
@@ -992,6 +1007,10 @@ export class ProjectsScene {
   // ═══════════════════════════════════════════════════════════════
 
   clearTiles() {
+    if (this.beamEffect) {
+      this.beamEffect.destroy();
+      this.beamEffect = null;
+    }
     this.tilesContainer.removeChildren().forEach((child) => {
       child.destroy({ children: true, texture: false, baseTexture: false });
     });
@@ -1001,6 +1020,7 @@ export class ProjectsScene {
   rebuildTiles() {
     this.clearTiles();
     this.createTiles();
+    this.createBeams();
     this.centerOnIndex(this.activeIndex, true);
   }
 
@@ -1058,6 +1078,11 @@ export class ProjectsScene {
     if (this.petalsEffect) {
       this.petalsEffect.update(dt);
       this.petalsEffect.updateCamera(this.container.x);
+    }
+
+    // Лучи света
+    if (this.beamEffect) {
+      this.beamEffect.update(dt);
     }
   }
 
@@ -1135,6 +1160,10 @@ export class ProjectsScene {
     if (this.glitchEffect) {
       this.glitchEffect.destroy();
       this.glitchEffect = null;
+    }
+    if (this.beamEffect) {
+      this.beamEffect.destroy();
+      this.beamEffect = null;
     }
 
     this.tiles = [];
