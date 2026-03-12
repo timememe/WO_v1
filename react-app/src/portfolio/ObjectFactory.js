@@ -131,6 +131,7 @@ export class ObjectFactory {
     decorationContainer.y = screenPos.y;
     decorationContainer.gridX = centerX;
     decorationContainer.gridY = centerY;
+    decorationContainer.gridType = type;
 
     // zIndex: формула для правильной сортировки в изометрии
     // Основной ключ: (x+y) - глубина на экране (screenY пропорционален x+y)

@@ -1,6 +1,7 @@
 import { Graphics, Container, Sprite, Text } from 'pixi.js';
 import { CharacterAI } from './CharacterAI';
 import { ObjectFactory } from './ObjectFactory';
+import { DepthLightFilter } from './DepthLightFilter';
 
 export class IsometricScene {
   constructor(app, rootContainer = null, assetManager = null) {
@@ -129,6 +130,13 @@ export class IsometricScene {
     this.crtChromaOffset = 0.8;        // Хроматическая аберрация
 
     // ═══════════════════════════════════════════════════════════════
+    // НАСТРОЙКИ DEPTH LIGHT (FAKE 3D ОСВЕЩЕНИЕ)
+    // ═══════════════════════════════════════════════════════════════
+    this.depthLightEnabled = false;        // Эффект глубины (WIP, включить когда будет готов)
+    this.depthLightIntensity = 0.1;       // Сила диффузных бликов
+    this.depthLightSpecular = 0.3;         // Интенсивность specular бликов
+
+    // ═══════════════════════════════════════════════════════════════
     // ВНУТРЕННЕЕ СОСТОЯНИЕ (не трогать)
     // ═══════════════════════════════════════════════════════════════
     this.character = null;
@@ -159,6 +167,9 @@ export class IsometricScene {
     this.isPaused = false;
     this.isDestroyed = false;
 
+    // Depth light filter state
+    this.depthLightFilters = null;
+
     // FPS Counter (данные для внешнего UI)
     this.fpsHistory = [];
     this.fpsHistoryMaxLength = 60; // Средний FPS за последние 60 кадров
@@ -183,10 +194,12 @@ export class IsometricScene {
       // Получаем предзагруженные ассеты из AssetManager
       this.grassTiles = this.assetManager.getGrassTiles();
       this.buildingTiles = this.assetManager.getBuildingTiles();
+      this.buildingNormalTiles = this.assetManager.getBuildingNormalTiles();
       this.treeTiles = this.assetManager.getTreeTiles();
       this.rockTiles = this.assetManager.getRockTiles();
       this.ufoTexture = this.assetManager.getUfoTexture();
       this.activityAnimations = this.assetManager.getActivityAnimations();
+      this.characterNormalTextures = this.assetManager.getCharacterNormalTextures();
 
       // Создаём спрайты персонажа из предзагруженных текстур
       const characterData = this.assetManager.getCharacterTextures();
@@ -505,6 +518,9 @@ export class IsometricScene {
 
       // Ночной оверлей
       this.updateNightOverlay();
+
+      // Depth light: обновляем позицию точечного света
+      this.updateDepthLight();
 
       // Обновляем данные FPS (без PixiJS UI)
       this.updateFPSData();
@@ -1683,6 +1699,12 @@ export class IsometricScene {
     Object.keys(this.characterSprites).forEach(dir => {
       this.characterSprites[dir].visible = (dir === direction);
     });
+
+    // Update normal map for depth light filter
+    const sprite = this.characterSprites[direction];
+    if (sprite?._depthLightFilter && this.characterNormalTextures?.[direction]) {
+      sprite._depthLightFilter.setNormalTexture(this.characterNormalTextures[direction]);
+    }
   }
 
   // Регистрация занятой клетки объектом
@@ -1752,6 +1774,8 @@ export class IsometricScene {
 
     this.rootContainer.addChild(this.container);
 
+    // Depth light filter — fake 3D освещение от курсора
+    this.initDepthLight();
 
     // Инициализируем камеру (центрируем на игроке)
     this.updateCamera();
@@ -1765,6 +1789,120 @@ export class IsometricScene {
       this.characterAI.start();
     }
 
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // DEPTH LIGHT EFFECT (FAKE 3D)
+  // ═══════════════════════════════════════════════════════════════
+
+  initDepthLight() {
+    if (!this.depthLightEnabled) return;
+
+    // Filtered sprites: { sprite, filter, container (parent) }
+    this.depthLightEntries = [];
+
+    // Light source position in grid coords (between the buildings)
+    this.depthLightGridX = 4.0;
+    this.depthLightGridY = 4.0;
+
+    const filterOpts = {
+      diffuseStrength: this.depthLightIntensity,
+      specular: this.depthLightSpecular,
+    };
+
+    // Apply filters to building sprites
+    if (this.buildingNormalTiles) {
+      for (const child of this.sortableContainer.children) {
+        const type = child.gridType;
+        if (type && this.buildingNormalTiles[type]) {
+          const normalTex = this.buildingNormalTiles[type];
+          const filter = new DepthLightFilter(normalTex, filterOpts);
+          const sprite = child.children?.find(c => c instanceof Sprite);
+          if (sprite) {
+            sprite.filters = [filter];
+            this.depthLightEntries.push({ sprite, filter, container: child });
+          }
+        }
+      }
+    }
+
+    // Apply filter to character sprites
+    if (this.characterNormalTextures) {
+      for (const [direction, sprite] of Object.entries(this.characterSprites)) {
+        const normalTex = this.characterNormalTextures[direction];
+        if (normalTex) {
+          const filter = new DepthLightFilter(normalTex, filterOpts);
+          sprite.filters = [filter];
+          sprite._depthLightFilter = filter;
+          this.depthLightEntries.push({ sprite, filter, container: this.character, isCharacter: true });
+        }
+      }
+    }
+
+    // Create visual lantern glow in the scene
+    this._createLanternGlow();
+  }
+
+  _createLanternGlow() {
+    const lantern = new Graphics();
+    // Outer glow
+    lantern.circle(0, 0, 16);
+    lantern.fill({ color: 0xffcc44, alpha: 0.15 });
+    lantern.circle(0, 0, 8);
+    lantern.fill({ color: 0xffdd66, alpha: 0.3 });
+    // Core
+    lantern.circle(0, 0, 3);
+    lantern.fill({ color: 0xffee88, alpha: 0.8 });
+
+    const pos = this.isoToScreen(this.depthLightGridX, this.depthLightGridY);
+    lantern.x = pos.x;
+    lantern.y = pos.y;
+    lantern.zIndex = (this.depthLightGridX + this.depthLightGridY) * 100;
+    this.sortableContainer.addChild(lantern);
+    this.lanternGfx = lantern;
+  }
+
+  updateDepthLight() {
+    if (!this.depthLightEntries || this.depthLightEntries.length === 0) return;
+
+    // Light world position in screen pixels
+    const lightScreen = this.isoToScreen(this.depthLightGridX, this.depthLightGridY);
+
+    for (const entry of this.depthLightEntries) {
+      const { sprite, filter, container, isCharacter } = entry;
+      if (!sprite.visible && !isCharacter) continue;
+
+      // Sprite's world position (from parent container)
+      const parentX = container.x;
+      const parentY = container.y;
+
+      // Sprite bounds in world coords
+      const bounds = sprite.getLocalBounds();
+      const spriteWorldX = parentX + bounds.x * Math.abs(sprite.scale.x);
+      const spriteWorldY = parentY + bounds.y * Math.abs(sprite.scale.y);
+      const spriteW = bounds.width * Math.abs(sprite.scale.x);
+      const spriteH = bounds.height * Math.abs(sprite.scale.y);
+
+      // Light position relative to sprite, normalized to 0-1 UV space
+      const lightU = (lightScreen.x - spriteWorldX) / spriteW;
+      const lightV = (lightScreen.y - spriteWorldY) / spriteH;
+
+      filter.lightPos = [lightU, lightV];
+    }
+  }
+
+  destroyDepthLight() {
+    if (this.depthLightEntries) {
+      for (const entry of this.depthLightEntries) {
+        entry.filter.destroy();
+      }
+      this.depthLightEntries = [];
+    }
+    if (this.lanternGfx) {
+      if (this.lanternGfx.parent) this.lanternGfx.parent.removeChild(this.lanternGfx);
+      this.lanternGfx.destroy();
+      this.lanternGfx = null;
+    }
   }
 
   pause() {
@@ -1838,6 +1976,9 @@ export class IsometricScene {
   destroy() {
     // Помечаем сцену как уничтоженную (защита от race conditions)
     this.isDestroyed = true;
+
+    // Depth light cleanup
+    this.destroyDepthLight();
 
     // Останавливаем все тикеры
     if (this.movementTickerFn) {

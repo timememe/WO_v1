@@ -15,9 +15,11 @@ const BUNDLE_CONFIG = {
     assets: [
       { alias: 'grass', src: '/assets/grass.png' },
       { alias: 'homes', src: '/assets/homes.png' },
+      { alias: 'homesNormal', src: '/assets/homes_n.jpg' },
       { alias: 'trees', src: '/assets/trees.png' },
       { alias: 'rocks', src: '/assets/rocks.png' },
       { alias: 'idle', src: '/assets/idle.png' },
+      { alias: 'idleNormal', src: '/assets/idle_n.jpg' },
       { alias: 'ufo', src: '/assets/ufo.png' },
       { alias: 'sleep', src: '/assets/sleep.gif' },
       { alias: 'eat', src: '/assets/eat.gif' },
@@ -29,18 +31,21 @@ const BUNDLE_CONFIG = {
   cases: {
     name: 'cases',
     assets: [
-      { alias: 'casesFrame', src: '/assets/cases_frame.jpg' },
-      { alias: 'casesFloor', src: '/assets/cases_floor.jpg' },
       { alias: 'casesOreo1', src: '/assets/cases_screens/oreo_1.gif' },
       { alias: 'casesOreo2', src: '/assets/cases_screens/oreo_2.png' },
       { alias: 'casesOreo3', src: '/assets/cases_screens/oreo_3.png' },
       { alias: 'casesOreo4', src: '/assets/cases_screens/oreo_4.png' },
       { alias: 'casesOreo5', src: '/assets/cases_screens/oreo_5.png' },
       { alias: 'casesOreo6', src: '/assets/cases_screens/oreo_6.png' },
-      { alias: 'cases7days0', src: '/assets/cases_screens/7days_0.png' },
-      { alias: 'cases7days1', src: '/assets/cases_screens/7days_1.png' },
-      { alias: 'cases7days2', src: '/assets/cases_screens/7days_2.png' },
-      { alias: 'cases7days3', src: '/assets/cases_screens/7days_3.png' },
+      { alias: 'cases7d1', src: '/assets/cases_screens/7d_1.png' },
+      { alias: 'cases7d2', src: '/assets/cases_screens/7d_2.png' },
+      { alias: 'cases7d3', src: '/assets/cases_screens/7d_3.png' },
+      { alias: 'cases7d4', src: '/assets/cases_screens/7d_4.png' },
+      { alias: 'cases7d5', src: '/assets/cases_screens/7d_5.png' },
+      { alias: 'cases7d6', src: '/assets/cases_screens/7d_6.png' },
+      { alias: 'cases7d7', src: '/assets/cases_screens/7d_7.png' },
+      { alias: 'cases7d8', src: '/assets/cases_screens/7d_8.png' },
+      { alias: 'cases7d9', src: '/assets/cases_screens/7d_9.png' },
       { alias: 'casesDreame0', src: '/assets/cases_screens/dreame_0.png' },
       { alias: 'casesDreame1', src: '/assets/cases_screens/dreame_1.png' },
       { alias: 'casesDreame2', src: '/assets/cases_screens/dreame_2.png' },
@@ -56,7 +61,7 @@ const BUNDLE_CONFIG = {
       { alias: 'casesLoreal2', src: '/assets/cases_screens/loreal_2.png' },
       { alias: 'casesLoreal3', src: '/assets/cases_screens/loreal_3.png' },
       { alias: 'caseCover1', src: '/assets/cases_screens/case1.png' },
-      { alias: 'caseCover2', src: '/assets/cases_screens/case2.png' },
+      { alias: 'caseCover2', src: '/assets/cases_screens/case2.png?v=2' },
       { alias: 'caseCover3', src: '/assets/cases_screens/case3.png' },
       { alias: 'caseCover4', src: '/assets/cases_screens/case4.png' },
       { alias: 'caseCover5', src: '/assets/cases_screens/case5.png' },
@@ -254,9 +259,11 @@ export class AssetManager {
       // Атласы
       grass: this.parseGrassAtlas(raw.grass),
       buildings: this.parseBuildingsAtlas(raw.homes),
+      buildingsNormal: raw.homesNormal ? this.parseBuildingsAtlas(raw.homesNormal) : null,
       trees: this.parseTreesAtlas(raw.trees),
       rocks: this.parseRocksAtlas(raw.rocks),
       character: this.parseCharacterAtlas(raw.idle),
+      characterNormal: raw.idleNormal ? this.parseCharacterNormalAtlas(raw.idleNormal) : null,
 
       // Текстуры
       ufo: raw.ufo,
@@ -276,8 +283,6 @@ export class AssetManager {
    */
   parseCasesBundle(raw) {
     return {
-      casesFrame: raw.casesFrame,
-      casesFloor: raw.casesFloor,
       caseScreens: {
         oreo_1: raw.casesOreo1,
         oreo_2: raw.casesOreo2,
@@ -285,10 +290,15 @@ export class AssetManager {
         oreo_4: raw.casesOreo4,
         oreo_5: raw.casesOreo5,
         oreo_6: raw.casesOreo6,
-        '7days_0': raw.cases7days0,
-        '7days_1': raw.cases7days1,
-        '7days_2': raw.cases7days2,
-        '7days_3': raw.cases7days3,
+        '7d_1': raw.cases7d1,
+        '7d_2': raw.cases7d2,
+        '7d_3': raw.cases7d3,
+        '7d_4': raw.cases7d4,
+        '7d_5': raw.cases7d5,
+        '7d_6': raw.cases7d6,
+        '7d_7': raw.cases7d7,
+        '7d_8': raw.cases7d8,
+        '7d_9': raw.cases7d9,
         dreame_0: raw.casesDreame0,
         dreame_1: raw.casesDreame1,
         dreame_2: raw.casesDreame2,
@@ -512,6 +522,37 @@ export class AssetManager {
     return directions;
   }
 
+  /**
+   * Парсинг normal map атласа персонажа (2560x512, 5 направлений → 8 через mirror)
+   */
+  parseCharacterNormalAtlas(baseTexture) {
+    const tileSize = 512;
+    const textures = [];
+
+    for (let col = 0; col < 5; col++) {
+      const frame = new Rectangle(col * tileSize, 0, tileSize, tileSize);
+      textures.push(new Texture({
+        source: baseTexture.source,
+        frame: frame,
+        orig: frame,
+      }));
+    }
+
+    const directions = {
+      'down': textures[0],
+      'down-right': textures[1],
+      'down-left': textures[1],  // mirror handled by filter
+      'right': textures[2],
+      'left': textures[2],
+      'up-right': textures[3],
+      'up-left': textures[3],
+      'up': textures[4],
+    };
+
+    console.log(`  -> Parsed character normal atlas: 8 directions`);
+    return directions;
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // ПРОВЕРКИ СОСТОЯНИЯ
   // ═══════════════════════════════════════════════════════════════
@@ -549,6 +590,10 @@ export class AssetManager {
     return this.bundles.main.data?.buildings || {};
   }
 
+  getBuildingNormalTiles() {
+    return this.bundles.main.data?.buildingsNormal || {};
+  }
+
   getTreeTiles() {
     return this.bundles.main.data?.trees || { bushes: [], trees: [] };
   }
@@ -559,6 +604,10 @@ export class AssetManager {
 
   getCharacterTextures() {
     return this.bundles.main.data?.character || {};
+  }
+
+  getCharacterNormalTextures() {
+    return this.bundles.main.data?.characterNormal || {};
   }
 
   getUfoTexture() {
@@ -572,14 +621,6 @@ export class AssetManager {
   // ═══════════════════════════════════════════════════════════════
   // ГЕТТЕРЫ ДЛЯ СЦЕНЫ КЕЙСОВ (cases bundle)
   // ═══════════════════════════════════════════════════════════════
-
-  getCasesFrameTexture() {
-    return this.bundles.cases.data?.casesFrame || null;
-  }
-
-  getCasesFloorTexture() {
-    return this.bundles.cases.data?.casesFloor || null;
-  }
 
   getCaseScreenMedia(key) {
     return this.bundles.cases.data?.caseScreens?.[key] || null;

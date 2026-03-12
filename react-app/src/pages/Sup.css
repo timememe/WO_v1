@@ -286,6 +286,16 @@
 .sup-sega-stat.is-hunger { --stat-color: #55ff55; }
 .sup-sega-stat.is-fun { --stat-color: #ffdd55; }
 .sup-sega-stat.is-social { --stat-color: #ff77aa; }
+.sup-sega-stat.is-work { --stat-color: #aa88ff; }
+.sup-sega-stat.is-money { --stat-color: #55ff99; }
+
+.sup-sega-money {
+  font-size: 0.65rem;
+  color: #55ff99;
+  text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+  letter-spacing: 0.05em;
+  min-width: 40px;
+}
 
 /* SEGA GENESIS DAY TIMER - Below status bars */
 .sup-sega-timer {

@@ -38,6 +38,8 @@ export const LOCALES = {
       hunger: 'Hunger',
       fun: 'Fun',
       social: 'Social',
+      money: 'Money',
+      work: 'Work',
     },
 
     // ── Кейсы ──
@@ -60,9 +62,14 @@ export const LOCALES = {
         category: 'NCP Campaign Development',
         slides: [
           'Developed a Telegram bot for the 7DAYS campaign with a set of activities.',
-          'With bot access to offline vending machines.',
-          'And getting croissants at 7DAYS coffee stops.',
-          'Also built the backend to collect stats and winners.',
+          'The bot unified all campaign mechanics — from offline to games and receipt validation.',
+          'You could even access the bot at bus stops.',
+          'Through the bot, players got access to a vending machine.',
+          'And received free coffee with a croissant at coffee stops.',
+          'The bot let you hum the campaign jingle.',
+          'Plus play a couple of games and find out what croissant you are.',
+          'In a month and a half we gave away 27,000 croissants.',
+          'But in return we got 33k participants and 15k active bot users.',
         ],
       },
       dreame: {
@@ -343,6 +350,8 @@ export const LOCALES = {
       hunger: 'Голод',
       fun: 'Веселье',
       social: 'Общение',
+      money: 'Деньги',
+      work: 'Работа',
     },
 
     // ── Кейсы ──
@@ -365,9 +374,14 @@ export const LOCALES = {
         category: 'Разработка NCP кампаний',
         slides: [
           'Разработал телеграм бота для кампании 7DAYS с набором активностей.',
-          'С доступом через бота к оффлайн автоматам.',
-          'И получением круассанов у кофе-стопов 7DAYS.',
-          'Бекенд тоже разработал, чтобы собрать стату и победителей.',
+          'Бот объединял все механики кампании – от оффлайна до игр и валидации чеков',
+          'Получить доступ к боту можно было даже на остановках',
+          'Через бота игроки получали доступ к игровому автомату',
+          'И получали бесплатный кофе с круассаном на кофе-стопах',
+          'В боте можно было напеть джингл всей кампании',
+          'А также сыграть в пару игр и узнать какой ты круассан',
+          'За полтора месяца мы раздали 27 000 круассанов',
+          'Но за них получили 33к участников и 15к активных юзеров бота',
         ],
       },
       dreame: {

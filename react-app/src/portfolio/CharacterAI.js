@@ -53,6 +53,15 @@ export class CharacterAI {
     // Активная скорость (модифицируется временем суток)
     this.needsDecayRate = { ...this.baseNeedsDecayRate };
 
+    // ═══════════════════════════════════════════════════════════════
+    // ЭКОНОМИКА: ДЕНЬГИ И ПРОГРЕСС РАБОТЫ
+    // ═══════════════════════════════════════════════════════════════
+    this.money = 50;                 // Начальный баланс
+    this.workProgress = 0;           // Прогресс текущего проекта (0-100)
+    this.salaryPerProject = 35;      // Зарплата за завершённый проект
+    this.mealCost = 15;              // Стоимость еды
+    this.workProgressPerHour = 10;    // 1 час работы = 10% (1 ячейка шкалы)
+
     // Текущее состояние персонажа
     this.currentState = 'idle'; // idle, walking, performing_action, speaking
 
@@ -417,9 +426,12 @@ export class CharacterAI {
         totalGameMinutes: this.totalGameMinutes,
         // Потребности
         needs: { ...this.needs },
+        // Экономика
+        money: this.money,
+        workProgress: this.workProgress,
         // Метаданные
         lastSaveTime: Date.now(),
-        version: 1,
+        version: 2,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (e) {
@@ -438,8 +450,8 @@ export class CharacterAI {
 
       const state = JSON.parse(saved);
 
-      // Проверяем версию
-      if (state.version !== 1) {
+      // Проверяем версию (поддерживаем v1 и v2)
+      if (state.version !== 1 && state.version !== 2) {
         console.log('Incompatible save version, starting fresh');
         return;
       }
@@ -459,6 +471,10 @@ export class CharacterAI {
           social: state.needs.social ?? 100,
         };
       }
+
+      // Восстанавливаем экономику
+      this.money = state.money ?? 50;
+      this.workProgress = state.workProgress ?? 0;
 
       // Вычисляем сколько времени прошло с последнего сохранения
       if (state.lastSaveTime) {
@@ -506,6 +522,8 @@ export class CharacterAI {
     this.gameDay = 1;
     this.totalGameMinutes = 0;
     this.needs = { energy: 100, hunger: 100, fun: 100, social: 100 };
+    this.money = 50;
+    this.workProgress = 0;
     this.updateTimeOfDay();
     console.log('State reset to defaults');
   }
@@ -523,6 +541,15 @@ export class CharacterAI {
   // Обновление таймера действия (вызывается каждую игровую минуту)
   updateActionTimer() {
     if (this.currentState === 'performing_action' && this.actionRemainingMinutes > 0) {
+      // Инкрементальный прогресс работы каждую игровую минуту
+      if (this.currentActivity === 'work') {
+        this.workProgress += this.workProgressPerHour / 60;
+        if (this.workProgress >= 100) {
+          this.workProgress -= 100;
+          this.money += this.salaryPerProject;
+        }
+      }
+
       this.actionRemainingMinutes--;
       if (this.actionRemainingMinutes <= 0) {
         this.completeAction();
@@ -712,6 +739,13 @@ export class CharacterAI {
 
     const isDaytime = this.gameHour >= 6 && this.gameHour < 22;
 
+    // Если самая низкая потребность > 40 — идём работать (ничего не горит)
+    const lowestValue = sortedNeeds[0][1];
+    if (lowestValue > 40) {
+      this.startActivity('work');
+      return;
+    }
+
     // Перебираем потребности: выбираем первую подходящую
     for (const [need, value] of sortedNeeds) {
       const activity = needToActivity[need];
@@ -721,11 +755,17 @@ export class CharacterAI {
         continue;
       }
 
+      // Голодный но нет денег → идём работать вместо еды
+      if (activity === 'eat' && this.money < this.mealCost) {
+        this.startActivity('work');
+        return;
+      }
+
       this.startActivity(activity);
       return;
     }
 
-    // Если все потребности высокие — работаем
+    // Fallback — работаем
     this.startActivity('work');
   }
 
@@ -747,7 +787,7 @@ export class CharacterAI {
         targetLocation = this.locations.cases;
         break;
       case 'work':
-        targetLocation = Math.random() > 0.5 ? this.locations.projects : this.locations.cases;
+        targetLocation = this.locations.projects;
         break;
       default:
         return;
@@ -848,23 +888,35 @@ export class CharacterAI {
     const totalMinutes = scheduleItem ? scheduleItem.gameMinutes : 90;
     const durationHours = totalMinutes / 60;
 
-    switch (this.currentGoal.type) {
-      case 'home':
-        // Сон: ~12.5 энергии/час → 100 за 8ч
-        this.needs.energy = Math.min(100, this.needs.energy + durationHours * 12.5);
-        break;
-      case 'cafe':
-        // Еда: ~50/час → 37.5 за 0.75ч
-        this.needs.hunger = Math.min(100, this.needs.hunger + durationHours * 50);
-        break;
-      case 'projects':
-        // Развлечение: ~22/час
-        this.needs.fun = Math.min(100, this.needs.fun + durationHours * 22);
-        break;
-      case 'cases':
-        // Общение: ~22/час
-        this.needs.social = Math.min(100, this.needs.social + durationHours * 22);
-        break;
+    if (this.currentActivity === 'work') {
+      // Работа: прогресс уже начислен инкрементально в updateActionTimer
+      // Потребности НЕ восстанавливаются
+    } else {
+      // Отдых/еда/развлечения — восстанавливаем потребности
+      switch (this.currentGoal.type) {
+        case 'home':
+          // Сон: ~12.5 энергии/час → 100 за 8ч
+          this.needs.energy = Math.min(100, this.needs.energy + durationHours * 12.5);
+          break;
+        case 'cafe':
+          // Еда: тратим деньги, восстанавливаем сытость
+          if (this.money >= this.mealCost) {
+            this.money -= this.mealCost;
+            this.needs.hunger = Math.min(100, this.needs.hunger + durationHours * 50);
+          } else {
+            // Не хватает денег — ест что нашёл, слабый эффект
+            this.needs.hunger = Math.min(100, this.needs.hunger + durationHours * 15);
+          }
+          break;
+        case 'projects':
+          // Развлечение: ~22/час
+          this.needs.fun = Math.min(100, this.needs.fun + durationHours * 22);
+          break;
+        case 'cases':
+          // Общение: ~22/час
+          this.needs.social = Math.min(100, this.needs.social + durationHours * 22);
+          break;
+      }
     }
 
     // Скрываем баббл
@@ -1271,6 +1323,8 @@ export class CharacterAI {
         fun: Math.round(this.needs.fun),
         social: Math.round(this.needs.social),
       },
+      money: this.money,
+      workProgress: Math.round(this.workProgress),
       goal: this.currentGoal ? this.currentGoal.type : null,
       actionTimer: this.actionRemainingMinutes,
       // Информация о времени

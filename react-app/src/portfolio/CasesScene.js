@@ -20,7 +20,7 @@ const CASES_DATA = [
   },
   {
     localeKey: 'sevendays',
-    mediaKeys: ['case2', '7days_0', '7days_1', '7days_2', '7days_3'],
+    mediaKeys: ['case2', '7d_1', '7d_2', '7d_3', '7d_4', '7d_5', '7d_6', '7d_7', '7d_8', '7d_9'],
   },
   {
     localeKey: 'dreame',
@@ -216,13 +216,9 @@ export class CasesScene {
 
   loadAssets() {
     if (this.assetManager) {
-      this.wallTexture = this.assetManager.getCasesFrameTexture();
-      this.floorTexture = this.assetManager.getCasesFloorTexture();
-      console.log('CasesScene: Textures loaded from AssetManager');
+      console.log('CasesScene: Assets loaded from AssetManager');
     } else {
       console.error('CasesScene: AssetManager not provided');
-      this.wallTexture = null;
-      this.floorTexture = null;
     }
   }
 
@@ -1255,8 +1251,6 @@ export class CasesScene {
 
     this.tiles = [];
     this.parallaxLayers = [];
-    this.wallTexture = null;
-    this.floorTexture = null;
 
     // Clear references
     this.bubbleBg = null;

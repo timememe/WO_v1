@@ -828,6 +828,27 @@ export default function Sup() {
                   </div>
                 ))}
 
+                {/* MONEY & WORK PROGRESS */}
+                {aiStatus.money !== undefined && (
+                  <div className="sup-sega-stat is-money">
+                    <span className="sup-sega-label">{t.hud.money}</span>
+                    <span className="sup-sega-money">${aiStatus.money}</span>
+                  </div>
+                )}
+                {aiStatus.workProgress !== undefined && (
+                  <div className="sup-sega-stat is-work">
+                    <span className="sup-sega-label">{t.hud.work}</span>
+                    <div className="sup-sega-bar">
+                      {[...Array(10)].map((_, i) => (
+                        <span
+                          key={i}
+                          className={`sup-sega-cell ${i < Math.round(aiStatus.workProgress / 10) ? 'is-filled' : ''}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* SEGA-STYLE DAY TIMER */}
                 {debugInfo?.time && (
                   <div className="sup-sega-timer">
