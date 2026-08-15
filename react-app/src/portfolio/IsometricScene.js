@@ -1,4 +1,4 @@
-import { Graphics, Container, Sprite, Text } from 'pixi.js';
+import { Graphics, Container, Sprite, Text, Texture } from 'pixi.js';
 import { CharacterAI } from './CharacterAI';
 import { ObjectFactory } from './ObjectFactory';
 import { DepthLightFilter } from './DepthLightFilter';
@@ -18,6 +18,16 @@ export class IsometricScene {
     this.sortableContainer = new Container();
     this.sortableContainer.sortableChildren = true;
     this.sortableContainer.zIndex = 100; // Объекты всегда над озёрами
+
+    // Реестры размещённых спрайтов (для горячей замены спрайтшитов без
+    // пересоздания сцены — см. applyNew*Texture). Здания регистрируются по
+    // фиксированному ключу (тип), трава/деревья/кусты/камни — по индексу
+    // варианта, выбранному случайно в момент создания.
+    this.buildingSpriteRegistry = [];
+    this.grassSpriteRegistry = [];
+    this.treeSpriteRegistry = [];
+    this.bushSpriteRegistry = [];
+    this.rockSpriteRegistry = [];
 
     // ═══════════════════════════════════════════════════════════════
     // НАСТРОЙКИ СЕТКИ И ТАЙЛОВ ПОЛА
@@ -380,6 +390,10 @@ export class IsometricScene {
 
       // Равномерное масштабирование (сохраняем пропорции изометрического тайла)
       tileSprite.scale.set(this.grassTileScale);
+
+      // Тег + регистрация — для applyNewGrassTexture()
+      tileSprite.__variantIndex = tileIndex;
+      this.grassSpriteRegistry.push(tileSprite);
 
       tileContainer.addChild(tileSprite);
     } else {
@@ -2095,6 +2109,11 @@ export class IsometricScene {
     this.buildingTiles = null;
     this.treeTiles = null;
     this.rockTiles = null;
+    this.buildingSpriteRegistry = [];
+    this.grassSpriteRegistry = [];
+    this.treeSpriteRegistry = [];
+    this.bushSpriteRegistry = [];
+    this.rockSpriteRegistry = [];
     this.ufoTexture = null;
 
     // Удаляем контейнер из родителя и уничтожаем
@@ -2181,5 +2200,100 @@ export class IsometricScene {
     if (this.characterAI?.setLanguage) {
       this.characterAI.setLanguage(lang);
     }
+  }
+
+  // Горячая замена спрайтшита зданий на уже размещённых спрайтах — без
+  // пересоздания сцены/страницы. `blob` — PNG, тот же размер/раскладка
+  // атласа, что и оригинальный homes.png (2x2 сетки 512x512: home/cafe/
+  // cases/projects — см. AssetManager.parseBuildingsAtlas).
+  async applyNewBuildingsTexture(blob) {
+    if (this.isDestroyed || !this.assetManager) return false;
+
+    // Decode via createImageBitmap + Texture.from rather than Assets.load(url):
+    // a blob: URL has no file extension for Pixi's loader to sniff the type
+    // from, so going through Assets is unreliable here.
+    const bitmap = await createImageBitmap(blob);
+    const newTexture = Texture.from(bitmap);
+    const newTiles = this.assetManager.parseBuildingsAtlas(newTexture);
+
+    this.buildingTiles = newTiles;
+    for (const sprite of this.buildingSpriteRegistry) {
+      if (sprite.destroyed) continue;
+      const tex = newTiles[sprite.__buildingType];
+      if (tex) sprite.texture = tex;
+    }
+    return true;
+  }
+
+  // Горячая замена атласа травы (пол) — 1536x1536, 3x3 из 512x512.
+  async applyNewGrassTexture(blob) {
+    if (this.isDestroyed || !this.assetManager) return false;
+    const bitmap = await createImageBitmap(blob);
+    const newTexture = Texture.from(bitmap);
+    const newTiles = this.assetManager.parseGrassAtlas(newTexture);
+
+    this.grassTiles = newTiles;
+    for (const sprite of this.grassSpriteRegistry) {
+      if (sprite.destroyed) continue;
+      const tex = newTiles[sprite.__variantIndex];
+      if (tex) sprite.texture = tex;
+    }
+    return true;
+  }
+
+  // Горячая замена атласа деревьев/кустов — 1536x1024, верхний ряд кусты,
+  // нижний ряд деревья.
+  async applyNewTreesTexture(blob) {
+    if (this.isDestroyed || !this.assetManager) return false;
+    const bitmap = await createImageBitmap(blob);
+    const newTexture = Texture.from(bitmap);
+    const newTiles = this.assetManager.parseTreesAtlas(newTexture);
+
+    this.treeTiles = newTiles;
+    for (const sprite of this.treeSpriteRegistry) {
+      if (sprite.destroyed) continue;
+      const tex = newTiles.trees?.[sprite.__variantIndex];
+      if (tex) sprite.texture = tex;
+    }
+    for (const sprite of this.bushSpriteRegistry) {
+      if (sprite.destroyed) continue;
+      const tex = newTiles.bushes?.[sprite.__variantIndex];
+      if (tex) sprite.texture = tex;
+    }
+    return true;
+  }
+
+  // Горячая замена атласа камней — 1024x1024, 2x2 из 512x512.
+  async applyNewRocksTexture(blob) {
+    if (this.isDestroyed || !this.assetManager) return false;
+    const bitmap = await createImageBitmap(blob);
+    const newTexture = Texture.from(bitmap);
+    const newTiles = this.assetManager.parseRocksAtlas(newTexture);
+
+    this.rockTiles = newTiles;
+    for (const sprite of this.rockSpriteRegistry) {
+      if (sprite.destroyed) continue;
+      const tex = newTiles[sprite.__variantIndex];
+      if (tex) sprite.texture = tex;
+    }
+    return true;
+  }
+
+  // Горячая замена атласа персонажа — 2560x512, 5 направлений. В отличие от
+  // остальных категорий, реестр не нужен: this.characterSprites уже держит
+  // по одному постоянному спрайту на направление (переключение — это toggle
+  // видимости в setCharacterDirection, не пересоздание), так что просто
+  // переприсваиваем текстуры на месте.
+  async applyNewCharacterTexture(blob) {
+    if (this.isDestroyed || !this.assetManager) return false;
+    const bitmap = await createImageBitmap(blob);
+    const newTexture = Texture.from(bitmap);
+    const newData = this.assetManager.parseCharacterAtlas(newTexture);
+
+    for (const [direction, data] of Object.entries(newData)) {
+      const sprite = this.characterSprites?.[direction];
+      if (sprite && !sprite.destroyed) sprite.texture = data.texture;
+    }
+    return true;
   }
 }

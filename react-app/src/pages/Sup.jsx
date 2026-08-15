@@ -16,6 +16,20 @@ export default function Sup() {
   const [aiStatus, setAiStatus] = useState(null);
   const [debugInfo, setDebugInfo] = useState(null);
   const [showCrtControls, setShowCrtControls] = useState(false);
+  const [spriteCategory, setSpriteCategory] = useState('homes');
+  const [spriteTheme, setSpriteTheme] = useState('default');
+  const [spriteGenLoading, setSpriteGenLoading] = useState(false);
+  const [spriteGenError, setSpriteGenError] = useState(null);
+  const [spriteGenBlob, setSpriteGenBlob] = useState(null);
+  const [spriteGenCellPreview, setSpriteGenCellPreview] = useState(null);
+
+  const SPRITE_CATEGORIES = [
+    { id: 'homes', label: '🏠 Homes', apply: 'applyNewBuildingsTexture' },
+    { id: 'grass', label: '🌱 Grass', apply: 'applyNewGrassTexture' },
+    { id: 'trees', label: '🌳 Trees', apply: 'applyNewTreesTexture' },
+    { id: 'rocks', label: '🪨 Rocks', apply: 'applyNewRocksTexture' },
+    { id: 'character', label: '🧍 Character', apply: 'applyNewCharacterTexture' },
+  ];
   const [controllerMode, setControllerMode] = useState(false); // true = manual, false = AI
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [joystickActive, setJoystickActive] = useState(false);
@@ -256,6 +270,7 @@ export default function Sup() {
       mainSceneRef.current.setLanguage(lang);
       sceneRef.current = mainSceneRef.current;
       sceneTypeRef.current = 'main';
+      if (typeof window !== 'undefined') window.__woScene = mainSceneRef.current; // debug console hook
 
       if (enableCrtShader && !crtFilterRef.current) {
         const crtFilter = new CRTFilter({
@@ -588,6 +603,58 @@ export default function Sup() {
       aboutSceneRef.current.setLanguage(lang);
     }
   }, [lang]);
+
+  // Sprite Lab (debug-only): перегенерировать спрайтшит выбранной категории
+  // через агента и подменить его живьём на уже размещённых объектах, без
+  // релоада страницы.
+  const handleGenerateSprite = useCallback(async () => {
+    if (spriteGenLoading || !mainSceneRef.current) return;
+    const categoryDef = SPRITE_CATEGORIES.find((c) => c.id === spriteCategory);
+    if (!categoryDef) return;
+
+    setSpriteGenLoading(true);
+    setSpriteGenError(null);
+    setSpriteGenCellPreview(null);
+    try {
+      const res = await fetch('/api/sprite-generate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ category: spriteCategory, theme: spriteTheme }),
+        signal: AbortSignal.timeout(480000),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `HTTP ${res.status}`);
+      }
+      const previewHeader = res.headers.get('x-sprite-cell-preview');
+      const blob = await res.blob();
+      await mainSceneRef.current[categoryDef.apply]?.(blob);
+      setSpriteGenBlob(blob);
+      if (previewHeader) {
+        try {
+          setSpriteGenCellPreview(JSON.parse(decodeURIComponent(previewHeader)));
+        } catch { /* cosmetic only */ }
+      }
+    } catch (err) {
+      console.error('Sprite generation failed:', err);
+      setSpriteGenError(err.message || String(err));
+    } finally {
+      setSpriteGenLoading(false);
+    }
+  }, [spriteGenLoading, spriteCategory, spriteTheme]);
+
+  // Sprite Lab: скачать текущий превью-результат, чтобы решить и добавить в каталог
+  const handleSaveGeneratedSprite = useCallback(() => {
+    if (!spriteGenBlob) return;
+    const url = URL.createObjectURL(spriteGenBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${spriteCategory}_${spriteTheme}_${new Date().toISOString().replace(/[:.]/g, '-')}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, [spriteGenBlob, spriteCategory, spriteTheme]);
 
   // Переключение режима управления
   const handleControllerModeToggle = () => {
@@ -1366,6 +1433,69 @@ export default function Sup() {
                   </div>
                 </div>
               </div>
+              )}
+
+              {showCrtControls && (
+                <div className="sup-crt-controls">
+                  <div className="sup-crt-title">SPRITE LAB</div>
+
+                  <div className="sup-spritelab-row">
+                    {SPRITE_CATEGORIES.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className={`sup-crt-button ${spriteCategory === c.id ? 'is-active' : ''}`}
+                        onClick={() => setSpriteCategory(c.id)}
+                        disabled={spriteGenLoading}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="sup-spritelab-row">
+                    {['default', 'winter'].map((th) => (
+                      <button
+                        key={th}
+                        type="button"
+                        className={`sup-crt-button ${spriteTheme === th ? 'is-active' : ''}`}
+                        onClick={() => setSpriteTheme(th)}
+                        disabled={spriteGenLoading}
+                      >
+                        {th === 'winter' ? '❄️ Winter' : '☀️ Default'}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="sup-spritelab-row">
+                    <button
+                      type="button"
+                      className="sup-crt-button"
+                      onClick={handleGenerateSprite}
+                      disabled={spriteGenLoading}
+                    >
+                      {spriteGenLoading ? 'Generating… (~5-8 min)' : `✨ Regenerate ${spriteCategory}`}
+                    </button>
+                    <button
+                      type="button"
+                      className="sup-crt-button"
+                      onClick={handleSaveGeneratedSprite}
+                      disabled={!spriteGenBlob}
+                    >
+                      💾 Save this version
+                    </button>
+                  </div>
+                  {spriteGenError && (
+                    <div className="sup-spritelab-error">{spriteGenError}</div>
+                  )}
+                  {spriteGenCellPreview && (
+                    <ul className="sup-spritelab-preview">
+                      {spriteGenCellPreview.map((line, i) => (
+                        <li key={i}>{line}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               )}
 
               <div className="sup-menu">

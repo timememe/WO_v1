@@ -1,0 +1,13 @@
+# Local Cloudflare Pages secrets (wrangler pages dev) — never commit tokens
+.dev.vars
+.dev.vars.*
+
+# Wrangler local state
+.wrangler/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# OS
+.DS_Store

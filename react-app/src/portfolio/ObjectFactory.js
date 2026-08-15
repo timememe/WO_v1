@@ -77,32 +77,42 @@ export class ObjectFactory {
       const scale = scene.buildingSize / 512;
       buildingSprite.scale.set(scale);
       decorationContainer.addChild(buildingSprite);
+      // Тег + регистрация — чтобы applyNewBuildingsTexture() могла найти и
+      // обновить этот спрайт при горячей замене спрайтшита зданий.
+      buildingSprite.__buildingType = type;
+      if (scene.buildingSpriteRegistry) scene.buildingSpriteRegistry.push(buildingSprite);
     } else if (config && config.type === 'tree' && scene.treeTiles && scene.treeTiles.trees.length > 0) {
       const trees = scene.treeTiles.trees;
-      const texture = trees[Math.floor(Math.random() * trees.length)];
-      const treeSprite = new Sprite(texture);
+      const treeIndex = Math.floor(Math.random() * trees.length);
+      const treeSprite = new Sprite(trees[treeIndex]);
       treeSprite.anchor.set(scene.treeAnchorX, scene.treeAnchorY);
       const randomSize = scene.treeSizeMin + Math.random() * (scene.treeSizeMax - scene.treeSizeMin);
       const scale = randomSize / 512;
       treeSprite.scale.set(scale);
       decorationContainer.addChild(treeSprite);
+      treeSprite.__variantIndex = treeIndex;
+      if (scene.treeSpriteRegistry) scene.treeSpriteRegistry.push(treeSprite);
     } else if (config && config.type === 'bush' && scene.treeTiles && scene.treeTiles.bushes.length > 0) {
       const bushes = scene.treeTiles.bushes;
-      const texture = bushes[Math.floor(Math.random() * bushes.length)];
-      const bushSprite = new Sprite(texture);
+      const bushIndex = Math.floor(Math.random() * bushes.length);
+      const bushSprite = new Sprite(bushes[bushIndex]);
       bushSprite.anchor.set(scene.bushAnchorX, scene.bushAnchorY);
       const randomSize = scene.bushSizeMin + Math.random() * (scene.bushSizeMax - scene.bushSizeMin);
       const scale = randomSize / 512;
       bushSprite.scale.set(scale);
       decorationContainer.addChild(bushSprite);
+      bushSprite.__variantIndex = bushIndex;
+      if (scene.bushSpriteRegistry) scene.bushSpriteRegistry.push(bushSprite);
     } else if (config && config.type === 'rock' && scene.rockTiles && scene.rockTiles.length > 0) {
-      const texture = scene.rockTiles[Math.floor(Math.random() * scene.rockTiles.length)];
-      const rockSprite = new Sprite(texture);
+      const rockIndex = Math.floor(Math.random() * scene.rockTiles.length);
+      const rockSprite = new Sprite(scene.rockTiles[rockIndex]);
       rockSprite.anchor.set(scene.rockAnchorX, scene.rockAnchorY);
       const randomSize = scene.rockSizeMin + Math.random() * (scene.rockSizeMax - scene.rockSizeMin);
       const scale = randomSize / 512;
       rockSprite.scale.set(scale);
       decorationContainer.addChild(rockSprite);
+      rockSprite.__variantIndex = rockIndex;
+      if (scene.rockSpriteRegistry) scene.rockSpriteRegistry.push(rockSprite);
     } else if (config) {
       const placeholder = new Graphics();
       const size = config.size || 64;

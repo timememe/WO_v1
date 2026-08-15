@@ -1,4 +1,9 @@
 name = "world-order"
 compatibility_date = "2024-09-23"
+# Needed so the sprite-generation Function can fetch the VPS agent by its raw
+# IP (nip.io) directly, instead of Workers' default routing which blocks bare
+# IP fetches (error 1003). Same fix already used by the sibling "dealmap"
+# project — see AGENT_TOOLS/dealmap/memory/agent-integration.md.
+compatibility_flags = ["global_fetch_strictly_public"]
 
 pages_build_output_dir = "react-app/dist"

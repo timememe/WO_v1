@@ -5,6 +5,7 @@
  */
 
 import { getLocale } from '../i18n';
+import { fetchPhraseOfDay } from './aiPhrases';
 
 // Ключ для localStorage
 const STORAGE_KEY = 'tamagotchi_state';
@@ -92,6 +93,13 @@ export class CharacterAI {
 
     // Фразы загружаются из локализации
     this.loadPhrases();
+
+    // Пул ИИ-сгенерированных фраз (тех/игровые новости), обновляется раз в
+    // сутки на сервере (см. functions/api/phrase-of-day.js). Пуст, пока не
+    // загрузится или если агент недоступен — тогда getRandomPhrase() просто
+    // всегда берёт заготовленные фразы.
+    this.aiPhrasePool = [];
+    this.loadAiPhrasePool();
 
     // Целевая позиция для движения (float координаты)
     this.targetX = null;
@@ -307,6 +315,14 @@ export class CharacterAI {
 
   // Получить случайную фразу для текущего времени суток
   getRandomPhrase() {
+    // 50/50: сегодняшний ИИ-пул (тех/игровые новости) против заготовленных
+    // фраз ниже. Пока пул не загрузился (или агент недоступен) — только
+    // заготовленные, т.к. aiPhrasePool пуст.
+    if (this.aiPhrasePool.length && Math.random() < 0.5) {
+      const pool = this.aiPhrasePool;
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
     const roll = Math.random();
 
     // 40% — фраза по состоянию, 40% — по времени суток, 20% — общая
@@ -378,6 +394,18 @@ export class CharacterAI {
     this.statusSuffixes = char.statusSuffixes || [];
   }
 
+  // Подтянуть сегодняшний ИИ-пул (кэшируется на сервере на сутки, так что
+  // повторные заходы/смены языка в тот же день не бьют по агенту заново).
+  // Фоновая, не блокирует ничего — если не удалось, пул остаётся пустым.
+  async loadAiPhrasePool() {
+    try {
+      this.aiPhrasePool = await fetchPhraseOfDay(this.lang);
+    } catch (err) {
+      this.aiPhrasePool = [];
+      console.warn('AI phrase pool unavailable today, using scripted phrases only:', err.message);
+    }
+  }
+
   // Получить случайный текстовый статус для текущей активности
   getActivityStatusText(locationType) {
     const statuses = this.locale?.activityStatus;
@@ -406,9 +434,17 @@ export class CharacterAI {
 
   // Смена языка
   setLanguage(lang) {
+    const langChanged = lang !== this.lang;
     this.lang = lang;
     this.locale = getLocale(lang);
     this.loadPhrases();
+    // React re-fires the [lang]-dependent effect on mount too, so this runs
+    // once right after the constructor with the same lang — skip the refetch
+    // then, only reload the pool on an actual language switch.
+    if (langChanged) {
+      this.aiPhrasePool = [];
+      this.loadAiPhrasePool();
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════

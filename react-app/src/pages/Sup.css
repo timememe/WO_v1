@@ -452,6 +452,18 @@
   transform: translateY(-1px);
 }
 
+.sup-crt-button.is-active {
+  border-color: #4de3ff;
+  background: rgba(77, 227, 255, 0.18);
+  box-shadow: 0 0 10px rgba(77, 227, 255, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.sup-crt-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+  transform: none;
+}
+
 .sup-crt-group {
   display: grid;
   gap: 0.4rem;
@@ -526,6 +538,30 @@
 
 .sup-crt-slider:disabled {
   opacity: 0.4;
+}
+
+/* SPRITE LAB (debug-only asset generation) */
+.sup-spritelab-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.sup-spritelab-error {
+  font-size: 0.6rem;
+  color: #ff7a7a;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.sup-spritelab-preview {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.55rem;
+  color: #9fb0d8;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
 }
 
 /* Toggle rows */
