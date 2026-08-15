@@ -26,7 +26,21 @@
       "Bash(npx wrangler pages deploy:*)",
       "Bash(npx wrangler pages project create:*)",
       "Bash(npx wrangler pages domains add:*)",
-      "Bash(npx wrangler pages project list:*)"
+      "Bash(npx wrangler pages project list:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAI mode by default, Sega-style HUD, speech bubble for cases\n\n- Set controllerMode to false \\(AI\\) by default\n- Redesign status bars to Sega Genesis battery style with cells\n- Move status HUD to right side as vertical layout\n- CasesScene: replace dialog body with speech bubble over character\n- Add bubbleOffsetY setting for speech bubble positioning\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nCases UI improvements: Star Wars hologram frame, speech bubble nav, loreal assets\n\n- Add Star Wars style hologram frame for tile content \\(blue glow, scanlines, corner accents\\)\n- Add background panel for title/category with cyan border\n- Improve speech bubble navigation with visible background\n- Add loreal case images \\(4 slides\\)\n- Update localization with actual case descriptions \\(EN/RU\\)\n- Disable debug mode in CasesScene\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(npx vite build:*)",
+      "Bash(git commit:*)",
+      "Bash(bash:*)",
+      "Bash(npx react-scripts:*)",
+      "WebFetch(domain:pixijs.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(npm ls:*)",
+      "Bash(identify:*)",
+      "Bash(magick:*)",
+      "Bash(ffmpeg:*)"
     ],
     "deny": [],
     "ask": []
