@@ -2,6 +2,7 @@ import { Graphics, Container, Sprite, Text, Texture } from 'pixi.js';
 import { CharacterAI } from './CharacterAI';
 import { ObjectFactory } from './ObjectFactory';
 import { DepthLightFilter } from './DepthLightFilter';
+import { fetchWorldEvents } from './worldEvents';
 
 export class IsometricScene {
   constructor(app, rootContainer = null, assetManager = null) {
@@ -1744,6 +1745,47 @@ export class IsometricScene {
     return this.occupiedTiles.get(key) || null;
   }
 
+  // Загружает накопленный ИИ-агентом слой мира (/api/world-events) и
+  // расставляет объекты поверх сцены. Молча пропускается при недоступности —
+  // это косметический слой, не должен блокировать или ломать инициализацию.
+  async loadWorldEvents() {
+    try {
+      const { objects, todaysActions } = await fetchWorldEvents();
+
+      // Клетки, добавленные сегодня — их персонаж расставит сам (см. ниже),
+      // не проставляем их сразу вместе с остальным накопленным состоянием.
+      const todaysAdds = todaysActions.filter((a) => a.action === 'add');
+      const todaysAddKeys = new Set(todaysAdds.map((a) => `${a.x},${a.y}`));
+
+      for (const [key, type] of Object.entries(objects)) {
+        if (todaysAddKeys.has(key)) continue;
+        const [x, y] = key.split(',').map(Number);
+        if (Number.isNaN(x) || Number.isNaN(y)) continue;
+        this.sortableContainer.addChild(this.objectFactory.createDecoration(x, y, type));
+      }
+
+      this.runWorldEventQueue(todaysAdds);
+    } catch (err) {
+      console.warn('World events unavailable, skipping:', err.message);
+    }
+  }
+
+  // Проводит персонажа по сегодняшним новым объектам одному за другим —
+  // дошёл, поставил, пошёл к следующему. Если пути нет или AI ещё не создан,
+  // просто ставит объект на месте и переходит к следующему.
+  runWorldEventQueue(queue) {
+    if (!queue.length) return;
+    const [next, ...rest] = queue;
+
+    const place = () => {
+      this.sortableContainer.addChild(this.objectFactory.createDecoration(next.x, next.y, next.objectType));
+      this.runWorldEventQueue(rest);
+    };
+
+    const errandStarted = this.characterAI?.runErrand?.(next.x, next.y, place);
+    if (!errandStarted) place();
+  }
+
   getTicker() {
     return this.app?.gameTicker ?? this.app?.ticker;
   }
@@ -1778,6 +1820,9 @@ export class IsometricScene {
     Object.values(this.buildingLocations).forEach((location) => {
       this.sortableContainer.addChild(this.objectFactory.createDecoration(location.x, location.y, location.type));
     });
+
+    // Подгружаем накопленные изменения мира от ИИ-агента (не блокируя инициализацию сцены)
+    this.loadWorldEvents();
 
     // Добавляем случайную растительность вокруг активного поля
     this.objectFactory.createVegetation();

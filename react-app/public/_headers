@@ -1,0 +1,17 @@
+# Vite hashes JS/CSS filenames on content change, so those are safe to cache
+# long-term via Cloudflare Pages' defaults. Texture/image files under /assets
+# keep the same filename across deploys (they're copied as-is from public/),
+# so a long cache window means edge PoPs and browsers can keep serving the
+# pre-deploy bytes for hours after a reskin — see the case2.png?v=2 workaround
+# in AssetManager.js for a prior instance of this same bug.
+/assets/*.png
+  Cache-Control: public, max-age=300, must-revalidate
+
+/assets/*.jpg
+  Cache-Control: public, max-age=300, must-revalidate
+
+/assets/*.jpeg
+  Cache-Control: public, max-age=300, must-revalidate
+
+/assets/*.gif
+  Cache-Control: public, max-age=300, must-revalidate

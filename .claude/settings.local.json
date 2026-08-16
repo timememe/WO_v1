@@ -40,7 +40,8 @@
       "Bash(npm ls:*)",
       "Bash(identify:*)",
       "Bash(magick:*)",
-      "Bash(ffmpeg:*)"
+      "Bash(ffmpeg:*)",
+      "Bash(git pull *)"
     ],
     "deny": [],
     "ask": []

@@ -159,6 +159,7 @@ export class CharacterAI {
     this.currentPath = [];
     this.currentPathIndex = 0;
     this.entryTile = null;
+    this.pendingErrand = null; // { onArrive } — см. runErrand()
     this.lastSpeakCheck = Date.now(); // Даём время до первой проверки речи
     this.lastUpdateTime = Date.now(); // Для deltaTime
 
@@ -686,6 +687,19 @@ export class CharacterAI {
           this.startAction();
           return;
         }
+        // Разовое поручение (например, дойти и поставить объект от ИИ-агента) —
+        // не завязано на систему потребностей/расписания
+        if (this.pendingErrand) {
+          const onArrive = this.pendingErrand.onArrive;
+          this.pendingErrand = null;
+          onArrive?.();
+          // onArrive мог тут же назначить следующее поручение через runErrand()
+          // (currentState уже стал бы 'walking') — тогда idle не выставляем
+          if (this.currentState !== 'walking') {
+            this.currentState = 'idle';
+          }
+          return;
+        }
         // Иначе просто становимся idle
         this.currentState = 'idle';
         return;
@@ -803,6 +817,25 @@ export class CharacterAI {
 
     // Fallback — работаем
     this.startActivity('work');
+  }
+
+  // Разовое поручение: дойти до произвольной клетки (x,y) и по прибытии
+  // выполнить onArrive. В отличие от startActivity() не трогает
+  // currentGoal/entryTile/needs — персонаж просто идёт и возвращается
+  // к обычному AI-циклу. Возвращает false, если путь не найден.
+  runErrand(x, y, onArrive) {
+    const path = this.findPath(this.scene.playerX, this.scene.playerY, x, y);
+    if (!path.length) {
+      console.warn('World event errand: no path to', x, y);
+      return false;
+    }
+    this.currentPath = path;
+    this.currentPathIndex = 0;
+    this.targetX = path[0].x;
+    this.targetY = path[0].y;
+    this.currentState = 'walking';
+    this.pendingErrand = { onArrive };
+    return true;
   }
 
   // Начать активность (выбрать цель и начать движение)
