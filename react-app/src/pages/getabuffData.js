@@ -5,7 +5,6 @@
 
 export const UI = {
   ru: {
-    kicker: 'getabuff',
     titleBefore: 'Хочешь почувствовать себя ',
     titleEm: 'лучше',
     titleAfter: '?',
@@ -15,7 +14,6 @@ export const UI = {
     tiers: { common: 'Обычный', rare: 'Редкий', epic: 'Эпический', legendary: 'Легендарный' },
   },
   en: {
-    kicker: 'getabuff',
     titleBefore: 'Want to feel ',
     titleEm: 'better',
     titleAfter: '?',

@@ -76,7 +76,6 @@ export default function Getabuff() {
       </div>
 
       <main className="gb-main">
-        <div className="gb-kicker">{t.kicker}</div>
         <h1 className="gb-title">
           {t.titleBefore}
           <em>{t.titleEm}</em>

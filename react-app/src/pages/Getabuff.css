@@ -112,15 +112,6 @@
   gap: 34px;
 }
 
-.gb-kicker {
-  font-size: .68rem;
-  font-weight: 600;
-  letter-spacing: .34em;
-  text-transform: uppercase;
-  color: var(--gb-muted);
-  text-indent: .34em;
-}
-
 .getabuff .gb-title {
   margin: 0;
   font-family: var(--gb-serif);
