@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "layout": {
+    "columns": 2,
+    "rows": 2,
+    "sheetWidth": 1254,
+    "sheetHeight": 1254,
+    "cellWidth": 627,
+    "cellHeight": 627,
+    "origin": "top-left",
+    "cellOrder": ["top-left", "top-right", "bottom-left", "bottom-right"]
+  },
+  "sheets": [
+    {
+      "file": "getabuff-items-01.png",
+      "slots": [
+        { "item": "Стакан воды", "rarity": "common" },
+        { "item": "Пешая прогулка на 10 минут", "rarity": "common" },
+        { "item": "Открытое окно", "rarity": "common" },
+        { "item": "Заправленная кровать", "rarity": "common" }
+      ]
+    },
+    {
+      "file": "getabuff-items-02.png",
+      "slots": [
+        { "item": "Список из трёх дел", "rarity": "common" },
+        { "item": "Телефон в другой комнате", "rarity": "common" },
+        { "item": "Пять глубоких вдохов", "rarity": "common" },
+        { "item": "Свежие носки", "rarity": "common" }
+      ]
+    },
+    {
+      "file": "getabuff-items-03.png",
+      "slots": [
+        { "item": "Помытая посуда", "rarity": "common" },
+        { "item": "Приём пищи без экрана", "rarity": "common" },
+        { "item": "Будильник на 15 минут раньше", "rarity": "common" },
+        { "item": "Разобранный рабочий стол", "rarity": "common" }
+      ]
+    },
+    {
+      "file": "getabuff-items-04.png",
+      "slots": [
+        { "item": "Один разговор вслух", "rarity": "common" },
+        { "item": "Пятиминутная растяжка", "rarity": "common" },
+        { "item": "Камень социализации", "rarity": "rare" },
+        { "item": "Амулет отказа", "rarity": "rare" }
+      ]
+    },
+    {
+      "file": "getabuff-items-05.png",
+      "slots": [
+        { "item": "Восьмичасовой сон", "rarity": "rare" },
+        { "item": "Тренировка на 20 минут", "rarity": "rare" },
+        { "item": "Свиток завершения", "rarity": "rare" },
+        { "item": "Эликсир раннего часа", "rarity": "rare" }
+      ]
+    },
+    {
+      "file": "getabuff-items-06.png",
+      "slots": [
+        { "item": "Перчатки честного разговора", "rarity": "rare" },
+        { "item": "Плащ тишины", "rarity": "rare" },
+        { "item": "Кольцо уединения", "rarity": "rare" },
+        { "item": "Записная книжка благодарности", "rarity": "rare" }
+      ]
+    },
+    {
+      "file": "getabuff-items-07.png",
+      "slots": [
+        { "item": "Оберег покоя", "rarity": "rare" },
+        { "item": "Фляга полуденного привала", "rarity": "rare" },
+        { "item": "Печать финансовой ясности", "rarity": "epic" },
+        { "item": "Меч возвращённых часов", "rarity": "epic" }
+      ]
+    },
+    {
+      "file": "getabuff-items-08.png",
+      "slots": [
+        { "item": "Мантия ранних планов на выходные", "rarity": "epic" },
+        { "item": "Талисман здравия", "rarity": "epic" },
+        { "item": "Гримуар одной книги", "rarity": "epic" },
+        { "item": "Ключ от пустых полок", "rarity": "epic" }
+      ]
+    },
+    {
+      "file": "getabuff-items-09.png",
+      "slots": [
+        { "item": "Компас нового маршрута", "rarity": "epic" },
+        { "item": "Свиток примирения", "rarity": "epic" },
+        { "item": "Венец семи рассветов", "rarity": "legendary" },
+        { "item": "Реликвия ясного пути", "rarity": "legendary" }
+      ]
+    },
+    {
+      "file": "getabuff-items-10.png",
+      "slots": [
+        { "item": "Философский камень маленьких шагов", "rarity": "legendary" },
+        { "item": "Сердце прощения", "rarity": "legendary" },
+        { "item": "Печать родного голоса", "rarity": "legendary" },
+        null
+      ]
+    }
+  ]
+}

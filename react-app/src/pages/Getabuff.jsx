@@ -5,6 +5,22 @@ import './Getabuff.css';
 const LANGS = ['ru', 'en'];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Спрайтшиты: 2×2, порядок ячеек top-left, top-right, bottom-left, bottom-right.
+// Порядок предметов в BUFFS совпадает с public/assets/getabuff/spritesheets.json,
+// поэтому лист и ячейку считаем прямо из индекса.
+const SPRITE_BASE = '/assets/getabuff/';
+const SHEET_COUNT = Math.ceil(BUFFS.length / 4);
+const CELL_POS = ['0% 0%', '100% 0%', '0% 100%', '100% 100%'];
+
+const sheetUrl = (n) => `${SPRITE_BASE}getabuff-items-${String(n).padStart(2, '0')}.png`;
+
+function spriteStyle(idx) {
+  return {
+    backgroundImage: `url(${sheetUrl(Math.floor(idx / 4) + 1)})`,
+    backgroundPosition: CELL_POS[idx % 4],
+  };
+}
+
 function initLang() {
   try {
     const saved = localStorage.getItem('getabuff_lang');
@@ -16,12 +32,14 @@ function initLang() {
 
 export default function Getabuff() {
   const [lang, setLang] = useState(initLang);
-  const [current, setCurrent] = useState(null);
+  const [currentIdx, setCurrentIdx] = useState(null);
   const [rolling, setRolling] = useState(false);
   const [rolled, setRolled] = useState(false);
   const lastIdx = useRef(-1);
+  const preloaded = useRef(false);
 
   const t = UI[lang];
+  const current = currentIdx == null ? null : BUFFS[currentIdx];
 
   useEffect(() => {
     try { localStorage.setItem('getabuff_lang', lang); } catch { /* ignore */ }
@@ -31,6 +49,15 @@ export default function Getabuff() {
     const prev = document.title;
     document.title = 'getabuff';
     return () => { document.title = prev; };
+  }, []);
+
+  const preloadSheets = useCallback(() => {
+    if (preloaded.current) return;
+    preloaded.current = true;
+    for (let n = 1; n <= SHEET_COUNT; n++) {
+      const img = new Image();
+      img.src = sheetUrl(n);
+    }
   }, []);
 
   const pickIdx = useCallback(() => {
@@ -43,21 +70,22 @@ export default function Getabuff() {
 
   const spin = useCallback(async () => {
     if (rolling) return;
+    preloadSheets();
     setRolling(true);
 
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!reduceMotion) {
       for (let i = 0; i < 6; i++) {
-        setCurrent(BUFFS[Math.floor(Math.random() * BUFFS.length)]);
+        setCurrentIdx(Math.floor(Math.random() * BUFFS.length));
         // eslint-disable-next-line no-await-in-loop
         await sleep(58 + i * 24);
       }
     }
 
-    setCurrent(BUFFS[pickIdx()]);
+    setCurrentIdx(pickIdx());
     setRolled(true);
     setRolling(false);
-  }, [rolling, pickIdx]);
+  }, [rolling, pickIdx, preloadSheets]);
 
   return (
     <div className="getabuff">
@@ -89,6 +117,9 @@ export default function Getabuff() {
         <div className="gb-result" aria-live="polite">
           {current && (
             <div className={`gb-card${rolling ? ' is-rolling' : ''}`} style={{ '--tier': `var(--gb-${current.rarity})` }}>
+              <div className="gb-sprite-wrap">
+                <div className="gb-sprite" style={spriteStyle(currentIdx)} aria-hidden="true" />
+              </div>
               <div className="gb-tier">{t.tiers[current.rarity]}</div>
               <div className="gb-item">{current[lang].item}</div>
               <div className="gb-rule" />

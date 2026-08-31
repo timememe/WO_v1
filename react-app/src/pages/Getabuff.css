@@ -193,6 +193,27 @@
   animation: none;
 }
 
+/* ── item sprite (2×2 sheet, quadrant via background-position) ── */
+.gb-sprite-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+.gb-sprite {
+  width: 116px;
+  height: 116px;
+  background-repeat: no-repeat;
+  background-size: 200% 200%;
+  image-rendering: auto;
+  filter: drop-shadow(0 6px 14px rgba(20, 16, 10, .16));
+}
+@media (prefers-color-scheme: dark) {
+  .gb-sprite { filter: drop-shadow(0 8px 18px rgba(0, 0, 0, .55)); }
+}
+@media (max-width: 380px) {
+  .gb-sprite { width: 100px; height: 100px; }
+}
+
 .gb-tier {
   display: inline-flex;
   align-items: center;
