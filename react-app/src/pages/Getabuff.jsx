@@ -21,25 +21,61 @@ function spriteStyle(idx) {
   };
 }
 
+// Локальная дата (не UTC) — «один бафф в день» считаем по календарю пользователя.
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+function readParam(name) {
+  try {
+    return new URLSearchParams(window.location.search).get(name);
+  } catch {
+    return null;
+  }
+}
+
+function validIdx(v) {
+  const n = Number.parseInt(v, 10);
+  return Number.isInteger(n) && n >= 0 && n < BUFFS.length ? n : null;
+}
+
+function initDaily() {
+  try {
+    const { d, i } = JSON.parse(localStorage.getItem('getabuff_daily') || '{}');
+    if (d === todayKey()) return validIdx(i);
+  } catch { /* ignore */ }
+  return null;
+}
+
 function initLang() {
+  const q = readParam('lang');
+  if (q && LANGS.includes(q)) return q;
   try {
     const saved = localStorage.getItem('getabuff_lang');
     if (saved && LANGS.includes(saved)) return saved;
-  } catch { /* localStorage may be unavailable */ }
+  } catch { /* ignore */ }
   const browser = typeof navigator !== 'undefined' ? navigator.language?.slice(0, 2) : null;
   return LANGS.includes(browser) ? browser : 'ru';
 }
 
 export default function Getabuff() {
   const [lang, setLang] = useState(initLang);
-  const [currentIdx, setCurrentIdx] = useState(null);
+  const [sharedIdx] = useState(() => validIdx(readParam('b')));
+  const [dailyIdx, setDailyIdx] = useState(initDaily);
+  const [currentIdx, setCurrentIdx] = useState(() => {
+    const s = validIdx(readParam('b'));
+    return s != null ? s : initDaily();
+  });
   const [rolling, setRolling] = useState(false);
-  const [rolled, setRolled] = useState(false);
-  const lastIdx = useRef(-1);
+  const [copied, setCopied] = useState(false);
   const preloaded = useRef(false);
 
   const t = UI[lang];
   const current = currentIdx == null ? null : BUFFS[currentIdx];
+  const claimed = dailyIdx != null;
+  const mine = claimed && currentIdx === dailyIdx;
+  const showingShared = !mine && currentIdx != null && currentIdx === sharedIdx;
 
   useEffect(() => {
     try { localStorage.setItem('getabuff_lang', lang); } catch { /* ignore */ }
@@ -60,16 +96,8 @@ export default function Getabuff() {
     }
   }, []);
 
-  const pickIdx = useCallback(() => {
-    let i;
-    do { i = Math.floor(Math.random() * BUFFS.length); }
-    while (BUFFS.length > 1 && i === lastIdx.current);
-    lastIdx.current = i;
-    return i;
-  }, []);
-
   const spin = useCallback(async () => {
-    if (rolling) return;
+    if (rolling || dailyIdx != null) return;
     preloadSheets();
     setRolling(true);
 
@@ -77,15 +105,41 @@ export default function Getabuff() {
     if (!reduceMotion) {
       for (let i = 0; i < 6; i++) {
         setCurrentIdx(Math.floor(Math.random() * BUFFS.length));
-        // eslint-disable-next-line no-await-in-loop
         await sleep(58 + i * 24);
       }
     }
 
-    setCurrentIdx(pickIdx());
-    setRolled(true);
+    const idx = Math.floor(Math.random() * BUFFS.length);
+    setCurrentIdx(idx);
+    setDailyIdx(idx);
+    try {
+      localStorage.setItem('getabuff_daily', JSON.stringify({ d: todayKey(), i: idx }));
+    } catch { /* ignore */ }
+    try { window.history.replaceState(null, '', '/getabuff'); } catch { /* ignore */ }
     setRolling(false);
-  }, [rolling, pickIdx, preloadSheets]);
+  }, [rolling, dailyIdx, preloadSheets]);
+
+  const share = useCallback(async () => {
+    if (currentIdx == null) return;
+    const b = BUFFS[currentIdx][lang];
+    const url = `${window.location.origin}/getabuff?b=${currentIdx}&lang=${lang}`;
+    const text = t.shareText.replace('{item}', b.item).replace('{buff}', b.buff);
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'getabuff', text, url });
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+    }
+    try {
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.prompt(t.share, `${text}\n${url}`);
+    }
+  }, [currentIdx, lang, t]);
 
   return (
     <div className="getabuff">
@@ -110,13 +164,14 @@ export default function Getabuff() {
           {t.titleAfter}
         </h1>
 
-        <button type="button" className="gb-btn" onClick={spin} disabled={rolling}>
-          <span>{t.roll}</span>
+        <button type="button" className="gb-btn" onClick={spin} disabled={rolling || claimed}>
+          <span>{claimed ? t.claimed : t.roll}</span>
         </button>
 
         <div className="gb-result" aria-live="polite">
           {current && (
             <div className={`gb-card${rolling ? ' is-rolling' : ''}`} style={{ '--tier': `var(--gb-${current.rarity})` }}>
+              {showingShared && <div className="gb-note">{t.sharedNote}</div>}
               <div className="gb-sprite-wrap">
                 <div className="gb-sprite" style={spriteStyle(currentIdx)} aria-hidden="true" />
               </div>
@@ -129,9 +184,14 @@ export default function Getabuff() {
           )}
         </div>
 
-        {rolled && !rolling && (
-          <button type="button" className="gb-again" onClick={spin}>
-            {t.again}
+        {mine && !rolling && (
+          <button type="button" className={`gb-share${copied ? ' is-copied' : ''}`} onClick={share}>
+            {copied ? t.copied : t.share}
+          </button>
+        )}
+        {claimed && !mine && !rolling && (
+          <button type="button" className="gb-again" onClick={() => setCurrentIdx(dailyIdx)}>
+            {t.showMine}
           </button>
         )}
       </main>

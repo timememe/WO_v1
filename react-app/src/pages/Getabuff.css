@@ -232,6 +232,15 @@
   background: currentColor;
 }
 
+.gb-note {
+  margin-bottom: 16px;
+  font-size: .68rem;
+  font-weight: 600;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--gb-muted);
+}
+
 .gb-item {
   font-family: var(--gb-serif);
   font-weight: 500;
@@ -262,6 +271,28 @@
   color: var(--gb-muted);
   text-wrap: balance;
 }
+
+/* ── share (replaces the old re-roll button) ── */
+.getabuff .gb-share {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--gb-sans);
+  font-size: .82rem;
+  font-weight: 500;
+  letter-spacing: .02em;
+  color: var(--gb-fg);
+  border: 1px solid var(--gb-hair);
+  border-radius: 2px;
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: border-color .25s ease, color .25s ease;
+}
+.getabuff .gb-share:hover { border-color: var(--gb-fg); }
+.getabuff .gb-share.is-copied { border-color: var(--gb-fg); color: var(--gb-muted); }
+.getabuff .gb-share:focus-visible { outline: 2px solid var(--gb-fg); outline-offset: 3px; }
 
 /* ── secondary ── */
 .getabuff .gb-again {
