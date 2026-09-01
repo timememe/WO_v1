@@ -61,7 +61,7 @@ function initLang() {
     if (saved && LANGS.includes(saved)) return saved;
   } catch { /* ignore */ }
   const browser = typeof navigator !== 'undefined' ? navigator.language?.slice(0, 2) : null;
-  return LANGS.includes(browser) ? browser : 'ru';
+  return LANGS.includes(browser) ? browser : 'en';
 }
 
 export default function Getabuff() {

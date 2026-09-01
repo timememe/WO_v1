@@ -33,7 +33,7 @@ export async function onRequestGet(context) {
   const url = new URL(request.url);
 
   const langParam = url.searchParams.get('lang');
-  const lang = LANGS.includes(langParam) ? langParam : 'ru';
+  const lang = LANGS.includes(langParam) ? langParam : 'en';
   const idx = validIdx(url.searchParams.get('b'));
   const t = UI[lang];
 
