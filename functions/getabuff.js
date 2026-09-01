@@ -13,7 +13,7 @@
 
 import { BUFFS, UI } from '../react-app/src/pages/getabuffData.js';
 
-const LANGS = ['ru', 'en'];
+const LANGS = ['ru', 'en', 'es', 'fr', 'zh', 'hi', 'ar'];
 
 function esc(s) {
   return String(s)
@@ -49,9 +49,7 @@ export async function onRequestGet(context) {
     image = `${url.origin}/assets/getabuff/og/${String(idx).padStart(2, '0')}.jpg`;
   } else {
     title = 'getabuff';
-    desc = lang === 'en'
-      ? 'Want to feel better? One buff a day — a random item and a bonus to real life.'
-      : 'Хочешь почувствовать себя лучше? Один бафф в день — случайный предмет и бонус к реальной жизни.';
+    desc = (t && t.metaDesc) || UI.en.metaDesc;
     image = `${url.origin}/assets/getabuff/og/cover.jpg`;
   }
 
@@ -76,7 +74,9 @@ export async function onRequestGet(context) {
     `<meta name="description" content="${esc(desc)}">`,
   ].join('\n    ');
 
+  const htmlAttr = lang === 'ar' ? 'lang="ar" dir="rtl"' : `lang="${lang}"`;
   const out = html
+    .replace(/<html[^>]*>/, `<html ${htmlAttr}>`)
     .replace(/<title>[\s\S]*?<\/title>/, `<title>${esc(title)}</title>`)
     .replace('</head>', `    ${meta}\n  </head>`);
 

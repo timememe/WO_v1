@@ -1,6 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════
    getabuff — минималистичная страница-рулетка баффов.
    Всё под .getabuff, чтобы перебить глобальные button/h1/body стили сайта.
+   Раскладка: fixed-контейнер → внутренний скролл-слой → футер в потоке.
    ═══════════════════════════════════════════════════════════════ */
 
 .getabuff {
@@ -16,20 +17,19 @@
   --gb-epic: #7c6f96;
   --gb-legendary: #a8813f;
 
-  --gb-serif: "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
-  --gb-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --gb-serif: "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia,
+    "Noto Serif", "Songti SC", "Noto Serif CJK SC", "Noto Serif Devanagari",
+    "Noto Naskh Arabic", serif;
+  --gb-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "PingFang SC", "Microsoft YaHei", "Nirmala UI", "Noto Sans Arabic",
+    "Noto Sans", sans-serif;
 
   position: fixed;
   inset: 0;
   z-index: 100;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 24px 96px;
-  text-align: center;
   line-height: 1.55;
   font-family: var(--gb-sans);
   font-weight: 450;
@@ -59,7 +59,7 @@
 
 .getabuff::before {
   content: "";
-  position: fixed;
+  position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 1;
@@ -73,50 +73,74 @@
 
 .getabuff ::selection { background: var(--gb-fg); color: var(--gb-bg); }
 
-/* ── language switch ── */
-.gb-lang {
+/* ── language switch (native select) ── */
+.getabuff .gb-lang {
   position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 3;
-  display: flex;
-  gap: 2px;
-}
-.gb-lang button {
-  all: unset;
-  cursor: pointer;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  right: 12px;
+  z-index: 4;
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
   font-family: var(--gb-sans);
-  font-size: .72rem;
+  font-size: .76rem;
   font-weight: 600;
-  letter-spacing: .12em;
+  letter-spacing: .04em;
   color: var(--gb-muted);
-  padding: 6px 9px;
+  background-color: var(--gb-card);
+  border: 1px solid var(--gb-hair);
   border-radius: 2px;
-  transition: color .25s ease, background .25s ease;
+  padding: 7px 26px 7px 11px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237c7469' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  background-size: 9px 6px;
+  transition: color .2s ease, border-color .2s ease;
 }
-.gb-lang button:hover { color: var(--gb-fg); }
-.gb-lang button.is-active {
-  color: var(--gb-bg);
-  background: var(--gb-fg);
-}
-.gb-lang button:focus-visible { outline: 2px solid var(--gb-fg); outline-offset: 2px; }
+.getabuff .gb-lang:hover { color: var(--gb-fg); border-color: var(--gb-muted); }
+.getabuff .gb-lang:focus-visible { outline: 2px solid var(--gb-fg); outline-offset: 2px; }
+.getabuff .gb-lang option { color: initial; }
 
-.gb-main {
+.getabuff[dir="rtl"] .gb-lang {
+  right: auto;
+  left: 12px;
+  padding: 7px 11px 7px 26px;
+  background-position: left 9px center;
+}
+
+/* ── scroll layer: centres content, scrolls when it does not fit ── */
+.gb-scroll {
   position: relative;
   z-index: 2;
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
-  max-width: 468px;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 34px;
+  padding: clamp(60px, 9vh, 88px) 20px 28px;
+  text-align: center;
+  -webkit-overflow-scrolling: touch;
+}
+
+.gb-main {
+  width: 100%;
+  max-width: 468px;
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(24px, 5vh, 34px);
 }
 
 .getabuff .gb-title {
   margin: 0;
   font-family: var(--gb-serif);
   font-weight: 400;
-  font-size: clamp(2rem, 7.5vw, 2.9rem);
+  font-size: clamp(1.75rem, 6.6vw, 2.9rem);
   line-height: 1.14;
   letter-spacing: -0.015em;
   text-wrap: balance;
@@ -133,6 +157,10 @@
   position: relative;
   isolation: isolate;
   box-sizing: border-box;
+  display: inline-block;
+  max-width: 100%;
+  text-align: center;
+  line-height: 1.3;
   font-family: var(--gb-sans);
   font-size: .9rem;
   font-weight: 500;
@@ -140,7 +168,7 @@
   color: var(--gb-fg);
   border: 1px solid var(--gb-fg);
   border-radius: 2px;
-  padding: 15px 36px;
+  padding: 15px 34px;
   cursor: pointer;
   overflow: hidden;
   transition: color .4s cubic-bezier(.16, 1, .3, 1);
@@ -168,7 +196,7 @@
   background: var(--gb-card);
   border: 1px solid var(--gb-hair);
   border-radius: 6px;
-  padding: 36px 34px;
+  padding: 34px 32px;
   box-shadow:
     0 1px 1px rgba(20, 16, 10, .03),
     0 22px 60px -16px rgba(20, 16, 10, .12);
@@ -204,14 +232,10 @@
   height: 116px;
   background-repeat: no-repeat;
   background-size: 200% 200%;
-  image-rendering: auto;
   filter: drop-shadow(0 6px 14px rgba(20, 16, 10, .16));
 }
 @media (prefers-color-scheme: dark) {
   .gb-sprite { filter: drop-shadow(0 8px 18px rgba(0, 0, 0, .55)); }
-}
-@media (max-width: 380px) {
-  .gb-sprite { width: 100px; height: 100px; }
 }
 
 .gb-tier {
@@ -230,6 +254,7 @@
   height: 5px;
   border-radius: 50%;
   background: currentColor;
+  flex-shrink: 0;
 }
 
 .gb-note {
@@ -272,13 +297,14 @@
   text-wrap: balance;
 }
 
-/* ── share (replaces the old re-roll button) ── */
+/* ── share button (replaces the old re-roll) ── */
 .getabuff .gb-share {
   all: unset;
   box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  display: inline-block;
+  max-width: 100%;
+  text-align: center;
+  line-height: 1.3;
   font-family: var(--gb-sans);
   font-size: .82rem;
   font-weight: 500;
@@ -294,10 +320,11 @@
 .getabuff .gb-share.is-copied { border-color: var(--gb-fg); color: var(--gb-muted); }
 .getabuff .gb-share:focus-visible { outline: 2px solid var(--gb-fg); outline-offset: 3px; }
 
-/* ── secondary ── */
+/* ── secondary text button ── */
 .getabuff .gb-again {
   all: unset;
   cursor: pointer;
+  text-align: center;
   font-family: var(--gb-sans);
   font-size: .82rem;
   color: var(--gb-muted);
@@ -310,16 +337,43 @@
 .getabuff .gb-again:hover { color: var(--gb-fg); text-decoration-color: var(--gb-muted); }
 .getabuff .gb-again:focus-visible { outline: 2px solid var(--gb-fg); outline-offset: 3px; }
 
+/* ── footer (in flow, clears the notch) ── */
 .gb-footer {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 20px;
+  position: relative;
   z-index: 2;
+  flex: 0 0 auto;
+  padding: 14px 20px;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  text-align: center;
   font-size: .7rem;
   letter-spacing: .16em;
   text-transform: uppercase;
   color: var(--gb-muted);
+}
+
+/* ── script-specific typographic cleanup ── */
+.getabuff[lang="hi"] .gb-tier,
+.getabuff[lang="hi"] .gb-note,
+.getabuff[lang="hi"] .gb-footer,
+.getabuff[dir="rtl"] .gb-tier,
+.getabuff[dir="rtl"] .gb-note,
+.getabuff[dir="rtl"] .gb-footer {
+  letter-spacing: normal;
+}
+.getabuff[dir="rtl"] .gb-tier,
+.getabuff[dir="rtl"] .gb-note,
+.getabuff[dir="rtl"] .gb-footer {
+  text-transform: none;
+}
+.getabuff[dir="rtl"] .gb-title em { font-style: normal; }
+
+/* ── phones ── */
+@media (max-width: 480px) {
+  .gb-main { gap: 26px; }
+  .gb-card { padding: 26px 20px; }
+  .gb-item { font-size: 1.3rem; }
+  .gb-sprite { width: 104px; height: 104px; }
+  .getabuff .gb-btn { padding: 14px 26px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

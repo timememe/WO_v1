@@ -2,7 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { BUFFS, UI } from './getabuffData';
 import './Getabuff.css';
 
-const LANGS = ['ru', 'en'];
+const LANGS = ['ru', 'en', 'es', 'fr', 'zh', 'hi', 'ar'];
+const LANG_NAMES = {
+  ru: 'Русский', en: 'English', es: 'Español', fr: 'Français',
+  zh: '中文', hi: 'हिन्दी', ar: 'العربية',
+};
+const RTL = new Set(['ar']);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Спрайтшиты: 2×2, порядок ячеек top-left, top-right, bottom-left, bottom-right.
@@ -72,6 +77,7 @@ export default function Getabuff() {
   const preloaded = useRef(false);
 
   const t = UI[lang];
+  const rtl = RTL.has(lang);
   const current = currentIdx == null ? null : BUFFS[currentIdx];
   const claimed = dailyIdx != null;
   const mine = claimed && currentIdx === dailyIdx;
@@ -142,59 +148,58 @@ export default function Getabuff() {
   }, [currentIdx, lang, t]);
 
   return (
-    <div className="getabuff">
-      <div className="gb-lang" role="group" aria-label="Language">
+    <div className="getabuff" dir={rtl ? 'rtl' : 'ltr'} lang={lang}>
+      <select
+        className="gb-lang"
+        aria-label="Language"
+        value={lang}
+        onChange={(e) => setLang(e.target.value)}
+      >
         {LANGS.map((l) => (
-          <button
-            key={l}
-            type="button"
-            className={l === lang ? 'is-active' : ''}
-            aria-pressed={l === lang}
-            onClick={() => setLang(l)}
-          >
-            {l.toUpperCase()}
-          </button>
+          <option key={l} value={l}>{LANG_NAMES[l]}</option>
         ))}
-      </div>
+      </select>
 
-      <main className="gb-main">
-        <h1 className="gb-title">
-          {t.titleBefore}
-          <em>{t.titleEm}</em>
-          {t.titleAfter}
-        </h1>
+      <div className="gb-scroll">
+        <main className="gb-main">
+          <h1 className="gb-title">
+            {t.titleBefore}
+            <em>{t.titleEm}</em>
+            {t.titleAfter}
+          </h1>
 
-        <button type="button" className="gb-btn" onClick={spin} disabled={rolling || claimed}>
-          <span>{claimed ? t.claimed : t.roll}</span>
-        </button>
+          <button type="button" className="gb-btn" onClick={spin} disabled={rolling || claimed}>
+            <span>{claimed ? t.claimed : t.roll}</span>
+          </button>
 
-        <div className="gb-result" aria-live="polite">
-          {current && (
-            <div className={`gb-card${rolling ? ' is-rolling' : ''}`} style={{ '--tier': `var(--gb-${current.rarity})` }}>
-              {showingShared && <div className="gb-note">{t.sharedNote}</div>}
-              <div className="gb-sprite-wrap">
-                <div className="gb-sprite" style={spriteStyle(currentIdx)} aria-hidden="true" />
+          <div className="gb-result" aria-live="polite">
+            {current && (
+              <div className={`gb-card${rolling ? ' is-rolling' : ''}`} style={{ '--tier': `var(--gb-${current.rarity})` }}>
+                {showingShared && <div className="gb-note">{t.sharedNote}</div>}
+                <div className="gb-sprite-wrap">
+                  <div className="gb-sprite" style={spriteStyle(currentIdx)} aria-hidden="true" />
+                </div>
+                <div className="gb-tier">{t.tiers[current.rarity]}</div>
+                <div className="gb-item">{current[lang].item}</div>
+                <div className="gb-rule" />
+                <p className="gb-buff">{current[lang].buff}</p>
+                <p className="gb-flavor">{current[lang].flavor}</p>
               </div>
-              <div className="gb-tier">{t.tiers[current.rarity]}</div>
-              <div className="gb-item">{current[lang].item}</div>
-              <div className="gb-rule" />
-              <p className="gb-buff">{current[lang].buff}</p>
-              <p className="gb-flavor">{current[lang].flavor}</p>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
 
-        {mine && !rolling && (
-          <button type="button" className={`gb-share${copied ? ' is-copied' : ''}`} onClick={share}>
-            {copied ? t.copied : t.share}
-          </button>
-        )}
-        {claimed && !mine && !rolling && (
-          <button type="button" className="gb-again" onClick={() => setCurrentIdx(dailyIdx)}>
-            {t.showMine}
-          </button>
-        )}
-      </main>
+          {mine && !rolling && (
+            <button type="button" className={`gb-share${copied ? ' is-copied' : ''}`} onClick={share}>
+              {copied ? t.copied : t.share}
+            </button>
+          )}
+          {claimed && !mine && !rolling && (
+            <button type="button" className="gb-again" onClick={() => setCurrentIdx(dailyIdx)}>
+              {t.showMine}
+            </button>
+          )}
+        </main>
+      </div>
 
       <footer className="gb-footer">{t.footer}</footer>
     </div>
